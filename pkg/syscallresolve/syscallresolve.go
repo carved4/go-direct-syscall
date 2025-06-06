@@ -170,8 +170,6 @@ func GetModuleBase(moduleHash uint32) uintptr {
 			continue
 		}
 		
-		fmt.Printf("Successfully got PEB at 0x%X, Ldr at 0x%X\n", uintptr(unsafe.Pointer(peb)), uintptr(unsafe.Pointer(peb.Ldr)))
-	
 		// Get the head of the InLoadOrderModuleList
 		entry := &peb.Ldr.InLoadOrderModuleList
 		currentEntry := entry.Flink
@@ -193,15 +191,11 @@ func GetModuleBase(moduleHash uint32) uintptr {
 			// Get the module name
 			baseName := UTF16ToString(dataTableEntry.BaseDllName.Buffer)
 			
-			// Debug: print all modules we find
-			fmt.Printf("Found module: %s (base: 0x%X)\n", baseName, dataTableEntry.DllBase)
-			
 			// Calculate the hash of the module name
 			currentHash := obf.DBJ2HashStr(baseName)
 			
 			// If the hash matches, return the module base
 			if currentHash == moduleHash {
-				fmt.Printf("Hash match for %s! Hash: 0x%X\n", baseName, currentHash)
 				moduleBase = dataTableEntry.DllBase
 				break
 			}
@@ -257,7 +251,6 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// OptionalHeader starts at offset 24 from PE signature
 	sizeOfImage := *(*uint32)(unsafe.Pointer(moduleBase + uintptr(peOffset) + 24 + 56))
 	
-	fmt.Printf("PE SizeOfImage: %d bytes\n", sizeOfImage)
 	
 	// Create a memory reader for the PE file with the correct size
 	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(moduleBase)), sizeOfImage)
@@ -331,8 +324,6 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 		return 0
 	}
 	
-	fmt.Printf("Found ntdll.dll at: 0x%X\n", ntdllBase)
-
 	// Get the address of the syscall function using PE parsing (no GetProcAddress)
 	var funcAddr uintptr
 	
@@ -350,7 +341,6 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 		return 0
 	}
 	
-	fmt.Printf("Found function at: 0x%X\n", funcAddr)
 
 	// The syscall number is at offset 4 in the syscall stub for x64
 	// The typical pattern is:
@@ -361,7 +351,6 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 	// 11: 0f 05                syscall
 	// 13: c3                   ret
 	syscallNumber := *(*uint16)(unsafe.Pointer(funcAddr + 4))
-	fmt.Printf("Extracted syscall number: %d\n", syscallNumber)
 	return syscallNumber
 }
 

