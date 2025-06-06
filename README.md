@@ -2,6 +2,48 @@
 
 A Go library providing **TRUE direct Windows API syscalls** using external assembly and PE parsing. This library enables developers to call any Windows API function directly through syscalls, bypassing traditional API hooking points.
 
+## Table of Contents
+
+- [Features](#features)
+- [Demo](#demo)
+- [Quick Start](#quick-start)
+  - [Installation](#installation)
+  - [Basic Usage](#basic-usage)
+- [API Reference](#api-reference)
+  - [Core Functions](#core-functions)
+  - [Common API Functions](#common-api-functions)
+  - [Utility Functions](#utility-functions)
+  - [NT Status Code Helpers](#nt-status-code-helpers)
+- [Syscall Discovery & Analysis](#syscall-discovery--analysis)
+  - [DumpAllSyscalls Feature](#dumpalllsyscalls-feature)
+- [Build Requirements](#build-requirements)
+  - [Prerequisites](#prerequisites)
+  - [Build Process](#build-process)
+- [How It Works](#how-it-works)
+  - [Architecture](#architecture)
+  - [Direct Syscall Flow](#direct-syscall-flow)
+  - [Assembly Function](#assembly-function)
+- [Use Cases](#use-cases)
+  - [Security Research](#security-research)
+  - [System Programming](#system-programming)
+  - [Stealth Operations](#stealth-operations)
+- [Using the WinAPI Library](#using-the-winapi-library)
+  - [Basic Memory Operations](#basic-memory-operations)
+  - [Process Manipulation](#process-manipulation)
+  - [Thread Creation and Injection](#thread-creation-and-injection)
+  - [Using Raw DirectSyscall for Any API](#using-raw-directsyscall-for-any-api)
+  - [Error Handling](#error-handling)
+  - [Important Notes](#important-notes)
+  - [Common NTSTATUS Values](#common-ntstatus-values)
+- [Security Considerations](#security-considerations)
+- [Examples](#examples)
+- [Testing](#testing)
+- [Detection](#detection)
+- [Contributing](#contributing)
+- [License](#license)
+- [Credits](#credits)
+- [Disclaimer](#disclaimer)
+
 ##  Features
 
 - **True Direct Syscalls**: Raw `syscall` instructions with manually resolved syscall numbers
