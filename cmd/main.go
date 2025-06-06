@@ -287,7 +287,6 @@ func main() {
 		})
 		
 		// Display to console
-		fmt.Printf("Found %d syscall functions:\n\n", len(syscalls))
 		fmt.Printf("%-4s %-40s %-12s %-16s\n", "SSN", "Function Name", "Hash", "Address")
 		fmt.Printf("%-4s %-40s %-12s %-16s\n", strings.Repeat("-", 4), strings.Repeat("-", 40), strings.Repeat("-", 12), strings.Repeat("-", 16))
 		

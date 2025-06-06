@@ -135,7 +135,6 @@ Hash match for ntdll.dll! Hash: 0x1EDAB0ED
 Found ntdll.dll at: 0x7FF87D2F0000
 PE SizeOfImage: 2064384 bytes
 Found 2435 exports in ntdll.dll
-Found 942 syscall functions
 Found 942 syscall functions:
 
 SSN  Function Name                            Hash         Address
