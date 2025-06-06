@@ -6,6 +6,7 @@ import (
 	"time"
 	"unsafe"
 	
+	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 	"github.com/carved4/go-direct-syscall/pkg/syscall"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
@@ -213,4 +214,149 @@ func NtReadFile(fileHandle uintptr, event uintptr, apcRoutine uintptr, apcContex
 		length,
 		uintptr(unsafe.Pointer(byteOffset)),
 		uintptr(unsafe.Pointer(key)))
+}
+
+// SyscallInfo holds information about a single syscall
+type SyscallInfo struct {
+	Name          string
+	Hash          uint32
+	SyscallNumber uint16
+	Address       uintptr
+}
+
+// DumpAllSyscalls enumerates all syscall functions from ntdll.dll and returns their information
+// This function uses the same logic as the existing pkg modules to discover and resolve syscalls
+func DumpAllSyscalls() ([]SyscallInfo, error) {
+	fmt.Printf("Starting syscall enumeration...\n")
+	
+	// Get the base address of ntdll.dll using the same logic as GetSyscallNumber
+	ntdllHash := obf.GetHash("ntdll.dll")
+	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
+	if ntdllBase == 0 {
+		return nil, fmt.Errorf("failed to get ntdll.dll base address")
+	}
+	
+	fmt.Printf("Found ntdll.dll at: 0x%X\n", ntdllBase)
+	
+	// Parse the PE file to get all exports (similar to GetFunctionAddress logic)
+	// Read the PE header to get the actual size of the image
+	dosHeader := (*[64]byte)(unsafe.Pointer(ntdllBase))
+	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
+		return nil, fmt.Errorf("invalid DOS signature")
+	}
+	
+	// Get the offset to the PE header
+	peOffset := *(*uint32)(unsafe.Pointer(ntdllBase + 60))
+	if peOffset >= 1024 {
+		return nil, fmt.Errorf("PE offset too large: %d", peOffset)
+	}
+	
+	// Read the PE header to get the SizeOfImage
+	peHeader := (*[1024]byte)(unsafe.Pointer(ntdllBase + uintptr(peOffset)))
+	if peHeader[0] != 'P' || peHeader[1] != 'E' {
+		return nil, fmt.Errorf("invalid PE signature")
+	}
+	
+	// SizeOfImage is at offset 56 from the start of the OptionalHeader
+	// OptionalHeader starts at offset 24 from PE signature
+	sizeOfImage := *(*uint32)(unsafe.Pointer(ntdllBase + uintptr(peOffset) + 24 + 56))
+	
+	fmt.Printf("PE SizeOfImage: %d bytes\n", sizeOfImage)
+	
+	// Create a memory reader for the PE file with the correct size
+	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(ntdllBase)), sizeOfImage)
+	
+	// Parse the PE file from memory using the same memoryReaderAt approach
+	memReader := &memoryReaderAt{data: dataSlice}
+	
+	// Use the debug/pe package to parse the file
+	file, err := pe.NewFileFromMemory(memReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PE file: %v", err)
+	}
+	defer file.Close()
+	
+	// Get all exports
+	exports, err := file.Exports()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exports: %v", err)
+	}
+	
+	fmt.Printf("Found %d exports in ntdll.dll\n", len(exports))
+	
+	var syscalls []SyscallInfo
+	
+	// Filter for syscall functions (those that start with "Nt" or "Zw")
+	for _, export := range exports {
+		if export.Name == "" {
+			continue
+		}
+		
+		// Check if this is a syscall function (starts with Nt or Zw)
+		if !(len(export.Name) > 2 && (export.Name[:2] == "Nt" || export.Name[:2] == "Zw")) {
+			continue
+		}
+		
+		// Get function address
+		funcAddr := ntdllBase + uintptr(export.VirtualAddress)
+		
+		// Calculate hash using the same obfuscation logic
+		funcHash := obf.GetHash(export.Name)
+		
+		// Try to extract syscall number
+		// The syscall number is at offset 4 in the syscall stub for x64
+		// The typical pattern is:
+		// 0:  4c 8b d1             mov    r10,rcx
+		// 3:  b8 XX XX 00 00       mov    eax,0xXXXX  <-- syscall number is here
+		// We need to check if this is actually a syscall stub
+		
+		var syscallNumber uint16
+		
+		// Check if the function starts with the expected syscall stub pattern
+		if funcAddr != 0 {
+			// Read first few bytes to check if it's a syscall stub
+			firstBytes := make([]byte, 16)
+			for i := 0; i < 16; i++ {
+				firstBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+			}
+			
+			// Check for typical syscall stub pattern: 4c 8b d1 b8 (mov r10,rcx; mov eax,XXXX)
+			if len(firstBytes) >= 8 && firstBytes[0] == 0x4c && firstBytes[1] == 0x8b && 
+			   firstBytes[2] == 0xd1 && firstBytes[3] == 0xb8 {
+				// Extract syscall number (little endian uint16 at offset 4)
+				syscallNumber = *(*uint16)(unsafe.Pointer(funcAddr + 4))
+			}
+		}
+		
+		// Only include functions that have valid syscall numbers
+		if syscallNumber > 0 {
+			syscallInfo := SyscallInfo{
+				Name:          export.Name,
+				Hash:          funcHash,
+				SyscallNumber: syscallNumber,
+				Address:       funcAddr,
+			}
+			syscalls = append(syscalls, syscallInfo)
+		}
+	}
+	
+	fmt.Printf("Found %d syscall functions\n", len(syscalls))
+	
+	return syscalls, nil
+}
+
+// memoryReaderAt implements io.ReaderAt for in-memory data (copied from syscallresolve logic)
+type memoryReaderAt struct {
+	data []byte
+}
+
+func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
+	if off < 0 || off >= int64(len(r.data)) {
+		return 0, fmt.Errorf("offset out of range")
+	}
+	n = copy(p, r.data[off:])
+	if n < len(p) {
+		err = fmt.Errorf("EOF")
+	}
+	return n, err
 } 
