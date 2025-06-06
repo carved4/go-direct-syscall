@@ -127,21 +127,25 @@ The library includes a powerful syscall enumeration feature that can discover an
 
 #### Console Output
 ```
-Dumping all available syscalls from ntdll.dll...
-================================================================================
-Found 450 syscall functions:
+Starting syscall enumeration...
+Successfully got PEB at 0x8DFAD6000, Ldr at 0x7FF87D45C4C0
+Found module: cmd.exe (base: 0x7FF719D70000)
+Found module: ntdll.dll (base: 0x7FF87D2F0000)
+Hash match for ntdll.dll! Hash: 0x1EDAB0ED
+Found ntdll.dll at: 0x7FF87D2F0000
+PE SizeOfImage: 2064384 bytes
+Found 2435 exports in ntdll.dll
+Found 942 syscall functions
+Found 942 syscall functions:
 
-SSN  Function Name                            Hash         Address         
----  ---------------------------------------- ------------ ----------------
-1    NtAcceptConnectPort                      0x12345678   0x7FF812340000  
-2    NtAccessCheck                            0x23456789   0x7FF812340100  
-24   NtAllocateVirtualMemory                  0xF783B8EC   0x7FF87D38D7E0
-24   ZwAllocateVirtualMemory                  0xB20C09DB   0x7FF87D38D7E0
-...
-
-Total syscalls found: 450
-✓ Syscall dump saved to: syscall_dump_20240101_143022.json
-✓ File size: 125.67 KB
+SSN  Function Name                            Hash         Address
+---- ---------------------------------------- ------------ ----------------
+1    ZwWorkerFactoryWorkerReady               0x1F4EFAF7   0x7FF87D38D500
+1    NtWorkerFactoryWorkerReady               0xE5659C68   0x7FF87D38D500
+2    ZwAcceptConnectPort                      0x59025CF5   0x7FF87D38D520
+2    NtAcceptConnectPort                      0x44832B86   0x7FF87D38D520
+3    ZwMapUserPhysicalPagesScatter            0xEEA7A3F6   0x7FF87D38D540
+3    NtMapUserPhysicalPagesScatter            0x5D849BC7   0x7FF87D38D540
 ```
 
 #### JSON Export Structure
@@ -150,28 +154,43 @@ The dump automatically generates a timestamped JSON file with complete syscall i
 
 ```json
 {
-  "timestamp": "2024-01-01T14:30:22-05:00",
+  "timestamp": "2025-06-06T12:20:11-04:00",
   "system_info": {
     "os": "Windows",
     "architecture": "x64",
-    "ntdll_base": "0x7FF87D340000"
+    "ntdll_base": "0x7FF87D380000"
   },
   "syscalls": [
     {
-      "Name": "NtAllocateVirtualMemory",
-      "Hash": 4158893292,
-      "SyscallNumber": 24,
-      "Address": 140702076348384
+      "Name": "ZwWorkerFactoryWorkerReady",
+      "Hash": 525269751,
+      "SyscallNumber": 1,
+      "Address": 140705229493504
     },
     {
-      "Name": "ZwAllocateVirtualMemory", 
-      "Hash": 2987461339,
-      "SyscallNumber": 24,
-      "Address": 140702076348384
-    }
-  ],
-  "total_count": 450
-}
+      "Name": "NtWorkerFactoryWorkerReady",
+      "Hash": 3848641640,
+      "SyscallNumber": 1,
+      "Address": 140705229493504
+    },
+    {
+      "Name": "ZwAcceptConnectPort",
+      "Hash": 1493327093,
+      "SyscallNumber": 2,
+      "Address": 140705229493536
+    },
+    {
+      "Name": "NtAcceptConnectPort",
+      "Hash": 1149447046,
+      "SyscallNumber": 2,
+      "Address": 140705229493536
+    },
+    {
+      "Name": "ZwMapUserPhysicalPagesScatter",
+      "Hash": 4003963894,
+      "SyscallNumber": 3,
+      "Address": 140705229493568
+    },
 ```
 
 #### Using DumpAllSyscalls Programmatically
