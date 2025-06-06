@@ -278,4 +278,78 @@ const (
 	THREAD_CREATE_FLAGS_HAS_SECURITY_DESCRIPTOR = 0x00000010
 	THREAD_CREATE_FLAGS_ACCESS_CHECK_IN_TARGET = 0x00000020
 	THREAD_CREATE_FLAGS_INITIAL_THREAD = 0x00000080
-) 
+)
+
+// Windows API Structures
+// These structures are used for direct syscalls and process enumeration
+
+// UNICODE_STRING represents a Unicode string in Windows
+type UNICODE_STRING struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *uint16
+}
+
+// CLIENT_ID represents a process and thread identifier pair
+type CLIENT_ID struct {
+	UniqueProcess uintptr
+	UniqueThread  uintptr
+}
+
+// OBJECT_ATTRIBUTES structure for object creation/opening
+type OBJECT_ATTRIBUTES struct {
+	Length                   uint32
+	RootDirectory            uintptr
+	ObjectName               *UNICODE_STRING
+	Attributes               uint32
+	SecurityDescriptor       uintptr
+	SecurityQualityOfService uintptr
+}
+
+// SYSTEM_PROCESS_INFORMATION structure for NtQuerySystemInformation
+type SYSTEM_PROCESS_INFORMATION struct {
+	NextEntryOffset              uint32
+	NumberOfThreads              uint32
+	WorkingSetPrivateSize        int64
+	HardFaultCount               uint32
+	NumberOfThreadsHighWatermark uint32
+	CycleTime                    uint64
+	CreateTime                   int64
+	UserTime                     int64
+	KernelTime                   int64
+	ImageName                    UNICODE_STRING
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+	HandleCount                  uint32
+	SessionId                    uint32
+	UniqueProcessKey             uintptr
+	PeakVirtualSize              uintptr
+	VirtualSize                  uintptr
+	PageFaultCount               uint32
+	PeakWorkingSetSize           uintptr
+	WorkingSetSize               uintptr
+	QuotaPeakPagedPoolUsage      uintptr
+	QuotaPagedPoolUsage          uintptr
+	QuotaPeakNonPagedPoolUsage   uintptr
+	QuotaNonPagedPoolUsage       uintptr
+	PagefileUsage                uintptr
+	PeakPagefileUsage            uintptr
+	PrivatePageCount             uintptr
+	ReadOperationCount           int64
+	WriteOperationCount          int64
+	OtherOperationCount          int64
+	ReadTransferCount            int64
+	WriteTransferCount           int64
+	OtherTransferCount           int64
+}
+
+// PROCESS_BASIC_INFORMATION structure for NtQueryInformationProcess
+type PROCESS_BASIC_INFORMATION struct {
+	ExitStatus                   uintptr
+	PebBaseAddress               uintptr
+	AffinityMask                 uintptr
+	BasePriority                 int32
+	UniqueProcessId              uintptr
+	InheritedFromUniqueProcessId uintptr
+} 

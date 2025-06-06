@@ -17,72 +17,7 @@ import (
 	winapi "github.com/carved4/go-direct-syscall"
 )
 
-// Windows structures for NtQuerySystemInformation
-type UNICODE_STRING struct {
-	Length        uint16
-	MaximumLength uint16
-	Buffer        *uint16
-}
 
-type CLIENT_ID struct {
-	UniqueProcess uintptr
-	UniqueThread  uintptr
-}
-
-type OBJECT_ATTRIBUTES struct {
-	Length                   uint32
-	RootDirectory            uintptr
-	ObjectName               *UNICODE_STRING
-	Attributes               uint32
-	SecurityDescriptor       uintptr
-	SecurityQualityOfService uintptr
-}
-
-type SYSTEM_PROCESS_INFORMATION struct {
-	NextEntryOffset              uint32
-	NumberOfThreads              uint32
-	WorkingSetPrivateSize        int64
-	HardFaultCount               uint32
-	NumberOfThreadsHighWatermark uint32
-	CycleTime                    uint64
-	CreateTime                   int64
-	UserTime                     int64
-	KernelTime                   int64
-	ImageName                    UNICODE_STRING
-	BasePriority                 int32
-	UniqueProcessId              uintptr
-	InheritedFromUniqueProcessId uintptr
-	HandleCount                  uint32
-	SessionId                    uint32
-	UniqueProcessKey             uintptr
-	PeakVirtualSize              uintptr
-	VirtualSize                  uintptr
-	PageFaultCount               uint32
-	PeakWorkingSetSize           uintptr
-	WorkingSetSize               uintptr
-	QuotaPeakPagedPoolUsage      uintptr
-	QuotaPagedPoolUsage          uintptr
-	QuotaPeakNonPagedPoolUsage   uintptr
-	QuotaNonPagedPoolUsage       uintptr
-	PagefileUsage                uintptr
-	PeakPagefileUsage            uintptr
-	PrivatePageCount             uintptr
-	ReadOperationCount           int64
-	WriteOperationCount          int64
-	OtherOperationCount          int64
-	ReadTransferCount            int64
-	WriteTransferCount           int64
-	OtherTransferCount           int64
-}
-
-type PROCESS_BASIC_INFORMATION struct {
-	ExitStatus                   uintptr
-	PebBaseAddress               uintptr
-	AffinityMask                 uintptr
-	BasePriority                 int32
-	UniqueProcessId              uintptr
-	InheritedFromUniqueProcessId uintptr
-}
 
 // getEmbeddedShellcode returns the embedded calc shellcode as bytes
 func getEmbeddedShellcode() []byte {
@@ -222,7 +157,7 @@ func getProcessList() ([]ProcessInfo, error) {
 		}
 		
 		// Get current process entry
-		processInfo := (*SYSTEM_PROCESS_INFORMATION)(unsafe.Pointer(&buffer[offset]))
+		processInfo := (*winapi.SYSTEM_PROCESS_INFORMATION)(unsafe.Pointer(&buffer[offset]))
 		processCount++
 		
 		// Extract process name from UNICODE_STRING
@@ -249,14 +184,14 @@ func getProcessList() ([]ProcessInfo, error) {
 			// Try to open the process to check if we have access
 			// Use a more permissive access check - try different access levels
 			var processHandle uintptr
-			clientId := CLIENT_ID{
+			clientId := winapi.CLIENT_ID{
 				UniqueProcess: processInfo.UniqueProcessId,
 				UniqueThread:  0,
 			}
 			
 			// Initialize OBJECT_ATTRIBUTES to NULL equivalent
-			objAttrs := OBJECT_ATTRIBUTES{
-				Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+			objAttrs := winapi.OBJECT_ATTRIBUTES{
+				Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 			}
 			
 			// Try with limited access first
@@ -314,14 +249,14 @@ func getProcessList() ([]ProcessInfo, error) {
 func isProcessRunning(pid uint32) error {
 	// Open the process
 	var processHandle uintptr
-	clientId := CLIENT_ID{
+	clientId := winapi.CLIENT_ID{
 		UniqueProcess: uintptr(pid),
 		UniqueThread:  0,
 	}
 	
 	// Initialize OBJECT_ATTRIBUTES properly
-	objAttrs := OBJECT_ATTRIBUTES{
-		Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+	objAttrs := winapi.OBJECT_ATTRIBUTES{
+		Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 	}
 	
 	status, err := winapi.NtOpenProcess(
@@ -342,7 +277,7 @@ func isProcessRunning(pid uint32) error {
 	defer winapi.NtClose(processHandle)
 	
 	// Query basic process information
-	var processInfo PROCESS_BASIC_INFORMATION
+	var processInfo winapi.PROCESS_BASIC_INFORMATION
 	var returnLength uintptr
 	
 	status, err = winapi.NtQueryInformationProcess(
@@ -378,14 +313,14 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 
 	// Open target process
 	var processHandle uintptr
-	clientId := CLIENT_ID{
+	clientId := winapi.CLIENT_ID{
 		UniqueProcess: uintptr(pid),
 		UniqueThread:  0,
 	}
 	
 	// Initialize OBJECT_ATTRIBUTES properly
-	objAttrs := OBJECT_ATTRIBUTES{
-		Length: uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+	objAttrs := winapi.OBJECT_ATTRIBUTES{
+		Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 	}
 	
 	status, err := winapi.NtOpenProcess(
