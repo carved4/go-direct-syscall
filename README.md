@@ -749,7 +749,7 @@ Contributions are welcome! Please feel free to:
 
 ## License
 
-This project is provided for **educational and research purposes only**. Users are responsible for complying with all applicable laws and regulations.
+This project is licensed under the [MIT LICENSE](LICENSE).
 
 ## Credits
 
