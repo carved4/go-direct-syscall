@@ -112,6 +112,70 @@ Get the hash of a function name for obfuscation.
 #### `DumpAllSyscalls() ([]SyscallInfo, error)`
 Enumerate and dump all available syscalls from ntdll.dll with their syscall numbers, hashes, and addresses.
 
+### NT Status Code Helpers
+
+The library includes comprehensive NT status code formatting and validation functions that are used by default throughout the codebase.
+
+#### `FormatNTStatus(status uintptr) string`
+Returns a formatted string representation of an NTSTATUS code with both the hex value and human-readable description.
+
+```go
+status := uintptr(0xC0000008)
+formatted := winapi.FormatNTStatus(status)
+// Returns: "0xC0000008 (STATUS_INVALID_HANDLE)"
+
+// Unknown status codes are categorized by severity
+unknownStatus := uintptr(0xC0001234)
+formatted = winapi.FormatNTStatus(unknownStatus)
+// Returns: "0xC0001234 (Unknown ERROR status)"
+```
+
+#### `IsNTStatusSuccess(status uintptr) bool`
+Checks if an NTSTATUS code indicates success (STATUS_SUCCESS).
+
+#### `IsNTStatusError(status uintptr) bool`
+Checks if an NTSTATUS code indicates an error (severity bits = 11).
+
+#### `IsNTStatusWarning(status uintptr) bool`
+Checks if an NTSTATUS code indicates a warning (severity bits = 10).
+
+```go
+status, err := winapi.NtAllocateVirtualMemory(/* args */)
+
+if winapi.IsNTStatusSuccess(status) {
+    fmt.Println("Allocation successful")
+} else if winapi.IsNTStatusError(status) {
+    fmt.Printf("Allocation failed: %s\n", winapi.FormatNTStatus(status))
+}
+```
+
+#### Enhanced Error Messages
+
+All syscall operations in the main program now use enhanced NT status code formatting by default. Instead of raw hex values, you'll see descriptive error messages:
+
+**Before:**
+```
+NtAllocateVirtualMemory failed: 0xc0000008
+```
+
+**After:**
+```
+NtAllocateVirtualMemory failed: 0xC0000008 (STATUS_INVALID_HANDLE)
+```
+
+#### Supported Status Codes
+
+The FormatNTStatus function recognizes over 30 common NTSTATUS codes including:
+- `STATUS_SUCCESS` (0x00000000)
+- `STATUS_INFO_LENGTH_MISMATCH` (0xC0000004)
+- `STATUS_INVALID_HANDLE` (0xC0000008)
+- `STATUS_INVALID_PARAMETER` (0xC000000D)
+- `STATUS_ACCESS_DENIED` (0xC0000022)
+- `STATUS_ACCESS_VIOLATION` (0xC0000005)
+- `STATUS_NO_MEMORY` (0xC0000017)
+- `STATUS_PRIVILEGE_NOT_HELD` (0xC0000061)
+- And many more...
+
 ## Syscall Discovery & Analysis
 
 ###  DumpAllSyscalls Feature
@@ -122,6 +186,7 @@ The library includes a powerful syscall enumeration feature that can discover an
 
 ```bash
 # Dump all syscalls to console and JSON file
+# Also demonstrates NT status code formatting examples
 ./cmd.exe -dump
 ```
 
@@ -578,23 +643,34 @@ func ObfuscatedCall() {
 
 ### Error Handling
 
+The library provides built-in NT status code formatting and validation functions for better error handling:
+
 ```go
-// Proper NTSTATUS checking
+// Using built-in status helpers (recommended)
+status, err := winapi.NtAllocateVirtualMemory(/* args */)
+if err != nil {
+    log.Fatal("Syscall error:", err)
+}
+
+if !winapi.IsNTStatusSuccess(status) {
+    log.Fatalf("NtAllocateVirtualMemory failed: %s", winapi.FormatNTStatus(status))
+}
+
+// Or check for specific error types
+if winapi.IsNTStatusError(status) {
+    fmt.Printf("Error occurred: %s\n", winapi.FormatNTStatus(status))
+} else if winapi.IsNTStatusWarning(status) {
+    fmt.Printf("Warning: %s\n", winapi.FormatNTStatus(status))
+}
+```
+
+```go
+// Custom error handling function using built-in helpers
 func CheckNTStatus(status uintptr, operation string) error {
-    if status == 0 {
-        return nil // STATUS_SUCCESS
+    if winapi.IsNTStatusSuccess(status) {
+        return nil
     }
-    
-    switch status {
-    case 0xC0000005:
-        return fmt.Errorf("%s failed: ACCESS_VIOLATION", operation)
-    case 0xC0000008:
-        return fmt.Errorf("%s failed: INVALID_HANDLE", operation)
-    case 0xC000000D:
-        return fmt.Errorf("%s failed: INVALID_PARAMETER", operation)
-    default:
-        return fmt.Errorf("%s failed: NTSTATUS 0x%X", operation, status)
-    }
+    return fmt.Errorf("%s failed: %s", operation, winapi.FormatNTStatus(status))
 }
 
 // Usage example
