@@ -736,6 +736,11 @@ bash build.sh
 # so feel free to use donut or msfvenom or similar to generate your own calc shellcode and replace GetEmbeddedShellcode func
 
 ```
+## Detection
+
+![Screen Shot 2025-06-06 at 5 21 45 PM](https://github.com/user-attachments/assets/8fa911db-129c-4d11-a0dd-d08fa3fd143a)
+![image](https://github.com/user-attachments/assets/0050c8d0-4980-46dd-bbc9-626320418c1a)
+(as of right now - Friday June 6th 5:21 pm ET 2025)
 
 ## Contributing
 
