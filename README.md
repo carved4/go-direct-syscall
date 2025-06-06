@@ -17,7 +17,7 @@ A Go library providing **TRUE direct Windows API syscalls** using external assem
 ### Installation
 
 ```bash
-go get github.com/carved4/winapi-direct-syscalls
+go get github.com/carved4/go-direct-syscall
 ```
 
 ### Basic Usage
@@ -29,7 +29,7 @@ import (
     "fmt"
     "unsafe"
     
-    winapi "github.com/carved4/winapi-direct-syscalls"
+    winapi "github.com/carved4/go-direct-syscall"
 )
 
 func main() {
