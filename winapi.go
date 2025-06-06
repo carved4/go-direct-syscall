@@ -216,6 +216,429 @@ func NtReadFile(fileHandle uintptr, event uintptr, apcRoutine uintptr, apcContex
 		uintptr(unsafe.Pointer(key)))
 }
 
+// Additional Process Manipulation Functions
+
+// NtTerminateProcess terminates a process
+func NtTerminateProcess(processHandle uintptr, exitStatus uintptr) (uintptr, error) {
+	return DirectSyscall("NtTerminateProcess",
+		processHandle,
+		exitStatus)
+}
+
+// NtSuspendProcess suspends all threads in a process
+func NtSuspendProcess(processHandle uintptr) (uintptr, error) {
+	return DirectSyscall("NtSuspendProcess", processHandle)
+}
+
+// NtResumeProcess resumes all threads in a process
+func NtResumeProcess(processHandle uintptr) (uintptr, error) {
+	return DirectSyscall("NtResumeProcess", processHandle)
+}
+
+// NtCreateProcess creates a new process
+func NtCreateProcess(processHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, parentProcess uintptr, inheritObjectTable bool, sectionHandle uintptr, debugPort uintptr, exceptionPort uintptr) (uintptr, error) {
+	inherit := uintptr(0)
+	if inheritObjectTable {
+		inherit = 1
+	}
+	return DirectSyscall("NtCreateProcess",
+		uintptr(unsafe.Pointer(processHandle)),
+		desiredAccess,
+		objectAttributes,
+		parentProcess,
+		inherit,
+		sectionHandle,
+		debugPort,
+		exceptionPort)
+}
+
+// Thread Management Functions
+
+// NtCreateThread creates a thread in a process
+func NtCreateThread(threadHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, processHandle uintptr, startAddress uintptr, arg uintptr, createSuspended bool, zeroBits uintptr, stackSize uintptr, maximumStackSize uintptr, initialTeb uintptr) (uintptr, error) {
+	flags := uintptr(0)
+	if createSuspended {
+		flags = 1
+	}
+	return DirectSyscall("NtCreateThread",
+		uintptr(unsafe.Pointer(threadHandle)),
+		desiredAccess,
+		objectAttributes,
+		processHandle,
+		startAddress,
+		arg,
+		flags,
+		zeroBits,
+		stackSize,
+		maximumStackSize,
+		initialTeb)
+}
+
+// NtOpenThread opens a handle to a thread
+func NtOpenThread(threadHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, clientId uintptr) (uintptr, error) {
+	return DirectSyscall("NtOpenThread",
+		uintptr(unsafe.Pointer(threadHandle)),
+		desiredAccess,
+		objectAttributes,
+		clientId)
+}
+
+// NtSuspendThread suspends a thread
+func NtSuspendThread(threadHandle uintptr, previousSuspendCount *uintptr) (uintptr, error) {
+	return DirectSyscall("NtSuspendThread",
+		threadHandle,
+		uintptr(unsafe.Pointer(previousSuspendCount)))
+}
+
+// NtResumeThread resumes a thread
+func NtResumeThread(threadHandle uintptr, previousSuspendCount *uintptr) (uintptr, error) {
+	return DirectSyscall("NtResumeThread",
+		threadHandle,
+		uintptr(unsafe.Pointer(previousSuspendCount)))
+}
+
+// NtTerminateThread terminates a thread
+func NtTerminateThread(threadHandle uintptr, exitStatus uintptr) (uintptr, error) {
+	return DirectSyscall("NtTerminateThread",
+		threadHandle,
+		exitStatus)
+}
+
+// Memory and Section Functions
+
+// NtCreateSection creates a section object
+func NtCreateSection(sectionHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, maximumSize *uint64, sectionPageProtection uintptr, allocationAttributes uintptr, fileHandle uintptr) (uintptr, error) {
+	return DirectSyscall("NtCreateSection",
+		uintptr(unsafe.Pointer(sectionHandle)),
+		desiredAccess,
+		objectAttributes,
+		uintptr(unsafe.Pointer(maximumSize)),
+		sectionPageProtection,
+		allocationAttributes,
+		fileHandle)
+}
+
+// NtMapViewOfSection maps a view of a section
+func NtMapViewOfSection(sectionHandle uintptr, processHandle uintptr, baseAddress *uintptr, zeroBits uintptr, commitSize uintptr, sectionOffset *uint64, viewSize *uintptr, inheritDisposition uintptr, allocationType uintptr, win32Protect uintptr) (uintptr, error) {
+	return DirectSyscall("NtMapViewOfSection",
+		sectionHandle,
+		processHandle,
+		uintptr(unsafe.Pointer(baseAddress)),
+		zeroBits,
+		commitSize,
+		uintptr(unsafe.Pointer(sectionOffset)),
+		uintptr(unsafe.Pointer(viewSize)),
+		inheritDisposition,
+		allocationType,
+		win32Protect)
+}
+
+// NtUnmapViewOfSection unmaps a view of a section
+func NtUnmapViewOfSection(processHandle uintptr, baseAddress uintptr) (uintptr, error) {
+	return DirectSyscall("NtUnmapViewOfSection",
+		processHandle,
+		baseAddress)
+}
+
+// NtFreeVirtualMemory frees virtual memory
+func NtFreeVirtualMemory(processHandle uintptr, baseAddress *uintptr, regionSize *uintptr, freeType uintptr) (uintptr, error) {
+	return DirectSyscall("NtFreeVirtualMemory",
+		processHandle,
+		uintptr(unsafe.Pointer(baseAddress)),
+		uintptr(unsafe.Pointer(regionSize)),
+		freeType)
+}
+
+// NtQueryVirtualMemory queries virtual memory information
+func NtQueryVirtualMemory(processHandle uintptr, baseAddress uintptr, memoryInformationClass uintptr, memoryInformation unsafe.Pointer, memoryInformationLength uintptr, returnLength *uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryVirtualMemory",
+		processHandle,
+		baseAddress,
+		memoryInformationClass,
+		uintptr(memoryInformation),
+		memoryInformationLength,
+		uintptr(unsafe.Pointer(returnLength)))
+}
+
+// Registry Functions
+
+// NtCreateKey creates or opens a registry key
+func NtCreateKey(keyHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, titleIndex uintptr, class uintptr, createOptions uintptr, disposition *uintptr) (uintptr, error) {
+	return DirectSyscall("NtCreateKey",
+		uintptr(unsafe.Pointer(keyHandle)),
+		desiredAccess,
+		objectAttributes,
+		titleIndex,
+		class,
+		createOptions,
+		uintptr(unsafe.Pointer(disposition)))
+}
+
+// NtOpenKey opens a registry key
+func NtOpenKey(keyHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr) (uintptr, error) {
+	return DirectSyscall("NtOpenKey",
+		uintptr(unsafe.Pointer(keyHandle)),
+		desiredAccess,
+		objectAttributes)
+}
+
+// NtDeleteKey deletes a registry key
+func NtDeleteKey(keyHandle uintptr) (uintptr, error) {
+	return DirectSyscall("NtDeleteKey", keyHandle)
+}
+
+// NtSetValueKey sets a registry value
+func NtSetValueKey(keyHandle uintptr, valueName uintptr, titleIndex uintptr, dataType uintptr, data unsafe.Pointer, dataSize uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetValueKey",
+		keyHandle,
+		valueName,
+		titleIndex,
+		dataType,
+		uintptr(data),
+		dataSize)
+}
+
+// NtQueryValueKey queries a registry value
+func NtQueryValueKey(keyHandle uintptr, valueName uintptr, keyValueInformationClass uintptr, keyValueInformation unsafe.Pointer, length uintptr, resultLength *uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryValueKey",
+		keyHandle,
+		valueName,
+		keyValueInformationClass,
+		uintptr(keyValueInformation),
+		length,
+		uintptr(unsafe.Pointer(resultLength)))
+}
+
+// NtDeleteValueKey deletes a registry value
+func NtDeleteValueKey(keyHandle uintptr, valueName uintptr) (uintptr, error) {
+	return DirectSyscall("NtDeleteValueKey",
+		keyHandle,
+		valueName)
+}
+
+// Security and Token Functions
+
+// NtOpenProcessToken opens a process token
+func NtOpenProcessToken(processHandle uintptr, desiredAccess uintptr, tokenHandle *uintptr) (uintptr, error) {
+	return DirectSyscall("NtOpenProcessToken",
+		processHandle,
+		desiredAccess,
+		uintptr(unsafe.Pointer(tokenHandle)))
+}
+
+// NtOpenThreadToken opens a thread token
+func NtOpenThreadToken(threadHandle uintptr, desiredAccess uintptr, openAsSelf bool, tokenHandle *uintptr) (uintptr, error) {
+	openSelf := uintptr(0)
+	if openAsSelf {
+		openSelf = 1
+	}
+	return DirectSyscall("NtOpenThreadToken",
+		threadHandle,
+		desiredAccess,
+		openSelf,
+		uintptr(unsafe.Pointer(tokenHandle)))
+}
+
+// NtQueryInformationToken queries token information
+func NtQueryInformationToken(tokenHandle uintptr, tokenInformationClass uintptr, tokenInformation unsafe.Pointer, tokenInformationLength uintptr, returnLength *uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryInformationToken",
+		tokenHandle,
+		tokenInformationClass,
+		uintptr(tokenInformation),
+		tokenInformationLength,
+		uintptr(unsafe.Pointer(returnLength)))
+}
+
+// NtSetInformationToken sets token information
+func NtSetInformationToken(tokenHandle uintptr, tokenInformationClass uintptr, tokenInformation unsafe.Pointer, tokenInformationLength uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetInformationToken",
+		tokenHandle,
+		tokenInformationClass,
+		uintptr(tokenInformation),
+		tokenInformationLength)
+}
+
+// NtAdjustPrivilegesToken adjusts token privileges
+func NtAdjustPrivilegesToken(tokenHandle uintptr, disableAllPrivileges bool, newState unsafe.Pointer, bufferLength uintptr, previousState unsafe.Pointer, returnLength *uintptr) (uintptr, error) {
+	disable := uintptr(0)
+	if disableAllPrivileges {
+		disable = 1
+	}
+	return DirectSyscall("NtAdjustPrivilegesToken",
+		tokenHandle,
+		disable,
+		uintptr(newState),
+		bufferLength,
+		uintptr(previousState),
+		uintptr(unsafe.Pointer(returnLength)))
+}
+
+// Object and Handle Functions
+
+// NtDuplicateObject duplicates an object handle
+func NtDuplicateObject(sourceProcessHandle uintptr, sourceHandle uintptr, targetProcessHandle uintptr, targetHandle *uintptr, desiredAccess uintptr, inheritHandle bool, options uintptr) (uintptr, error) {
+	inherit := uintptr(0)
+	if inheritHandle {
+		inherit = 1
+	}
+	return DirectSyscall("NtDuplicateObject",
+		sourceProcessHandle,
+		sourceHandle,
+		targetProcessHandle,
+		uintptr(unsafe.Pointer(targetHandle)),
+		desiredAccess,
+		inherit,
+		options)
+}
+
+// NtQueryObject queries object information
+func NtQueryObject(handle uintptr, objectInformationClass uintptr, objectInformation unsafe.Pointer, objectInformationLength uintptr, returnLength *uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryObject",
+		handle,
+		objectInformationClass,
+		uintptr(objectInformation),
+		objectInformationLength,
+		uintptr(unsafe.Pointer(returnLength)))
+}
+
+// System Information and Control Functions
+
+// NtSetSystemInformation sets system information
+func NtSetSystemInformation(systemInformationClass uintptr, systemInformation unsafe.Pointer, systemInformationLength uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetSystemInformation",
+		systemInformationClass,
+		uintptr(systemInformation),
+		systemInformationLength)
+}
+
+// NtQuerySystemTime queries system time
+func NtQuerySystemTime(systemTime *uint64) (uintptr, error) {
+	return DirectSyscall("NtQuerySystemTime",
+		uintptr(unsafe.Pointer(systemTime)))
+}
+
+// NtSetSystemTime sets system time
+func NtSetSystemTime(systemTime *uint64, previousTime *uint64) (uintptr, error) {
+	return DirectSyscall("NtSetSystemTime",
+		uintptr(unsafe.Pointer(systemTime)),
+		uintptr(unsafe.Pointer(previousTime)))
+}
+
+// Event and Synchronization Functions
+
+// NtCreateEvent creates an event object
+func NtCreateEvent(eventHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, eventType uintptr, initialState bool) (uintptr, error) {
+	state := uintptr(0)
+	if initialState {
+		state = 1
+	}
+	return DirectSyscall("NtCreateEvent",
+		uintptr(unsafe.Pointer(eventHandle)),
+		desiredAccess,
+		objectAttributes,
+		eventType,
+		state)
+}
+
+// NtOpenEvent opens an event object
+func NtOpenEvent(eventHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr) (uintptr, error) {
+	return DirectSyscall("NtOpenEvent",
+		uintptr(unsafe.Pointer(eventHandle)),
+		desiredAccess,
+		objectAttributes)
+}
+
+// NtSetEvent sets an event to signaled state
+func NtSetEvent(eventHandle uintptr, previousState *uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetEvent",
+		eventHandle,
+		uintptr(unsafe.Pointer(previousState)))
+}
+
+// NtResetEvent resets an event to non-signaled state
+func NtResetEvent(eventHandle uintptr, previousState *uintptr) (uintptr, error) {
+	return DirectSyscall("NtResetEvent",
+		eventHandle,
+		uintptr(unsafe.Pointer(previousState)))
+}
+
+// NtWaitForSingleObject waits for a single object
+func NtWaitForSingleObject(handle uintptr, alertable bool, timeout *uint64) (uintptr, error) {
+	alert := uintptr(0)
+	if alertable {
+		alert = 1
+	}
+	return DirectSyscall("NtWaitForSingleObject",
+		handle,
+		alert,
+		uintptr(unsafe.Pointer(timeout)))
+}
+
+// NtWaitForMultipleObjects waits for multiple objects
+func NtWaitForMultipleObjects(count uintptr, handles *uintptr, waitType uintptr, alertable bool, timeout *uint64) (uintptr, error) {
+	alert := uintptr(0)
+	if alertable {
+		alert = 1
+	}
+	return DirectSyscall("NtWaitForMultipleObjects",
+		count,
+		uintptr(unsafe.Pointer(handles)),
+		waitType,
+		alert,
+		uintptr(unsafe.Pointer(timeout)))
+}
+
+// File System Functions
+
+// NtDeleteFile deletes a file
+func NtDeleteFile(objectAttributes uintptr) (uintptr, error) {
+	return DirectSyscall("NtDeleteFile", objectAttributes)
+}
+
+// NtQueryDirectoryFile queries directory contents
+func NtQueryDirectoryFile(fileHandle uintptr, event uintptr, apcRoutine uintptr, apcContext uintptr, ioStatusBlock uintptr, fileInformation unsafe.Pointer, length uintptr, fileInformationClass uintptr, returnSingleEntry bool, fileName uintptr, restartScan bool) (uintptr, error) {
+	single := uintptr(0)
+	if returnSingleEntry {
+		single = 1
+	}
+	restart := uintptr(0)
+	if restartScan {
+		restart = 1
+	}
+	return DirectSyscall("NtQueryDirectoryFile",
+		fileHandle,
+		event,
+		apcRoutine,
+		apcContext,
+		ioStatusBlock,
+		uintptr(fileInformation),
+		length,
+		fileInformationClass,
+		single,
+		fileName,
+		restart)
+}
+
+// NtQueryInformationFile queries file information
+func NtQueryInformationFile(fileHandle uintptr, ioStatusBlock uintptr, fileInformation unsafe.Pointer, length uintptr, fileInformationClass uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryInformationFile",
+		fileHandle,
+		ioStatusBlock,
+		uintptr(fileInformation),
+		length,
+		fileInformationClass)
+}
+
+// NtSetInformationFile sets file information
+func NtSetInformationFile(fileHandle uintptr, ioStatusBlock uintptr, fileInformation unsafe.Pointer, length uintptr, fileInformationClass uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetInformationFile",
+		fileHandle,
+		ioStatusBlock,
+		uintptr(fileInformation),
+		length,
+		fileInformationClass)
+}
+
 // SyscallInfo holds information about a single syscall
 type SyscallInfo struct {
 	Name          string
