@@ -2,10 +2,8 @@ package syscall
 
 import (
 	"runtime"
-	"unsafe"
 	_ "unsafe" // for go:linkname
 	
-	"github.com/carved4/go-direct-syscall/pkg/obf"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
 )
 
@@ -57,47 +55,4 @@ func ExternalSyscall(syscallNumber uint16, args ...uintptr) (uintptr, error) {
 func HashSyscall(functionHash uint32, args ...uintptr) (uintptr, error) {
 	syscallNum := syscallresolve.GetSyscallNumber(functionHash)
 	return ExternalSyscall(syscallNum, args...)
-}
-
-// NtAllocateVirtualMemory allocates memory in a process using direct syscall
-func NtAllocateVirtualMemory(processHandle uintptr, baseAddress *uintptr, zeroBits uintptr, regionSize *uintptr, allocationType, protect uintptr) uintptr {
-	functionHash := obf.GetHash("NtAllocateVirtualMemory")
-	r1, _ := HashSyscall(functionHash,
-		processHandle,
-		uintptr(unsafe.Pointer(baseAddress)),
-		zeroBits,
-		uintptr(unsafe.Pointer(regionSize)),
-		allocationType,
-		protect)
-	return r1
-}
-
-// NtWriteVirtualMemory writes to memory in a process using direct syscall
-func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer unsafe.Pointer, size uintptr, bytesWritten *uintptr) uintptr {
-	functionHash := obf.GetHash("NtWriteVirtualMemory")
-	r1, _ := HashSyscall(functionHash,
-		processHandle,
-		baseAddress,
-		uintptr(buffer),
-		size,
-		uintptr(unsafe.Pointer(bytesWritten)))
-	return r1
-}
-
-// NtCreateThreadEx creates a thread in a process using direct syscall
-func NtCreateThreadEx(threadHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, processHandle uintptr, startAddress uintptr, arg uintptr, createFlags uintptr, zeroBits uintptr, stackSize uintptr, maximumStackSize uintptr, attributeList uintptr) uintptr {
-	functionHash := obf.GetHash("NtCreateThreadEx")
-	r1, _ := HashSyscall(functionHash,
-		uintptr(unsafe.Pointer(threadHandle)),
-		desiredAccess,
-		objectAttributes,
-		processHandle,
-		startAddress,
-		arg,
-		createFlags,
-		zeroBits,
-		stackSize,
-		maximumStackSize,
-		attributeList)
-	return r1
 }
