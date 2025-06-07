@@ -254,7 +254,7 @@ The library includes a powerful syscall enumeration feature that can discover an
 ```
 Starting syscall enumeration...
 Successfully got PEB at 0x8DFAD6000, Ldr at 0x7FF87D45C4C0
-Found module: cmd.exe (base: 0x7FF719D70000)
+Found module: go-direct-syscall.exe (base: 0x7FF719D70000)
 Found module: ntdll.dll (base: 0x7FF87D2F0000)
 Hash match for ntdll.dll! Hash: 0x1EDAB0ED
 Found ntdll.dll at: 0x7FF87D2F0000
