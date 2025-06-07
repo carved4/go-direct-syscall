@@ -1145,6 +1145,55 @@ func ObfuscatedCall() {
 }
 ```
 
+### Debug Logging
+
+The library includes a comprehensive debug logging system that is **silent by default** for production use but can be enabled for development and troubleshooting:
+
+**Enable Debug Mode:**
+
+```bash
+# Environment variable (affects all operations)
+export DEBUG=true
+# or
+export WINAPI_DEBUG=true
+
+# Command line flag (for the main application)
+./go-direct-syscall.exe -debug -example
+```
+
+**Programmatic Control:**
+
+```go
+import "github.com/carved4/go-direct-syscall/pkg/debug"
+
+// Enable debug logging
+debug.SetDebugMode(true)
+
+// Check if debug is enabled
+if debug.IsDebugEnabled() {
+    fmt.Println("Debug mode is active")
+}
+
+// Your syscall operations will now show debug output
+err := winapi.NtInjectSelfShellcode(payload)
+```
+
+**Debug Output Example:**
+
+```
+[DEBUG WINAPI] Starting direct syscall self-injection of 105 bytes...
+[DEBUG WINAPI] Step 1: Allocating 105 bytes of RW memory...
+[DEBUG WINAPI] Allocated memory at: 0x1A2B3C4D5678
+[DEBUG SYSCALLRESOLVE] Found ntdll.dll at: 0x7FF87D2F0000
+[DEBUG WINAPI] Thread created successfully: 0x1234
+```
+
+**Environment Variables:**
+- `DEBUG=true` - General debug mode
+- `WINAPI_DEBUG=true` - Specific to WINAPI package
+- `SYSCALLRESOLVE_DEBUG=true` - Specific to syscall resolution
+- `SYSCALL_DEBUG=true` - General syscall debugging
+
 ### Error Handling
 
 The library provides built-in NT status code formatting and validation functions for better error handling:

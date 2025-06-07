@@ -3,6 +3,7 @@ package obf
 
 import (
 	"sync"
+	"github.com/carved4/go-direct-syscall/pkg/debug"
 )
 
 // DBJ2HashStr calculates a hash for a string using the DBJ2 algorithm.
@@ -67,13 +68,10 @@ func detectHashCollision(hash uint32, newString string) {
 	
 	if existingString, exists := collisionDetector[hash]; exists {
 		if existingString != newString {
-			// Hash collision detected!
-			// This is extremely rare with DBJ2 but we should log it
-			// In production, you might want to use a different hash or handle this differently
-			println("Warning: Hash collision detected!")
-			println("  Hash:", hash)
-			println("  Existing string:", existingString)
-			println("  New string:", newString)
+			debug.Printfln("OBF", "Warning: Hash collision detected!")
+			debug.Printfln("OBF", "  Hash:", hash)
+			debug.Printfln("OBF", "  Existing string:", existingString)
+			debug.Printfln("OBF", "  New string:", newString)
 		}
 	} else {
 		collisionDetector[hash] = newString

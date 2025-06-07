@@ -8,6 +8,7 @@ import (
 	"unsafe"
 	
 	"github.com/Binject/debug/pe"
+	"github.com/carved4/go-direct-syscall/pkg/debug"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 )
 
@@ -128,7 +129,7 @@ func GetCurrentProcessPEB() *PEB {
 	// Using direct assembly to get PEB
 	pebAddr := GetPEB()
 	if pebAddr == 0 {
-		fmt.Printf("Failed to get PEB address via assembly\n")
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get PEB address via assembly\n")
 		return nil
 	}
 	
@@ -144,7 +145,7 @@ func GetCurrentProcessPEB() *PEB {
 			return peb
 		}
 		
-		fmt.Printf("PEB validation failed (retry %d/%d), waiting...\n", i+1, maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "PEB validation failed (retry %d/%d), waiting...\n", i+1, maxRetries)
 		time.Sleep(100 * time.Millisecond)
 	}
 	
@@ -160,13 +161,13 @@ func GetModuleBase(moduleHash uint32) uintptr {
 	for i := 0; i < maxRetries; i++ {
 		peb := GetCurrentProcessPEB()
 		if peb == nil {
-			fmt.Printf("Failed to get PEB, retrying (%d/%d)...\n", i+1, maxRetries)
+			debug.Printfln("SYSCALLRESOLVE", "Failed to get PEB, retrying (%d/%d)...\n", i+1, maxRetries)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
 		
 		if peb.Ldr == nil {
-			fmt.Printf("PEB.Ldr is nil, retrying (%d/%d)...\n", i+1, maxRetries)
+			debug.Printfln("SYSCALLRESOLVE", "PEB.Ldr is nil, retrying (%d/%d)...\n", i+1, maxRetries)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -177,7 +178,7 @@ func GetModuleBase(moduleHash uint32) uintptr {
 	
 		// Ensure the linked list is valid
 		if currentEntry == nil {
-			fmt.Printf("Module list is invalid (nil), retrying (%d/%d)...\n", i+1, maxRetries)
+			debug.Printfln("SYSCALLRESOLVE", "Module list is invalid (nil), retrying (%d/%d)...\n", i+1, maxRetries)
 			time.Sleep(100 * time.Millisecond)
 			continue
 		}
@@ -230,21 +231,21 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Read the PE header to get the actual size of the image
 	dosHeader := (*[64]byte)(unsafe.Pointer(moduleBase))
 	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
-		fmt.Printf("Invalid DOS signature\n")
+		debug.Printfln("SYSCALLRESOLVE", "Invalid DOS signature\n")
 		return 0
 	}
 	
 	// Get the offset to the PE header
 	peOffset := *(*uint32)(unsafe.Pointer(moduleBase + 60))
 	if peOffset >= 1024 {
-		fmt.Printf("PE offset too large: %d\n", peOffset)
+		debug.Printfln("SYSCALLRESOLVE", "PE offset too large: %d\n", peOffset)
 		return 0
 	}
 	
 	// Read the PE header to get the SizeOfImage
 	peHeader := (*[1024]byte)(unsafe.Pointer(moduleBase + uintptr(peOffset)))
 	if peHeader[0] != 'P' || peHeader[1] != 'E' {
-		fmt.Printf("Invalid PE signature\n")
+		debug.Printfln("SYSCALLRESOLVE", "Invalid PE signature\n")
 		return 0
 	}
 	
@@ -259,7 +260,7 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Parse the PE file from memory
 	file, err := pe.NewFileFromMemory(&memoryReaderAt{data: dataSlice})
 	if err != nil {
-		fmt.Printf("Failed to parse PE file: %v\n", err)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to parse PE file: %v\n", err)
 		return 0
 	}
 	defer file.Close()
@@ -267,7 +268,7 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Get the exports
 	exports, err := file.Exports()
 	if err != nil {
-		fmt.Printf("Failed to get exports: %v\n", err)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get exports: %v\n", err)
 		return 0
 	}
 
@@ -329,12 +330,12 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 			delay = 2 * time.Second
 		}
 		
-		fmt.Printf("Failed to get ntdll.dll base address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get ntdll.dll base address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
 		time.Sleep(delay)
 	}
 	
 	if ntdllBase == 0 {
-		fmt.Printf("Failed to get ntdll.dll base address after %d retries\n", maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get ntdll.dll base address after %d retries\n", maxRetries)
 		return 0
 	}
 	
@@ -353,12 +354,12 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 			delay = 2 * time.Second
 		}
 		
-		fmt.Printf("Failed to get function address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get function address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
 		time.Sleep(delay)
 	}
 	
 	if funcAddr == 0 {
-		fmt.Printf("Failed to get function address for hash: 0x%X after %d retries\n", functionHash, maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get function address for hash: 0x%X after %d retries\n", functionHash, maxRetries)
 		return 0
 	}
 
@@ -404,12 +405,12 @@ func GetSyscallAndAddress(functionHash uint32) (uint16, uintptr) {
 		if ntdllBase != 0 {
 			break
 		}
-		fmt.Printf("Failed to get ntdll.dll base address, retrying (%d/%d)...\n", i+1, maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get ntdll.dll base address, retrying (%d/%d)...\n", i+1, maxRetries)
 		time.Sleep(100 * time.Millisecond)
 	}
 	
 	if ntdllBase == 0 {
-		fmt.Printf("Failed to get ntdll.dll base address after %d retries\n", maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get ntdll.dll base address after %d retries\n", maxRetries)
 		return 0, 0
 	}
 
@@ -421,12 +422,12 @@ func GetSyscallAndAddress(functionHash uint32) (uint16, uintptr) {
 		if funcAddr != 0 {
 			break
 		}
-		fmt.Printf("Failed to get function address, retrying (%d/%d)...\n", i+1, maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get function address, retrying (%d/%d)...\n", i+1, maxRetries)
 		time.Sleep(100 * time.Millisecond)
 	}
 	
 	if funcAddr == 0 {
-		fmt.Printf("Failed to get function address for hash: 0x%X after %d retries\n", functionHash, maxRetries)
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get function address for hash: 0x%X after %d retries\n", functionHash, maxRetries)
 		return 0, 0
 	}
 
@@ -441,15 +442,15 @@ func GetSyscallAndAddress(functionHash uint32) (uint16, uintptr) {
 
 // Helper function to dump memory for debugging
 func dumpMemory(addr uintptr, size int) {
-	fmt.Printf("Memory dump at 0x%X:\n", addr)
+	debug.Printfln("SYSCALLRESOLVE", "Memory dump at 0x%X:\n", addr)
 	for i := 0; i < size; i++ {
 		if i%16 == 0 {
-			fmt.Printf("%08X: ", i)
+			debug.Printf("%08X: ", i)
 		}
 		b := *(*byte)(unsafe.Pointer(addr + uintptr(i)))
-		fmt.Printf("%02X ", b)
+		debug.Printf("%02X ", b)
 		if i%16 == 15 || i == size-1 {
-			fmt.Printf("\n")
+			debug.Printf("\n")
 		}
 	}
 }
@@ -562,7 +563,7 @@ func tryExtractSyscallNumber(funcBytes []byte, funcAddr uintptr, functionHash ui
 	// Pattern 3: Hooked syscall detection (look for JMP instruction)
 	// If we find a JMP at the beginning, the function might be hooked
 	if funcBytes[0] == 0xe9 || funcBytes[0] == 0xeb || funcBytes[0] == 0xff {
-		fmt.Printf("Warning: Function at 0x%X appears to be hooked (starts with JMP: 0x%02X)\n", 
+		debug.Printfln("SYSCALLRESOLVE", "Warning: Function at 0x%X appears to be hooked (starts with JMP: 0x%02X)\n", 
 			funcAddr, funcBytes[0])
 		return 0
 	}
@@ -581,7 +582,7 @@ func validateSyscallNumber(syscallNumber uint16, functionHash uint32) bool {
 	// Syscall numbers should be reasonable for NT kernel functions
 	if syscallNumber < 2 {
 		// Only syscall numbers 0 and 1 are truly suspicious
-		fmt.Printf("Warning: Unusually low syscall number %d for hash 0x%X\n", 
+		debug.Printfln("SYSCALLRESOLVE", "Warning: Unusually low syscall number %d for hash 0x%X\n", 
 			syscallNumber, functionHash)
 	}
 
@@ -600,7 +601,7 @@ func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functio
 		if funcBytes[i] == 0xb8 { // MOV EAX, imm32
 			syscallNum := uint16(funcBytes[i+1]) | (uint16(funcBytes[i+2]) << 8)
 			if syscallNum > 0 && syscallNum < 2000 {
-				fmt.Printf("Alternative extraction found syscall %d at offset %d for hash 0x%X\n", 
+				debug.Printfln("SYSCALLRESOLVE", "Alternative extraction found syscall %d at offset %d for hash 0x%X\n", 
 					syscallNum, i, functionHash)
 				return syscallNum
 			}
@@ -615,7 +616,7 @@ func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functio
 				if funcBytes[j-4] == 0xb8 { // MOV EAX, imm32
 					syscallNum := uint16(funcBytes[j-3]) | (uint16(funcBytes[j-2]) << 8)
 					if syscallNum > 0 && syscallNum < 2000 {
-						fmt.Printf("Backtrack extraction found syscall %d for hash 0x%X\n", 
+						debug.Printfln("SYSCALLRESOLVE", "Backtrack extraction found syscall %d for hash 0x%X\n", 
 							syscallNum, functionHash)
 						return syscallNum
 					}
@@ -632,7 +633,7 @@ func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functio
 			if funcBytes[offset] == 0xb8 { // MOV EAX
 				syscallNum := uint16(funcBytes[offset+1]) | (uint16(funcBytes[offset+2]) << 8)
 				if syscallNum > 0 && syscallNum < 2000 {
-					fmt.Printf("Offset extraction found syscall %d at offset %d for hash 0x%X\n", 
+					debug.Printfln("SYSCALLRESOLVE", "Offset extraction found syscall %d at offset %d for hash 0x%X\n", 
 						syscallNum, offset, functionHash)
 					return syscallNum
 				}
@@ -640,7 +641,7 @@ func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functio
 		}
 	}
 
-	fmt.Printf("All extraction methods failed for hash 0x%X\n", functionHash)
+	debug.Printfln("SYSCALLRESOLVE", "All extraction methods failed for hash 0x%X\n", functionHash)
 	return 0
 }
 

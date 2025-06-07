@@ -8,6 +8,7 @@ import (
 	"unsafe"
 	
 	"github.com/Binject/debug/pe"
+	"github.com/carved4/go-direct-syscall/pkg/debug"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 	"github.com/carved4/go-direct-syscall/pkg/syscall"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
@@ -128,9 +129,8 @@ func NtAllocateVirtualMemory(processHandle uintptr, baseAddress *uintptr, zeroBi
 
 // NtWriteVirtualMemory writes to memory in a process
 func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer unsafe.Pointer, size uintptr, bytesWritten *uintptr) (uintptr, error) {
-	fmt.Printf("NtWriteVirtualMemory debug:\n")
+	debug.Printfln("WINAPI", "NtWriteVirtualMemory called\n")
 
-	
 	// Initialize bytesWritten to 0 before the syscall
 	if bytesWritten != nil {
 		*bytesWritten = 0
@@ -160,8 +160,8 @@ func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer uns
 			size,
 			uintptr(unsafe.Pointer(bytesWritten)))
 		
-		fmt.Printf("  Attempt %d - Result status: 0x%X\n", i+1, result)
-		fmt.Printf("  Attempt %d - Bytes written: %d\n", i+1, *bytesWritten)
+		debug.Printfln("WINAPI", "Attempt %d - Result status: 0x%X\n", i+1, result)
+		debug.Printfln("WINAPI", "Attempt %d - Bytes written: %d\n", i+1, *bytesWritten)
 		
 		// Check if bytes were written
 		if *bytesWritten > 0 {
@@ -171,7 +171,7 @@ func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer uns
 		// If no bytes written and not the last attempt, wait and retry
 		if i < maxRetries-1 {
 			waitTime := time.Duration(100*(i+1)) * time.Millisecond
-			fmt.Printf("  No bytes written, retrying in %v...\n", waitTime)
+			debug.Printfln("WINAPI", "No bytes written, retrying in %v...\n", waitTime)
 			time.Sleep(waitTime)
 		}
 	}
@@ -726,7 +726,7 @@ type SyscallInfo struct {
 // DumpAllSyscalls enumerates all syscall functions from ntdll.dll and returns their information
 // This function uses the same logic as the existing pkg modules to discover and resolve syscalls
 func DumpAllSyscalls() ([]SyscallInfo, error) {
-	fmt.Printf("Starting syscall enumeration...\n")
+	debug.Printfln("WINAPI", "Starting syscall enumeration...\n")
 	
 	// Get the base address of ntdll.dll using the same logic as GetSyscallNumber
 	ntdllHash := obf.GetHash("ntdll.dll")
@@ -735,7 +735,7 @@ func DumpAllSyscalls() ([]SyscallInfo, error) {
 		return nil, fmt.Errorf("failed to get ntdll.dll base address")
 	}
 	
-	fmt.Printf("Found ntdll.dll at: 0x%X\n", ntdllBase)
+	debug.Printfln("WINAPI", "Found ntdll.dll at: 0x%X\n", ntdllBase)
 	
 	// Parse the PE file to get all exports (similar to GetFunctionAddress logic)
 	// Read the PE header to get the actual size of the image
@@ -760,7 +760,7 @@ func DumpAllSyscalls() ([]SyscallInfo, error) {
 	// OptionalHeader starts at offset 24 from PE signature
 	sizeOfImage := *(*uint32)(unsafe.Pointer(ntdllBase + uintptr(peOffset) + 24 + 56))
 	
-	fmt.Printf("PE SizeOfImage: %d bytes\n", sizeOfImage)
+	debug.Printfln("WINAPI", "PE SizeOfImage: %d bytes\n", sizeOfImage)
 	
 	// Create a memory reader for the PE file with the correct size
 	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(ntdllBase)), sizeOfImage)
@@ -781,7 +781,7 @@ func DumpAllSyscalls() ([]SyscallInfo, error) {
 		return nil, fmt.Errorf("failed to get exports: %v", err)
 	}
 	
-	fmt.Printf("Found %d exports in ntdll.dll\n", len(exports))
+	debug.Printfln("WINAPI", "Found %d exports in ntdll.dll\n", len(exports))
 	
 	var syscalls []SyscallInfo
 	
@@ -839,7 +839,7 @@ func DumpAllSyscalls() ([]SyscallInfo, error) {
 		}
 	}
 	
-	fmt.Printf("Found %d syscall functions\n", len(syscalls))
+	debug.Printfln("WINAPI", "Found %d syscall functions\n", len(syscalls))
 	
 	return syscalls, nil
 }
@@ -956,8 +956,8 @@ func GetSyscallCount() int {
 		return fmt.Errorf("failed to write Go syscall table file: %v", err)
 	}
 
-	fmt.Printf("Generated Go syscall table: %s\n", filename)
-	fmt.Printf("Syscall table contains %d unique functions\n", len(syscallMap))
+	debug.Printfln("WINAPI", "Generated Go syscall table: %s\n", filename)
+	debug.Printfln("WINAPI", "Syscall table contains %d unique functions\n", len(syscallMap))
 	
 	return nil
 }
@@ -1051,18 +1051,18 @@ func NtInjectSelfShellcode(payload []byte) error {
 		return fmt.Errorf("NtCreateThreadEx failed: %v %s", err, FormatNTStatus(status))
 	}
 
-	fmt.Printf("  Thread created successfully: 0x%X\n", hThread)
+	debug.Printfln("WINAPI", "Thread created successfully: 0x%X\n", hThread)
 	
 	// Wait for thread to complete execution
-	fmt.Printf("Step 5: Waiting for thread to complete...\n")
+	debug.Printfln("WINAPI", "Waiting for thread to complete...\n")
 	
 	// Wait for the thread with a timeout (10 seconds to be safe)
 	timeout := uint64(10000 * 1000 * 10) // 10 seconds in 100ns units
 	waitStatus, err := NtWaitForSingleObject(hThread, false, &timeout)
 	if err != nil {
-		fmt.Printf("  Warning: Wait failed: %v\n", err)
+		debug.Printfln("WINAPI", "Warning: Wait failed: %v\n", err)
 	} else {
-		fmt.Printf("  Thread wait completed with status: %s\n", FormatNTStatus(waitStatus))
+		debug.Printfln("WINAPI", "Thread wait completed with status: %s\n", FormatNTStatus(waitStatus))
 	}
 	
 	// Give it a moment and then clean up
@@ -1071,9 +1071,9 @@ func NtInjectSelfShellcode(payload []byte) error {
 	// Close the thread handle
 	closeStatus, err := NtClose(hThread)
 	if err != nil || closeStatus != STATUS_SUCCESS {
-		fmt.Printf("  Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
+		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
 	} else {
-		fmt.Printf("  Thread handle closed successfully\n")
+		debug.Printfln("WINAPI", "Thread handle closed successfully\n")
 	}
 	return nil
 }
