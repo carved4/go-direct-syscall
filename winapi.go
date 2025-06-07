@@ -95,6 +95,7 @@ func NtAllocateVirtualMemory(processHandle uintptr, baseAddress *uintptr, zeroBi
 // NtWriteVirtualMemory writes to memory in a process
 func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer unsafe.Pointer, size uintptr, bytesWritten *uintptr) (uintptr, error) {
 	fmt.Printf("NtWriteVirtualMemory debug:\n")
+
 	
 	// Initialize bytesWritten to 0 before the syscall
 	if bytesWritten != nil {

