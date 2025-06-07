@@ -2,14 +2,18 @@ package syscall
 
 import (
 	"runtime"
+	"unsafe"
 	_ "unsafe" // for go:linkname
 	
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
 )
 
 /*
-#cgo LDFLAGS: -L../../ -ldo_syscall
+#cgo LDFLAGS: -L../../ -ldo_syscall -ldo_call
 extern long long do_syscall(int ssn, int nargs, 
+    long long a0, long long a1, long long a2, long long a3, long long a4, long long a5,
+    long long a6, long long a7, long long a8, long long a9, long long a10, long long a11);
+extern long long do_call(void* func_addr, int nargs, 
     long long a0, long long a1, long long a2, long long a3, long long a4, long long a5,
     long long a6, long long a7, long long a8, long long a9, long long a10, long long a11);
 */
@@ -55,4 +59,34 @@ func ExternalSyscall(syscallNumber uint16, args ...uintptr) (uintptr, error) {
 func HashSyscall(functionHash uint32, args ...uintptr) (uintptr, error) {
 	syscallNum := syscallresolve.GetSyscallNumber(functionHash)
 	return ExternalSyscall(syscallNum, args...)
+}
+
+// DirectCall calls a Windows API function directly by address
+// This is different from DoSyscallExternal - it calls regular API functions, not syscalls
+func DirectCall(funcAddr uintptr, args ...uintptr) (uintptr, error) {
+	// Lock the OS thread for call safety
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	
+	// Pad args to ensure we have exactly 12 arguments  
+	paddedArgs := make([]uintptr, 12)
+	copy(paddedArgs, args)
+	
+	result := C.do_call(
+		unsafe.Pointer(funcAddr),
+		C.int(len(args)),
+		C.longlong(paddedArgs[0]),
+		C.longlong(paddedArgs[1]),
+		C.longlong(paddedArgs[2]),
+		C.longlong(paddedArgs[3]),
+		C.longlong(paddedArgs[4]),
+		C.longlong(paddedArgs[5]),
+		C.longlong(paddedArgs[6]),
+		C.longlong(paddedArgs[7]),
+		C.longlong(paddedArgs[8]),
+		C.longlong(paddedArgs[9]),
+		C.longlong(paddedArgs[10]),
+		C.longlong(paddedArgs[11]))
+	
+	return uintptr(result), nil
 }

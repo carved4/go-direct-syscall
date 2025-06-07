@@ -716,17 +716,11 @@ func PrewarmSyscallCache() error {
 		"NtWaitForSingleObject",
 		"NtWaitForMultipleObjects",
 	}
-
 	
 	for _, funcName := range commonFunctions {
 		functionHash := obf.GetHash(funcName)
-		syscallNum := GetSyscallNumber(functionHash)
-		if syscallNum > 0 {
-			fmt.Printf("  <3 %s: SSN %d\n", funcName, syscallNum)
-		} else {
-			fmt.Printf("  X %s: Failed to resolve\n", funcName)
-		}
+		GetSyscallNumber(functionHash)
 	}
-
+	
 	return nil
 }
