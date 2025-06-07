@@ -17,8 +17,6 @@ A Go library providing **TRUE direct Windows API syscalls** using external assem
 - [Syscall Discovery & Analysis](#syscall-discovery--analysis)
   - [DumpAllSyscalls Feature](#dumpalllsyscalls-feature)
 - [Security Bypass Features](#security-bypass-features)
-  - [AMSI Bypass](#amsi-bypass)
-  - [ETW Bypass](#etw-bypass)
   - [Integration and Usage](#integration-and-usage)
 - [Build Requirements](#build-requirements)
   - [Prerequisites](#prerequisites)
