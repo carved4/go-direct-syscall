@@ -61,7 +61,7 @@ A Go library providing **TRUE direct Windows API syscalls** using external assem
 - **Type Safety**: Strongly typed function signatures for common APIs
 
 ## Demo
-![demo](https://github.com/user-attachments/assets/b98dbd75-bfb0-4403-8f78-3c9a36ea5676)
+![demo1](https://github.com/user-attachments/assets/fcb4caf2-0581-4e01-81e8-9f735c5e5bc3)
 
 ## Quick Start
 
