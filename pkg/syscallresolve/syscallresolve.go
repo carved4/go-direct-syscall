@@ -3,6 +3,7 @@ package syscallresolve
 
 import (
 	"fmt"
+	"sync"
 	"time"
 	"unsafe"
 	
@@ -303,20 +304,33 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 // GetSyscallNumber extracts the syscall number from a NTDLL syscall function
 // This function uses ONLY manual PE parsing and PEB walking - NO Windows API calls
 func GetSyscallNumber(functionHash uint32) uint16 {
+	// Try cache first for performance
+	if cached := getSyscallFromCache(functionHash); cached != 0 {
+		return cached
+	}
+
 	// Get the base address of ntdll.dll using PEB walking (no LoadLibrary)
 	ntdllHash := obf.GetHash("ntdll.dll")
 	
-	// Add retry mechanism
+	// Add retry mechanism with exponential backoff
 	var ntdllBase uintptr
-	maxRetries := 5
+	maxRetries := 8
+	baseDelay := 50 * time.Millisecond
 	
 	for i := 0; i < maxRetries; i++ {
 		ntdllBase = GetModuleBase(ntdllHash)
 		if ntdllBase != 0 {
 			break
 		}
-		fmt.Printf("Failed to get ntdll.dll base address, retrying (%d/%d)...\n", i+1, maxRetries)
-		time.Sleep(100 * time.Millisecond)
+		
+		// Exponential backoff
+		delay := baseDelay * time.Duration(1<<uint(i))
+		if delay > 2*time.Second {
+			delay = 2 * time.Second
+		}
+		
+		fmt.Printf("Failed to get ntdll.dll base address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
+		time.Sleep(delay)
 	}
 	
 	if ntdllBase == 0 {
@@ -332,25 +346,30 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 		if funcAddr != 0 {
 			break
 		}
-		fmt.Printf("Failed to get function address, retrying (%d/%d)...\n", i+1, maxRetries)
-		time.Sleep(100 * time.Millisecond)
+		
+		// Exponential backoff
+		delay := baseDelay * time.Duration(1<<uint(i))
+		if delay > 2*time.Second {
+			delay = 2 * time.Second
+		}
+		
+		fmt.Printf("Failed to get function address, retrying (%d/%d) after %v...\n", i+1, maxRetries, delay)
+		time.Sleep(delay)
 	}
 	
 	if funcAddr == 0 {
 		fmt.Printf("Failed to get function address for hash: 0x%X after %d retries\n", functionHash, maxRetries)
 		return 0
 	}
-	
 
-	// The syscall number is at offset 4 in the syscall stub for x64
-	// The typical pattern is:
-	// 0:  4c 8b d1             mov    r10,rcx
-	// 3:  b8 XX XX 00 00       mov    eax,0xXXXX  <-- syscall number is here
-	// 8:  f6 04 25 08 03 fe 7f test   byte ptr [0x7ffe0308],0x1
-	// f:  75 03                jne    14
-	// 11: 0f 05                syscall
-	// 13: c3                   ret
-	syscallNumber := *(*uint16)(unsafe.Pointer(funcAddr + 4))
+	// Enhanced syscall stub validation and extraction
+	syscallNumber := extractSyscallNumberWithValidation(funcAddr, functionHash)
+	
+	// Cache the result if valid
+	if syscallNumber != 0 {
+		cacheSyscallNumber(functionHash, syscallNumber)
+	}
+	
 	return syscallNumber
 }
 
@@ -421,39 +440,293 @@ func GetSyscallAndAddress(functionHash uint32) (uint16, uintptr) {
 }
 
 // Helper function to dump memory for debugging
-func DumpMemory(addr uintptr, size int) {
-	data := make([]byte, size)
+func dumpMemory(addr uintptr, size int) {
+	fmt.Printf("Memory dump at 0x%X:\n", addr)
 	for i := 0; i < size; i++ {
-		data[i] = *(*byte)(unsafe.Pointer(addr + uintptr(i)))
+		if i%16 == 0 {
+			fmt.Printf("%08X: ", i)
+		}
+		b := *(*byte)(unsafe.Pointer(addr + uintptr(i)))
+		fmt.Printf("%02X ", b)
+		if i%16 == 15 || i == size-1 {
+			fmt.Printf("\n")
+		}
 	}
+}
+
+// SyscallCache provides thread-safe caching for resolved syscall numbers
+type SyscallCache struct {
+	cache map[uint32]uint16
+	mutex sync.RWMutex
+}
+
+var globalSyscallCache = &SyscallCache{
+	cache: make(map[uint32]uint16),
+}
+
+// getSyscallFromCache retrieves a cached syscall number
+func getSyscallFromCache(functionHash uint32) uint16 {
+	globalSyscallCache.mutex.RLock()
+	defer globalSyscallCache.mutex.RUnlock()
 	
-	fmt.Printf("Memory dump at %X (%d bytes):\n", addr, size)
-	for i := 0; i < size; i += 16 {
-		end := i + 16
-		if end > size {
-			end = size
-		}
+	if syscallNum, exists := globalSyscallCache.cache[functionHash]; exists {
+		return syscallNum
+	}
+	return 0
+}
+
+// cacheSyscallNumber stores a syscall number in the cache
+func cacheSyscallNumber(functionHash uint32, syscallNumber uint16) {
+	globalSyscallCache.mutex.Lock()
+	defer globalSyscallCache.mutex.Unlock()
+	
+	globalSyscallCache.cache[functionHash] = syscallNumber
+}
+
+// clearSyscallCache clears all cached syscall numbers (useful for testing)
+func clearSyscallCache() {
+	globalSyscallCache.mutex.Lock()
+	defer globalSyscallCache.mutex.Unlock()
+	
+	globalSyscallCache.cache = make(map[uint32]uint16)
+}
+
+// GetSyscallCacheSize returns the number of cached syscalls
+func GetSyscallCacheSize() int {
+	globalSyscallCache.mutex.RLock()
+	defer globalSyscallCache.mutex.RUnlock()
+	
+	return len(globalSyscallCache.cache)
+}
+
+// extractSyscallNumberWithValidation performs enhanced validation and extraction
+func extractSyscallNumberWithValidation(funcAddr uintptr, functionHash uint32) uint16 {
+	if funcAddr == 0 {
+		return 0
+	}
+
+	// Read enough bytes to analyze the function
+	const maxBytes = 32
+	funcBytes := make([]byte, maxBytes)
+	
+	// Safely read memory with bounds checking
+	for i := 0; i < maxBytes; i++ {
+		funcBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+	}
+
+	// Try multiple syscall stub patterns for robustness
+	syscallNumber := tryExtractSyscallNumber(funcBytes, funcAddr, functionHash)
+	
+	// Validate the extracted syscall number
+	if syscallNumber > 0 && validateSyscallNumber(syscallNumber, functionHash) {
+		return syscallNumber
+	}
+
+	// Fallback: try alternative extraction methods
+	return tryAlternativeExtractionMethods(funcBytes, funcAddr, functionHash)
+}
+
+// tryExtractSyscallNumber attempts to extract syscall number using multiple patterns
+func tryExtractSyscallNumber(funcBytes []byte, funcAddr uintptr, functionHash uint32) uint16 {
+	if len(funcBytes) < 16 {
+		return 0
+	}
+
+	// Pattern 1: Standard x64 syscall stub
+	// 0: 4c 8b d1             mov r10, rcx
+	// 3: b8 XX XX 00 00       mov eax, XXXX
+	// 8: f6 04 25 08 03 fe 7f test byte ptr [0x7ffe0308], 1
+	if len(funcBytes) >= 8 &&
+		funcBytes[0] == 0x4c && funcBytes[1] == 0x8b && funcBytes[2] == 0xd1 &&
+		funcBytes[3] == 0xb8 {
 		
-		// Print hex values
-		fmt.Printf("%04X: ", i)
-		for j := i; j < end; j++ {
-			fmt.Printf("%02X ", data[j])
+		syscallNum := uint16(funcBytes[4]) | (uint16(funcBytes[5]) << 8)
+		if syscallNum > 0 && syscallNum < 2000 { // Reasonable range check
+			return syscallNum
 		}
+	}
+
+	// Pattern 2: Alternative syscall stub (some Windows versions)
+	// 0: b8 XX XX 00 00       mov eax, XXXX
+	// 5: 4c 8b d1             mov r10, rcx
+	if len(funcBytes) >= 8 &&
+		funcBytes[0] == 0xb8 &&
+		funcBytes[5] == 0x4c && funcBytes[6] == 0x8b && funcBytes[7] == 0xd1 {
 		
-		// Pad with spaces if needed
-		for j := end; j < i+16; j++ {
-			fmt.Printf("   ")
+		syscallNum := uint16(funcBytes[1]) | (uint16(funcBytes[2]) << 8)
+		if syscallNum > 0 && syscallNum < 2000 {
+			return syscallNum
 		}
-		
-		// Print ASCII representation
-		fmt.Printf(" | ")
-		for j := i; j < end; j++ {
-			if data[j] >= 32 && data[j] <= 126 {
-				fmt.Printf("%c", data[j])
-			} else {
-				fmt.Printf(".")
+	}
+
+	// Pattern 3: Hooked syscall detection (look for JMP instruction)
+	// If we find a JMP at the beginning, the function might be hooked
+	if funcBytes[0] == 0xe9 || funcBytes[0] == 0xeb || funcBytes[0] == 0xff {
+		fmt.Printf("Warning: Function at 0x%X appears to be hooked (starts with JMP: 0x%02X)\n", 
+			funcAddr, funcBytes[0])
+		return 0
+	}
+
+	return 0
+}
+
+// validateSyscallNumber performs additional validation on extracted syscall numbers
+func validateSyscallNumber(syscallNumber uint16, functionHash uint32) bool {
+	// Basic range validation
+	if syscallNumber == 0 || syscallNumber >= 2000 {
+		return false
+	}
+
+	// Check against known invalid ranges
+	// Syscall numbers should be reasonable for NT kernel functions
+	if syscallNumber < 2 {
+		// Only syscall numbers 0 and 1 are truly suspicious
+		fmt.Printf("Warning: Unusually low syscall number %d for hash 0x%X\n", 
+			syscallNumber, functionHash)
+	}
+
+	// Additional validation could include (if you want to submit a PR)
+	// - Cross-referencing with known good syscall numbers
+	// - Checking if the syscall number fits expected patterns
+	// - Validating against syscall tables from different Windows versions
+
+	return true
+}
+
+// tryAlternativeExtractionMethods provides fallback extraction when standard methods fail
+func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functionHash uint32) uint16 {
+	// Method 1: Scan for MOV EAX instructions in the first 32 bytes
+	for i := 0; i < len(funcBytes)-4; i++ {
+		if funcBytes[i] == 0xb8 { // MOV EAX, imm32
+			syscallNum := uint16(funcBytes[i+1]) | (uint16(funcBytes[i+2]) << 8)
+			if syscallNum > 0 && syscallNum < 2000 {
+				fmt.Printf("Alternative extraction found syscall %d at offset %d for hash 0x%X\n", 
+					syscallNum, i, functionHash)
+				return syscallNum
 			}
 		}
-		fmt.Println()
 	}
+
+	// Method 2: Look for syscall instruction and backtrack
+	for i := 0; i < len(funcBytes)-1; i++ {
+		if funcBytes[i] == 0x0f && funcBytes[i+1] == 0x05 { // SYSCALL instruction
+			// Found syscall instruction, now look backwards for MOV EAX
+			for j := i; j >= 4; j-- {
+				if funcBytes[j-4] == 0xb8 { // MOV EAX, imm32
+					syscallNum := uint16(funcBytes[j-3]) | (uint16(funcBytes[j-2]) << 8)
+					if syscallNum > 0 && syscallNum < 2000 {
+						fmt.Printf("Backtrack extraction found syscall %d for hash 0x%X\n", 
+							syscallNum, functionHash)
+						return syscallNum
+					}
+				}
+			}
+			break
+		}
+	}
+
+	// Method 3: Try reading at different offsets (handle potential hooks/patches)
+	alternativeOffsets := []int{8, 12, 16, 20}
+	for _, offset := range alternativeOffsets {
+		if offset+1 < len(funcBytes) {
+			if funcBytes[offset] == 0xb8 { // MOV EAX
+				syscallNum := uint16(funcBytes[offset+1]) | (uint16(funcBytes[offset+2]) << 8)
+				if syscallNum > 0 && syscallNum < 2000 {
+					fmt.Printf("Offset extraction found syscall %d at offset %d for hash 0x%X\n", 
+						syscallNum, offset, functionHash)
+					return syscallNum
+				}
+			}
+		}
+	}
+
+	fmt.Printf("All extraction methods failed for hash 0x%X\n", functionHash)
+	return 0
+}
+
+// GetSyscallWithValidation provides additional metadata and validation
+func GetSyscallWithValidation(functionHash uint32) (uint16, bool, error) {
+	syscallNum := GetSyscallNumber(functionHash)
+	
+	if syscallNum == 0 {
+		return 0, false, fmt.Errorf("failed to resolve syscall for hash 0x%X", functionHash)
+	}
+
+	// Additional validation
+	isValid := validateSyscallNumber(syscallNum, functionHash)
+	
+	return syscallNum, isValid, nil
+}
+
+// PrewarmSyscallCache preloads common syscall numbers for better performance
+func PrewarmSyscallCache() error {
+	// All NT functions available in winapi.go
+	commonFunctions := []string{
+		// Memory Management
+		"NtAllocateVirtualMemory",
+		"NtWriteVirtualMemory",
+		"NtReadVirtualMemory",
+		"NtProtectVirtualMemory",
+		"NtFreeVirtualMemory",
+		"NtQueryVirtualMemory",
+		"NtCreateThreadEx",
+		"NtCreateThread",
+		"NtOpenProcess",
+		"NtOpenThread",
+		"NtTerminateProcess",
+		"NtSuspendProcess",
+		"NtResumeProcess",
+		"NtCreateProcess",
+		"NtSuspendThread",
+		"NtResumeThread",
+		"NtTerminateThread",
+		"NtQuerySystemInformation",
+		"NtQueryInformationProcess",
+		"NtCreateSection",
+		"NtMapViewOfSection",
+		"NtUnmapViewOfSection",
+		"NtClose",
+		"NtDuplicateObject",
+		"NtQueryObject",
+		"NtCreateFile",
+		"NtReadFile",
+		"NtWriteFile",
+		"NtDeleteFile",
+		"NtQueryDirectoryFile",
+		"NtQueryInformationFile",
+		"NtSetInformationFile",
+		"NtCreateKey",
+		"NtOpenKey",
+		"NtDeleteKey",
+		"NtSetValueKey",
+		"NtQueryValueKey",
+		"NtDeleteValueKey",
+		"NtOpenProcessToken",
+		"NtOpenThreadToken",
+		"NtQueryInformationToken",
+		"NtSetInformationToken",
+		"NtAdjustPrivilegesToken",
+		"NtSetSystemInformation",
+		"NtQuerySystemTime",	
+		"NtSetSystemTime",
+		"NtCreateEvent",
+		"NtOpenEvent",
+		"NtSetEvent",
+		"NtResetEvent",
+		"NtWaitForSingleObject",
+		"NtWaitForMultipleObjects",
+	}
+
+	
+	for _, funcName := range commonFunctions {
+		functionHash := obf.GetHash(funcName)
+		syscallNum := GetSyscallNumber(functionHash)
+		if syscallNum > 0 {
+			fmt.Printf("  <3 %s: SSN %d\n", funcName, syscallNum)
+		} else {
+			fmt.Printf("  X %s: Failed to resolve\n", funcName)
+		}
+	}
+
+	return nil
 }

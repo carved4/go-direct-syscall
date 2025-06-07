@@ -39,6 +39,34 @@ func GetFunctionHash(functionName string) uint32 {
 	return obf.GetHash(functionName)
 }
 
+// GetSyscallWithValidation provides enhanced syscall resolution with validation
+// Returns the syscall number, validation status, and any errors
+func GetSyscallWithValidation(functionName string) (uint16, bool, error) {
+	functionHash := obf.GetHash(functionName)
+	return syscallresolve.GetSyscallWithValidation(functionHash)
+}
+
+// PrewarmSyscallCache preloads common syscall numbers for better performance
+// This should be called early in your application to improve syscall resolution speed
+func PrewarmSyscallCache() error {
+	return syscallresolve.PrewarmSyscallCache()
+}
+
+// GetSyscallCacheSize returns the number of cached syscall numbers
+func GetSyscallCacheSize() int {
+	return syscallresolve.GetSyscallCacheSize()
+}
+
+// GetSyscallCacheStats returns detailed cache statistics
+func GetSyscallCacheStats() map[string]interface{} {
+	return map[string]interface{}{
+		"cache_size": syscallresolve.GetSyscallCacheSize(),
+		"cache_enabled": true,
+		"hash_algorithm": "DBJ2",
+	}
+}
+
+
 // StringToUTF16 converts a Go string to a UTF16 string pointer
 // This replaces syscall.UTF16PtrFromString to avoid standard library dependencies
 func StringToUTF16(s string) *uint16 {
