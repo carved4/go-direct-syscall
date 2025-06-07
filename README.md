@@ -258,7 +258,7 @@ The library includes a powerful syscall enumeration feature that can discover an
 #### Command Line Usage
 
 ```bash
-# Dump all syscalls to console and JSON file
+# Dump all syscalls to console, JSON file and go stub
 # Also demonstrates NT status code formatting examples
 ./cmd.exe -dump
 ```
@@ -395,13 +395,6 @@ func main() {
 - Understand the true Windows API surface
 
 #### Go Syscall Table Generation
-
-The enhanced dump feature also generates a Go source file with pre-computed syscall numbers:
-
-```bash
-# Generate both JSON and Go syscall table files
-./cmd.exe -dump
-```
 
 This creates two files:
 - `syscall_dump_YYYYMMDD_HHMMSS.json` - Complete syscall information
