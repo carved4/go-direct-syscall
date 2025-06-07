@@ -78,7 +78,6 @@ package main
 
 import (
 	"fmt"
-	"time"
 	"unsafe"
 
 	winapi "github.com/carved4/go-direct-syscall"
