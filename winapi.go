@@ -715,151 +715,278 @@ func NtSetInformationFile(fileHandle uintptr, ioStatusBlock uintptr, fileInforma
 		fileInformationClass)
 }
 
-// SyscallInfo holds information about a single syscall
+// SyscallInfo holds information about a single syscall or Windows API function
 type SyscallInfo struct {
 	Name          string
 	Hash          uint32
 	SyscallNumber uint16
 	Address       uintptr
+	Module        string  // Added to track which DLL the function comes from
+	IsSyscall     bool    // Added to distinguish between syscalls and regular API functions
 }
 
-// DumpAllSyscalls enumerates all syscall functions from ntdll.dll and returns their information
-// This function uses the same logic as the existing pkg modules to discover and resolve syscalls
+// DumpAllSyscalls enumerates all Windows API functions from multiple DLLs
+// This function now handles both syscalls and regular API functions
 func DumpAllSyscalls() ([]SyscallInfo, error) {
-	fmt.Printf("Starting syscall enumeration...\n")
+	fmt.Printf("Starting comprehensive Windows API enumeration...\n")
 	
-	// Get the base address of ntdll.dll using the same logic as GetSyscallNumber
-	ntdllHash := obf.GetHash("ntdll.dll")
-	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
-	if ntdllBase == 0 {
-		return nil, fmt.Errorf("failed to get ntdll.dll base address")
+	var allFunctions []SyscallInfo
+	
+	// List of essential DLLs for malware development and direct syscalls
+	dlls := []string{
+		"ntdll.dll",    // Direct syscalls (Nt*/Zw* functions)
+		"kernel32.dll", // Core Windows APIs (CreateThread, VirtualAlloc, etc.)
 	}
 	
-	fmt.Printf("Found ntdll.dll at: 0x%X\n", ntdllBase)
+	for _, dllName := range dlls {
+		fmt.Printf("Processing %s...\n", dllName)
+		functions, err := enumerateDLLExports(dllName)
+		if err != nil {
+			fmt.Printf("Warning: Failed to enumerate %s: %v\n", dllName, err)
+			continue
+		}
+		allFunctions = append(allFunctions, functions...)
+		fmt.Printf("Found %d functions in %s\n", len(functions), dllName)
+	}
 	
-	// Parse the PE file to get all exports (similar to GetFunctionAddress logic)
-	// Read the PE header to get the actual size of the image
-	dosHeader := (*[64]byte)(unsafe.Pointer(ntdllBase))
+	fmt.Printf("Total functions enumerated: %d\n", len(allFunctions))
+	return allFunctions, nil
+}
+
+// enumerateDLLExports enumerates all exported functions from a specific DLL
+func enumerateDLLExports(dllName string) ([]SyscallInfo, error) {
+	// Get the base address of the DLL
+	dllHash := obf.GetHash(dllName)
+	dllBase := syscallresolve.GetModuleBase(dllHash)
+	if dllBase == 0 {
+		return nil, fmt.Errorf("failed to get %s base address", dllName)
+	}
+	
+	// Parse the PE file to get all exports
+	dosHeader := (*[64]byte)(unsafe.Pointer(dllBase))
 	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
-		return nil, fmt.Errorf("invalid DOS signature")
+		return nil, fmt.Errorf("invalid DOS signature in %s", dllName)
 	}
 	
 	// Get the offset to the PE header
-	peOffset := *(*uint32)(unsafe.Pointer(ntdllBase + 60))
+	peOffset := *(*uint32)(unsafe.Pointer(dllBase + 60))
 	if peOffset >= 1024 {
-		return nil, fmt.Errorf("PE offset too large: %d", peOffset)
+		return nil, fmt.Errorf("PE offset too large in %s: %d", dllName, peOffset)
 	}
 	
 	// Read the PE header to get the SizeOfImage
-	peHeader := (*[1024]byte)(unsafe.Pointer(ntdllBase + uintptr(peOffset)))
+	peHeader := (*[1024]byte)(unsafe.Pointer(dllBase + uintptr(peOffset)))
 	if peHeader[0] != 'P' || peHeader[1] != 'E' {
-		return nil, fmt.Errorf("invalid PE signature")
+		return nil, fmt.Errorf("invalid PE signature in %s", dllName)
 	}
 	
 	// SizeOfImage is at offset 56 from the start of the OptionalHeader
-	// OptionalHeader starts at offset 24 from PE signature
-	sizeOfImage := *(*uint32)(unsafe.Pointer(ntdllBase + uintptr(peOffset) + 24 + 56))
+	sizeOfImage := *(*uint32)(unsafe.Pointer(dllBase + uintptr(peOffset) + 24 + 56))
 	
-	fmt.Printf("PE SizeOfImage: %d bytes\n", sizeOfImage)
-	
-	// Create a memory reader for the PE file with the correct size
-	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(ntdllBase)), sizeOfImage)
-	
-	// Parse the PE file from memory using the same memoryReaderAt approach
+	// Create a memory reader for the PE file
+	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(dllBase)), sizeOfImage)
 	memReader := &memoryReaderAt{data: dataSlice}
 	
-	// Use the debug/pe package to parse the file
+	// Parse the PE file from memory
 	file, err := pe.NewFileFromMemory(memReader)
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse PE file: %v", err)
+		return nil, fmt.Errorf("failed to parse PE file %s: %v", dllName, err)
 	}
 	defer file.Close()
 	
 	// Get all exports
 	exports, err := file.Exports()
 	if err != nil {
-		return nil, fmt.Errorf("failed to get exports: %v", err)
+		return nil, fmt.Errorf("failed to get exports from %s: %v", dllName, err)
 	}
 	
-	fmt.Printf("Found %d exports in ntdll.dll\n", len(exports))
+	var functions []SyscallInfo
 	
-	var syscalls []SyscallInfo
-	
-	// Filter for syscall functions (those that start with "Nt" or "Zw")
 	for _, export := range exports {
 		if export.Name == "" {
 			continue
 		}
-		
-		// Check if this is a syscall function (starts with Nt or Zw)
-		if !(len(export.Name) > 2 && (export.Name[:2] == "Nt" || export.Name[:2] == "Zw")) {
-			continue
-		}
+	
 		
 		// Get function address
-		funcAddr := ntdllBase + uintptr(export.VirtualAddress)
+		funcAddr := dllBase + uintptr(export.VirtualAddress)
+		if funcAddr == dllBase { // Skip invalid addresses
+			continue
+		}
 		
 		// Calculate hash using the same obfuscation logic
 		funcHash := obf.GetHash(export.Name)
 		
-		// Try to extract syscall number
-		// The syscall number is at offset 4 in the syscall stub for x64
-		// The typical pattern is:
-		// 0:  4c 8b d1             mov    r10,rcx
-		// 3:  b8 XX XX 00 00       mov    eax,0xXXXX  <-- syscall number is here
-		// We need to check if this is actually a syscall stub
-		
+		// Check if this is a syscall function (only for ntdll.dll)
+		isSyscall := false
 		var syscallNumber uint16
 		
-		// Check if the function starts with the expected syscall stub pattern
-		if funcAddr != 0 {
-			// Read first few bytes to check if it's a syscall stub
-			firstBytes := make([]byte, 16)
-			for i := 0; i < 16; i++ {
-				firstBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+		if dllName == "ntdll.dll" {
+			// Only include Nt*/Zw* functions that are actual syscalls
+			if len(export.Name) > 2 && (export.Name[:2] == "Nt" || export.Name[:2] == "Zw") {
+				// Try to extract syscall number for ntdll functions
+				if funcAddr != 0 {
+					firstBytes := make([]byte, 16)
+					for i := 0; i < 16; i++ {
+						firstBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+					}
+					
+					// Debug: print first few bytes for troubleshooting
+					if export.Name == "NtAllocateVirtualMemory" {
+						fmt.Printf("Debug %s: %02x %02x %02x %02x %02x %02x %02x %02x\n", 
+							export.Name, firstBytes[0], firstBytes[1], firstBytes[2], firstBytes[3],
+							firstBytes[4], firstBytes[5], firstBytes[6], firstBytes[7])
+					}
+					
+									// Check for typical syscall stub patterns
+				// Pattern 1: mov r10,rcx; mov eax,XXXX; syscall (4c 8b d1 b8 XX XX 00 00 0f 05)
+				// Pattern 2: mov eax,XXXX; mov r10,rcx; syscall (b8 XX XX 00 00 4c 8b d1 0f 05)
+				
+				if len(firstBytes) >= 10 {
+					// Check pattern 1: 4c 8b d1 b8 XX XX 00 00
+					if firstBytes[0] == 0x4c && firstBytes[1] == 0x8b && 
+					   firstBytes[2] == 0xd1 && firstBytes[3] == 0xb8 {
+						// Extract syscall number from bytes 4-5 (little endian)
+						syscallNumber = uint16(firstBytes[4]) | (uint16(firstBytes[5]) << 8)
+						if syscallNumber > 0 && syscallNumber < 0x1000 { // Sanity check
+							isSyscall = true
+						}
+					} else if firstBytes[0] == 0xb8 && firstBytes[5] == 0x4c && 
+					          firstBytes[6] == 0x8b && firstBytes[7] == 0xd1 {
+						// Pattern 2: b8 XX XX 00 00 4c 8b d1
+						syscallNumber = uint16(firstBytes[1]) | (uint16(firstBytes[2]) << 8)
+						if syscallNumber > 0 && syscallNumber < 0x1000 { // Sanity check
+							isSyscall = true
+						}
+					}
+				}
+				}
 			}
-			
-			// Check for typical syscall stub pattern: 4c 8b d1 b8 (mov r10,rcx; mov eax,XXXX)
-			if len(firstBytes) >= 8 && firstBytes[0] == 0x4c && firstBytes[1] == 0x8b && 
-			   firstBytes[2] == 0xd1 && firstBytes[3] == 0xb8 {
-				// Extract syscall number (little endian uint16 at offset 4)
-				syscallNumber = *(*uint16)(unsafe.Pointer(funcAddr + 4))
+			// Skip if not a valid syscall
+			if !isSyscall {
+				continue
+			}
+		} else if dllName == "kernel32.dll" {
+			// Only include essential malware development functions from kernel32
+			if !isEssentialKernel32Function(export.Name) {
+				continue
 			}
 		}
 		
-		// Only include functions that have valid syscall numbers
-		if syscallNumber > 0 {
-			syscallInfo := SyscallInfo{
-				Name:          export.Name,
-				Hash:          funcHash,
-				SyscallNumber: syscallNumber,
-				Address:       funcAddr,
-			}
-			syscalls = append(syscalls, syscallInfo)
+		// Create function info
+		funcInfo := SyscallInfo{
+			Name:          export.Name,
+			Hash:          funcHash,
+			Address:       funcAddr,
+			Module:        dllName,
+			IsSyscall:     isSyscall,
+			SyscallNumber: syscallNumber,
 		}
+		
+		functions = append(functions, funcInfo)
 	}
 	
-	fmt.Printf("Found %d syscall functions\n", len(syscalls))
-	
-	return syscalls, nil
+	return functions, nil
 }
 
-// DumpAllSyscallsWithFiles enumerates all syscall functions and exports to both JSON and Go files
-// This is the enhanced version that generates both JSON and Go syscall table files
+// isEssentialKernel32Function checks if a kernel32 function is essential for malware development
+func isEssentialKernel32Function(name string) bool {
+	essentialFunctions := map[string]bool{
+		// Process/Thread management
+		"CreateThread":           true,
+		"CreateRemoteThread":     true,
+		"OpenProcess":           true,
+		"OpenThread":            true,
+		"TerminateProcess":      true,
+		"TerminateThread":       true,
+		"SuspendThread":         true,
+		"ResumeThread":          true,
+		"GetCurrentProcess":     true,
+		"GetCurrentThread":      true,
+		"GetProcessId":          true,
+		"GetThreadId":           true,
+		
+		// Memory management
+		"VirtualAlloc":          true,
+		"VirtualAllocEx":        true,
+		"VirtualFree":           true,
+		"VirtualFreeEx":         true,
+		"VirtualProtect":        true,
+		"VirtualProtectEx":      true,
+		"VirtualQuery":          true,
+		"VirtualQueryEx":        true,
+		"ReadProcessMemory":     true,
+		"WriteProcessMemory":    true,
+		
+		// Module/DLL operations
+		"LoadLibraryA":          true,
+		"LoadLibraryW":          true,
+		"GetProcAddress":        true,
+		"GetModuleHandleA":      true,
+		"GetModuleHandleW":      true,
+		"FreeLibrary":           true,
+		
+		// File operations
+		"CreateFileA":           true,
+		"CreateFileW":           true,
+		"ReadFile":              true,
+		"WriteFile":             true,
+		"GetFileSize":           true,
+		"SetFilePointer":        true,
+		"CloseHandle":           true,
+		
+		// Process enumeration
+		"CreateToolhelp32Snapshot": true,
+		"Process32First":           true,
+		"Process32Next":            true,
+		"Module32First":            true,
+		"Module32Next":             true,
+		
+		// Registry (basic)
+		"RegOpenKeyExA":         true,
+		"RegOpenKeyExW":         true,
+		"RegCloseKey":           true,
+		"RegQueryValueExA":      true,
+		"RegQueryValueExW":      true,
+		
+		// System info
+		"GetSystemInfo":         true,
+		"GetVersionExA":         true,
+		"GetVersionExW":         true,
+		"GetComputerNameA":      true,
+		"GetComputerNameW":      true,
+		
+		// Handles
+		"DuplicateHandle":       true,
+		"WaitForSingleObject":   true,
+		"WaitForMultipleObjects": true,
+		
+		// Security
+		"OpenProcessToken":      true,
+		"LookupPrivilegeValueA": true,
+		"LookupPrivilegeValueW": true,
+		"AdjustTokenPrivileges": true,
+	}
+	
+	return essentialFunctions[name]
+}
+
+// DumpAllSyscallsWithFiles enumerates all Windows API functions and exports to table files
+// This generates both JSON data for researchers and Go source files for developers
 func DumpAllSyscallsWithFiles() ([]SyscallInfo, error) {
-	// Get the syscall information using the existing function
-	syscalls, err := DumpAllSyscalls()
+	// Get all API function information using the consolidated function
+	functions, err := DumpAllSyscalls()
 	if err != nil {
 		return nil, err
 	}
 
-	// Generate Go syscall table file
-	err = generateSyscallTableFile(syscalls)
+	// Generate comprehensive API function table file
+	err = generateAPIFunctionTableFile(functions)
 	if err != nil {
-		fmt.Printf("Warning: Failed to generate Go syscall table: %v\n", err)
+		fmt.Printf("Warning: Failed to generate API function table: %v\n", err)
 	}
 
-	return syscalls, nil
+	return functions, nil
 }
 
 // generateSyscallTableFile creates a Go file with syscall table map
@@ -958,6 +1085,250 @@ func GetSyscallCount() int {
 
 	fmt.Printf("Generated Go syscall table: %s\n", filename)
 	fmt.Printf("Syscall table contains %d unique functions\n", len(syscallMap))
+	
+	return nil
+}
+
+// generateAPIFunctionTableFile creates a comprehensive Go file with all API functions
+func generateAPIFunctionTableFile(functions []SyscallInfo) error {
+	// Generate filename with timestamp
+	now := time.Now()
+	timestamp := fmt.Sprintf("%d%02d%02d_%02d%02d%02d", 
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	filename := fmt.Sprintf("winapi_functions_%s.go", timestamp)
+
+	// Create the Go file content
+	content := `// Package winapitable provides comprehensive Windows API function information
+// Auto-generated by go-direct-syscall DumpAllSyscalls function
+// Contains both syscalls and regular API functions with their addresses and hashes
+// 
+// Use this with the constants from constants.go for complete Windows API access
+package winapitable
+
+import (
+	"fmt"
+	"unsafe"
+	
+	"github.com/carved4/go-direct-syscall/pkg/syscall"
+	"github.com/carved4/go-direct-syscall"
+)
+
+// WinAPIFunction contains information about a Windows API function
+type WinAPIFunction struct {
+	Name          string
+	Hash          uint32
+	Address       uintptr
+	Module        string
+	IsSyscall     bool
+	SyscallNumber uint16
+}
+
+// WinAPIFunctionTable contains all enumerated Windows API functions
+var WinAPIFunctionTable = []WinAPIFunction{
+`
+
+	// Sort functions by module then by name for better organization
+	sortedFunctions := make([]SyscallInfo, len(functions))
+	copy(sortedFunctions, functions)
+	
+	// Simple sorting by module then name
+	for i := 0; i < len(sortedFunctions)-1; i++ {
+		for j := 0; j < len(sortedFunctions)-i-1; j++ {
+			curr := sortedFunctions[j]
+			next := sortedFunctions[j+1]
+			
+			if curr.Module > next.Module || 
+			   (curr.Module == next.Module && curr.Name > next.Name) {
+				sortedFunctions[j], sortedFunctions[j+1] = next, curr
+			}
+		}
+	}
+
+	// Add each function to the table
+	for _, fn := range sortedFunctions {
+		content += fmt.Sprintf("\t{\n")
+		content += fmt.Sprintf("\t\tName:          \"%s\",\n", fn.Name)
+		content += fmt.Sprintf("\t\tHash:          0x%x,\n", fn.Hash)
+		content += fmt.Sprintf("\t\tAddress:       0x%x,\n", fn.Address)
+		content += fmt.Sprintf("\t\tModule:        \"%s\",\n", fn.Module)
+		content += fmt.Sprintf("\t\tIsSyscall:     %t,\n", fn.IsSyscall)
+		if fn.IsSyscall {
+			content += fmt.Sprintf("\t\tSyscallNumber: %d,\n", fn.SyscallNumber)
+		} else {
+			content += fmt.Sprintf("\t\tSyscallNumber: 0,\n")
+		}
+		content += fmt.Sprintf("\t},\n")
+	}
+
+	content += `}
+
+// GetFunctionByName returns the function information for a given function name
+func GetFunctionByName(functionName string) *WinAPIFunction {
+	for _, fn := range WinAPIFunctionTable {
+		if fn.Name == functionName {
+			return &fn
+		}
+	}
+	return nil
+}
+
+// GetFunctionByHash returns the function information for a given function hash
+func GetFunctionByHash(functionHash uint32) *WinAPIFunction {
+	for _, fn := range WinAPIFunctionTable {
+		if fn.Hash == functionHash {
+			return &fn
+		}
+	}
+	return nil
+}
+
+// GetSyscallFunctions returns all functions that are syscalls
+func GetSyscallFunctions() []WinAPIFunction {
+	var syscalls []WinAPIFunction
+	for _, fn := range WinAPIFunctionTable {
+		if fn.IsSyscall {
+			syscalls = append(syscalls, fn)
+		}
+	}
+	return syscalls
+}
+
+// GetRegularAPIFunctions returns all functions that are regular API calls
+func GetRegularAPIFunctions() []WinAPIFunction {
+	var apiFunctions []WinAPIFunction
+	for _, fn := range WinAPIFunctionTable {
+		if !fn.IsSyscall {
+			apiFunctions = append(apiFunctions, fn)
+		}
+	}
+	return apiFunctions
+}
+
+// GetFunctionsByModule returns all functions from a specific module/DLL
+func GetFunctionsByModule(moduleName string) []WinAPIFunction {
+	var moduleFunctions []WinAPIFunction
+	for _, fn := range WinAPIFunctionTable {
+		if fn.Module == moduleName {
+			moduleFunctions = append(moduleFunctions, fn)
+		}
+	}
+	return moduleFunctions
+}
+
+// DirectCallByName calls a Windows API function by name using the stored address
+func DirectCallByName(functionName string, args ...uintptr) (uintptr, error) {
+	fn := GetFunctionByName(functionName)
+	if fn == nil {
+		return 0, fmt.Errorf("function %s not found", functionName)
+	}
+	
+	if fn.IsSyscall {
+		// Use direct syscall for ntdll functions
+		return winapi.DirectSyscallByHash(fn.Hash, args...)
+	} else {
+		// Use direct call for regular API functions
+		return syscall.DirectCall(fn.Address, args...)
+	}
+}
+
+// DirectCallByHash calls a Windows API function by hash using the stored address  
+func DirectCallByHash(functionHash uint32, args ...uintptr) (uintptr, error) {
+	fn := GetFunctionByHash(functionHash)
+	if fn == nil {
+		return 0, fmt.Errorf("function with hash 0x%x not found", functionHash)
+	}
+	
+	if fn.IsSyscall {
+		// Use direct syscall for ntdll functions
+		return winapi.DirectSyscallByHash(fn.Hash, args...)
+	} else {
+		// Use direct call for regular API functions
+		return syscall.DirectCall(fn.Address, args...)
+	}
+}
+
+// DirectCallByAddress calls a Windows API function at the given address
+func DirectCallByAddress(funcAddr uintptr, args ...uintptr) (uintptr, error) {
+	// Use the existing DirectCall function from the syscall package
+	return syscall.DirectCall(funcAddr, args...)
+}
+
+// SyscallByName executes a direct syscall by function name (for ntdll functions only)
+func SyscallByName(functionName string, args ...uintptr) (uintptr, error) {
+	fn := GetFunctionByName(functionName)
+	if fn == nil {
+		return 0, fmt.Errorf("function %s not found", functionName)
+	}
+	
+	if !fn.IsSyscall {
+		return 0, fmt.Errorf("function %s is not a syscall", functionName)
+	}
+	
+	return winapi.DirectSyscallByHash(fn.Hash, args...)
+}
+
+// SyscallByHash executes a direct syscall by function hash (for ntdll functions only)
+func SyscallByHash(functionHash uint32, args ...uintptr) (uintptr, error) {
+	fn := GetFunctionByHash(functionHash)
+	if fn == nil {
+		return 0, fmt.Errorf("function with hash 0x%x not found", functionHash)
+	}
+	
+	if !fn.IsSyscall {
+		return 0, fmt.Errorf("function with hash 0x%x is not a syscall", functionHash)
+	}
+	
+	return winapi.DirectSyscallByHash(fn.Hash, args...)
+}
+
+// GetTableStats returns statistics about the function table
+func GetTableStats() map[string]interface{} {
+	syscallCount := 0
+	apiCount := 0
+	moduleCount := make(map[string]int)
+	
+	for _, fn := range WinAPIFunctionTable {
+		if fn.IsSyscall {
+			syscallCount++
+		} else {
+			apiCount++
+		}
+		moduleCount[fn.Module]++
+	}
+	
+	return map[string]interface{}{
+		"total_functions": len(WinAPIFunctionTable),
+		"syscall_count":   syscallCount,
+		"api_count":       apiCount,
+		"module_count":    len(moduleCount),
+		"modules":         moduleCount,
+	}
+}
+`
+
+	// Write the Go file
+	err := writeFileContent(filename, []byte(content))
+	if err != nil {
+		return fmt.Errorf("failed to write API function table file: %v", err)
+	}
+
+	fmt.Printf("Generated comprehensive API function table: %s\n", filename)
+	fmt.Printf("Function table contains %d total functions\n", len(functions))
+	
+	// Print module breakdown
+	moduleCount := make(map[string]int)
+	syscallCount := 0
+	for _, fn := range functions {
+		moduleCount[fn.Module]++
+		if fn.IsSyscall {
+			syscallCount++
+		}
+	}
+	
+	fmt.Printf("Syscalls: %d, Regular APIs: %d\n", syscallCount, len(functions)-syscallCount)
+	for module, count := range moduleCount {
+		fmt.Printf("  %s: %d functions\n", module, count)
+	}
 	
 	return nil
 }

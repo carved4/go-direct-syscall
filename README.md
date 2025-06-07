@@ -109,8 +109,10 @@ func main() {
         panic(err)
     }
     
-    if status == winapi.STATUS_SUCCESS {
+    if winapi.IsNTStatusSuccess(status) {
         fmt.Printf("Memory allocated at: 0x%X\n", baseAddress)
+    } else {
+        fmt.Printf("Allocation failed: %s\n", winapi.FormatNTStatus(status))
     }
 }
 ```
@@ -179,11 +181,52 @@ Get the syscall number for debugging purposes.
 #### `GetFunctionHash(functionName string) uint32`
 Get the hash of a function name for obfuscation.
 
+#### `PrewarmSyscallCache() error`
+Preload common syscall numbers for better performance. Loads 50+ NT functions into cache.
+
+```go
+// Preload syscall cache for better performance
+err := winapi.PrewarmSyscallCache()
+if err != nil {
+    log.Printf("Cache prewarming failed: %v", err)
+}
+
+// Check cache status
+cacheSize := winapi.GetSyscallCacheSize()
+fmt.Printf("Cache loaded with %d syscalls\n", cacheSize)
+```
+
+#### `GetSyscallCacheSize() int`
+Get the number of cached syscall numbers.
+
+#### `GetSyscallCacheStats() map[string]interface{}`
+Get detailed cache statistics including size, algorithm used, and performance metrics.
+
+```go
+stats := winapi.GetSyscallCacheStats()
+fmt.Printf("Cache stats: %v\n", stats)
+// Output: map[cache_enabled:true cache_size:52 hash_algorithm:DBJ2]
+```
+
+#### `GetSyscallWithValidation(functionName string) (uint16, bool, error)`
+Enhanced syscall resolution with validation. Returns syscall number, validation status, and error.
+
+```go
+ssn, isValid, err := winapi.GetSyscallWithValidation("NtAllocateVirtualMemory")
+if err != nil {
+    log.Printf("Resolution failed: %v", err)
+} else if !isValid {
+    log.Printf("Function resolved but failed validation")
+} else {
+    fmt.Printf("Valid syscall with SSN: %d\n", ssn)
+}
+```
+
 #### `DumpAllSyscalls() ([]SyscallInfo, error)`
-Enumerate and dump all available syscalls from ntdll.dll with their syscall numbers, hashes, and addresses.
+Enumerate and dump all available syscalls from ntdll.dll and essential APIs from kernel32.dll. Returns ~1000 functions with their syscall numbers, hashes, and addresses.
 
 #### `DumpAllSyscallsWithFiles() ([]SyscallInfo, error)`
-Enhanced version that enumerates syscalls and exports to both JSON and Go files. Generates a Go syscall table file for developers.
+Enhanced version that enumerates syscalls and exports to Go source files. Generates comprehensive function tables for immediate use.
 
 ### NT Status Code Helpers
 
@@ -251,83 +294,143 @@ The FormatNTStatus function recognizes over 30 common NTSTATUS codes including:
 
 ## Syscall Discovery & Analysis
 
-###  DumpAllSyscalls Feature
+### Enhanced Windows API Enumeration
 
-The library includes a powerful syscall enumeration feature that can discover and analyze all available Windows syscalls on the current system. This is invaluable for research, debugging, and understanding the Windows API landscape.
+The library includes a powerful API enumeration feature that can discover and analyze both **direct syscalls** and **essential Windows API functions** on the current system. This creates a complete map of useful functions for malware development, security research, and system programming.
+
+#### Comprehensive DumpAllSyscalls Feature
+
+Our enhanced `DumpAllSyscalls` function now intelligently enumerates:
+- **ntdll.dll**: All actual syscalls (Nt*/Zw* functions with valid syscall numbers) 
+- **kernel32.dll**: Essential malware development APIs (CreateThread, VirtualAlloc, etc.)
+
+This provides a focused, practical collection of ~300 functions instead of thousands of irrelevant exports.
 
 #### Command Line Usage
 
 ```bash
-# Dump all syscalls to console and JSON file
-# Also demonstrates NT status code formatting examples
+# Dump all Windows APIs to console and generate function tables
 ./cmd.exe -dump
 ```
 
 #### Console Output
 ```
-Starting syscall enumeration...
-Successfully got PEB at 0x8DFAD6000, Ldr at 0x7FF87D45C4C0
-Found module: cmd.exe (base: 0x7FF719D70000)
-Found module: ntdll.dll (base: 0x7FF87D2F0000)
-Hash match for ntdll.dll! Hash: 0x1EDAB0ED
-Found ntdll.dll at: 0x7FF87D2F0000
-PE SizeOfImage: 2064384 bytes
-Found 2435 exports in ntdll.dll
-Found 942 syscall functions:
+Starting comprehensive Windows API enumeration...
+Processing ntdll.dll...
+Debug NtAllocateVirtualMemory: 4c 8b d1 b8 18 00 00 00
+Found 287 functions in ntdll.dll
+Processing kernel32.dll...
+Found 52 functions in kernel32.dll
+Total functions enumerated: 339
 
-SSN  Function Name                            Hash         Address
----- ---------------------------------------- ------------ ----------------
-1    ZwWorkerFactoryWorkerReady               0x1F4EFAF7   0x7FF87D38D500
-1    NtWorkerFactoryWorkerReady               0xE5659C68   0x7FF87D38D500
-2    ZwAcceptConnectPort                      0x59025CF5   0x7FF87D38D520
-2    NtAcceptConnectPort                      0x44832B86   0x7FF87D38D520
-3    ZwMapUserPhysicalPagesScatter            0xEEA7A3F6   0x7FF87D38D540
-3    NtMapUserPhysicalPagesScatter            0x5D849BC7   0x7FF87D38D540
+Generated comprehensive API function table: winapi_functions_20250607_012345.go
+Function table contains 339 total functions
+Syscalls: 287, Regular APIs: 52
+  ntdll.dll: 287 functions
+  kernel32.dll: 52 functions
 ```
+
+#### Export Formats
+
+The dump automatically generates both JSON and Go source files with all function information:
 
 #### JSON Export Structure
 
-The dump automatically generates a timestamped JSON file with complete syscall information:
-
 ```json
 {
-  "timestamp": "2025-06-06T12:20:11-04:00",
+  "timestamp": "2025-06-07T01:23:45-05:00",
   "system_info": {
-    "os": "Windows",
+    "os": "Windows", 
     "architecture": "x64",
-    "ntdll_base": "0x7FF87D380000"
+    "total_functions": 339
   },
-  "syscalls": [
+  "functions": [
     {
-      "Name": "ZwWorkerFactoryWorkerReady",
-      "Hash": 525269751,
-      "SyscallNumber": 1,
-      "Address": 140705229493504
+      "Name": "NtAllocateVirtualMemory",
+      "Hash": 1002113297,
+      "SyscallNumber": 24,
+      "Address": 140705229493440,
+      "Module": "ntdll.dll",
+      "IsSyscall": true
     },
     {
-      "Name": "NtWorkerFactoryWorkerReady",
-      "Hash": 3848641640,
-      "SyscallNumber": 1,
-      "Address": 140705229493504
+      "Name": "CreateThread", 
+      "Hash": 1578952556,
+      "SyscallNumber": 0,
+      "Address": 140705205603892,
+      "Module": "kernel32.dll",
+      "IsSyscall": false
+    }
+  ]
+}
+```
+
+#### Generated Go Function Table
+
+**Generated Go Table Structure:**
+```go
+// Package winapitable provides comprehensive Windows API function information
+package winapitable
+
+import (
+    "fmt"
+    "unsafe"
+    
+    "github.com/carved4/go-direct-syscall/pkg/syscall"
+    "github.com/carved4/go-direct-syscall"
+)
+
+// WinAPIFunction contains information about a Windows API function
+type WinAPIFunction struct {
+    Name          string
+    Hash          uint32
+    Address       uintptr
+    Module        string
+    IsSyscall     bool
+    SyscallNumber uint16
+}
+
+var WinAPIFunctionTable = []WinAPIFunction{
+    {
+        Name:          "NtAllocateVirtualMemory",
+        Hash:          0x3be0ab11,
+        Address:       0x7ff87d38d4c0,
+        Module:        "ntdll.dll",
+        IsSyscall:     true,
+        SyscallNumber: 24,
     },
     {
-      "Name": "ZwAcceptConnectPort",
-      "Hash": 1493327093,
-      "SyscallNumber": 2,
-      "Address": 140705229493536
+        Name:          "CreateThread",
+        Hash:          0x5df9676c,
+        Address:       0x7ff87bd51234,
+        Module:        "kernel32.dll",
+        IsSyscall:     false,
+        SyscallNumber: 0,
     },
-    {
-      "Name": "NtAcceptConnectPort",
-      "Hash": 1149447046,
-      "SyscallNumber": 2,
-      "Address": 140705229493536
-    },
-    {
-      "Name": "ZwMapUserPhysicalPagesScatter",
-      "Hash": 4003963894,
-      "SyscallNumber": 3,
-      "Address": 140705229493568
-    },
+    // ... etcccc
+}
+```
+
+#### Generated Function Calling Interface
+
+The generated function table includes **immediate functionality** for calling any enumerated function:
+
+```go
+// Generated functions automatically handle syscalls vs regular APIs
+
+// For any function (automatic detection)
+result, err := DirectCallByName("NtAllocateVirtualMemory", handle, &addr, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+result, err := DirectCallByName("CreateThread", 0, 0, startAddr, param, 0, 0)
+
+// By function hash (for obfuscation)
+result, err := DirectCallByHash(0x3be0ab11, handle, &addr, 0, &size, MEM_COMMIT, PAGE_EXECUTE_READWRITE)
+
+// Direct address calling
+result, err := DirectCallByAddress(0x7ff87d38d4c0, args...)
+
+// Syscall-specific functions (ntdll only)
+result, err := SyscallByName("NtAllocateVirtualMemory", args...)
+result, err := SyscallByHash(0x3be0ab11, args...)
 ```
 
 #### Using DumpAllSyscalls Programmatically
@@ -343,34 +446,39 @@ import (
 )
 
 func main() {
-    // Dump all syscalls
-    syscalls, err := winapi.DumpAllSyscalls()
+    // Generate comprehensive function tables
+    functions, err := winapi.DumpAllSyscallsWithFiles()
     if err != nil {
-        log.Fatal("Failed to dump syscalls:", err)
+        log.Fatal("Failed to dump APIs:", err)
     }
     
-    fmt.Printf("Found %d syscalls\n", len(syscalls))
+    fmt.Printf("Found %d total functions\n", len(functions))
     
-    // Find specific syscalls
-    for _, sc := range syscalls {
-        if sc.Name == "NtAllocateVirtualMemory" {
-            fmt.Printf("Found NtAllocateVirtualMemory:\n")
-            fmt.Printf("  SSN: %d\n", sc.SyscallNumber)
-            fmt.Printf("  Hash: 0x%X\n", sc.Hash)
-            fmt.Printf("  Address: 0x%X\n", sc.Address)
+    // Count syscalls vs regular APIs
+    syscallCount := 0
+    for _, fn := range functions {
+        if fn.IsSyscall {
+            syscallCount++
         }
     }
+    
+    fmt.Printf("Syscalls: %d, Regular APIs: %d\n", 
+        syscallCount, len(functions)-syscallCount)
+    
+    // The generated files can now be imported and used immediately!
 }
 ```
 
 #### Key Features
 
-- **Complete Discovery**: Finds all Nt*/Zw* syscall functions in ntdll.dll
-- **Rich Metadata**: Syscall numbers, function hashes, and memory addresses
-- **Persistent Storage**: Automatic JSON export with timestamps
-- **Duplicate Detection**: Shows Nt*/Zw* function pairs with same syscall numbers
-- **Analysis Ready**: Structured data perfect for research and automation
-- **Research Friendly**: Includes system context and metadata
+- **Dual API Discovery**: Finds both ntdll.dll syscalls and essential kernel32.dll APIs
+- **Smart Filtering**: Only includes functions actually useful for malware development
+- **Rich Metadata**: Syscall numbers, function hashes, memory addresses, and module info
+- **Immediate Functionality**: Generated tables include working call functions
+- **Auto-Detection**: Functions automatically use correct calling method (syscall vs API)
+- **Multiple Access Methods**: Call by name, hash, or direct address
+- **Research Ready**: Structured data perfect for analysis and automation
+- **Production Ready**: Generated code can be imported and used immediately
 
 #### Use Cases
 

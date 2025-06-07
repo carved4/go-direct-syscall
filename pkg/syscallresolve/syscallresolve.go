@@ -189,11 +189,11 @@ func GetModuleBase(moduleHash uint32) uintptr {
 			// in LDR_DATA_TABLE_ENTRY, we can directly cast
 			dataTableEntry := (*LDR_DATA_TABLE_ENTRY)(unsafe.Pointer(currentEntry))
 	
-			// Get the module name
-			baseName := UTF16ToString(dataTableEntry.BaseDllName.Buffer)
-			
-			// Calculate the hash of the module name
-			currentHash := obf.DBJ2HashStr(baseName)
+					// Get the module name
+		baseName := UTF16ToString(dataTableEntry.BaseDllName.Buffer)
+		
+		// Calculate the hash of the module name using GetHash for consistency
+		currentHash := obf.GetHash(baseName)
 			
 			// If the hash matches, return the module base
 			if currentHash == moduleHash {
@@ -221,30 +221,64 @@ func GetModuleBase(moduleHash uint32) uintptr {
 	return moduleBase
 }
 
-// GetFunctionAddress retrieves the address of a function in a module by its name hash using Binject PE parser
+// Helper function to map function hashes to their string names (for debugging/testing)
+func getFunctionNameFromHash(functionHash uint32) string {
+	// Map common function hashes to their names
+	commonFunctions := map[uint32]string{
+		obf.GetHash("NtAllocateVirtualMemory"): "NtAllocateVirtualMemory",
+		obf.GetHash("NtWriteVirtualMemory"):    "NtWriteVirtualMemory", 
+		obf.GetHash("NtCreateThreadEx"):        "NtCreateThreadEx",
+		obf.GetHash("NtProtectVirtualMemory"):  "NtProtectVirtualMemory",
+		obf.GetHash("NtCreateProcess"):         "NtCreateProcess",
+		obf.GetHash("NtCreateThread"):          "NtCreateThread",
+		obf.GetHash("NtOpenProcess"):           "NtOpenProcess",
+		obf.GetHash("NtClose"):                 "NtClose",
+		obf.GetHash("NtInvalidFunction"):       "NtInvalidFunction",
+		obf.GetHash("CreateThread"):            "CreateThread",
+		obf.GetHash("kernel32.dll"):            "kernel32.dll",
+		obf.GetHash("ntdll.dll"):               "ntdll.dll",
+	}
+	
+	if name, exists := commonFunctions[functionHash]; exists {
+		return name
+	}
+	return fmt.Sprintf("Unknown(0x%x)", functionHash)
+}
+
+// Enhanced GetFunctionAddress with better debugging
 func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
+	functionName := getFunctionNameFromHash(functionHash)
+	
 	if moduleBase == 0 {
+		fmt.Printf("GetFunctionAddress: moduleBase is 0 for function %s (hash: 0x%x)\n", functionName, functionHash)
 		return 0
 	}
+
+	// Validate memory access with error handling
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Printf("GetFunctionAddress: Memory access panic for %s: %v\n", functionName, r)
+		}
+	}()
 
 	// Read the PE header to get the actual size of the image
 	dosHeader := (*[64]byte)(unsafe.Pointer(moduleBase))
 	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
-		fmt.Printf("Invalid DOS signature\n")
+		fmt.Printf("GetFunctionAddress: Invalid DOS signature at 0x%x for %s\n", moduleBase, functionName)
 		return 0
 	}
 	
 	// Get the offset to the PE header
 	peOffset := *(*uint32)(unsafe.Pointer(moduleBase + 60))
 	if peOffset >= 1024 {
-		fmt.Printf("PE offset too large: %d\n", peOffset)
+		fmt.Printf("GetFunctionAddress: PE offset too large: %d for %s\n", peOffset, functionName)
 		return 0
 	}
 	
 	// Read the PE header to get the SizeOfImage
 	peHeader := (*[1024]byte)(unsafe.Pointer(moduleBase + uintptr(peOffset)))
 	if peHeader[0] != 'P' || peHeader[1] != 'E' {
-		fmt.Printf("Invalid PE signature\n")
+		fmt.Printf("GetFunctionAddress: Invalid PE signature at offset %d for %s\n", peOffset, functionName)
 		return 0
 	}
 	
@@ -252,6 +286,10 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// OptionalHeader starts at offset 24 from PE signature
 	sizeOfImage := *(*uint32)(unsafe.Pointer(moduleBase + uintptr(peOffset) + 24 + 56))
 	
+	if sizeOfImage == 0 || sizeOfImage > 0x10000000 { // Sanity check: 256MB max
+		fmt.Printf("GetFunctionAddress: Invalid SizeOfImage: %d for %s\n", sizeOfImage, functionName)
+		return 0
+	}
 	
 	// Create a memory reader for the PE file with the correct size
 	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(moduleBase)), sizeOfImage)
@@ -259,7 +297,7 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Parse the PE file from memory
 	file, err := pe.NewFileFromMemory(&memoryReaderAt{data: dataSlice})
 	if err != nil {
-		fmt.Printf("Failed to parse PE file: %v\n", err)
+		fmt.Printf("GetFunctionAddress: Failed to parse PE file for %s: %v\n", functionName, err)
 		return 0
 	}
 	defer file.Close()
@@ -267,21 +305,47 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Get the exports
 	exports, err := file.Exports()
 	if err != nil {
-		fmt.Printf("Failed to get exports: %v\n", err)
+		fmt.Printf("GetFunctionAddress: Failed to get exports for %s: %v\n", functionName, err)
+		return 0
+	}
+
+	if len(exports) == 0 {
+		fmt.Printf("GetFunctionAddress: No exports found for %s\n", functionName)
 		return 0
 	}
 
 	// Search for the function by hash
+	foundFunctions := 0
+	var sampleExports []string // Show a few export names for debugging
+	
 	for _, export := range exports {
 		if export.Name != "" {
-			currentHash := obf.DBJ2HashStr(export.Name)
+			foundFunctions++
+			
+			// Collect sample export names for debugging
+			if len(sampleExports) < 5 {
+				sampleExports = append(sampleExports, export.Name)
+			}
+			
+			// Use GetHash() to ensure consistency with the calling code
+			currentHash := obf.GetHash(export.Name)
 			if currentHash == functionHash {
-				// Return the function address (module base + RVA)
-				return moduleBase + uintptr(export.VirtualAddress)
+				funcAddr := moduleBase + uintptr(export.VirtualAddress)
+				fmt.Printf("GetFunctionAddress: Found function %s (hash: 0x%x) at 0x%x\n", functionName, functionHash, funcAddr)
+				return funcAddr
 			}
 		}
 	}
 
+	fmt.Printf("GetFunctionAddress: Function %s (hash: 0x%x) not found among %d exports (%d named)\n", 
+		functionName, functionHash, len(exports), foundFunctions)
+	fmt.Printf("  Sample exports: %v\n", sampleExports)
+	
+	// If this is CreateThread, it might be in kernel32 but we're looking in ntdll
+	if functionName == "CreateThread" {
+		fmt.Printf("  Note: CreateThread is a kernel32 function, not ntdll\n")
+	}
+	
 	return 0
 }
 
@@ -371,23 +435,6 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 	}
 	
 	return syscallNumber
-}
-
-// Helper function to map function hashes to their string names (for debugging/testing)
-func getFunctionNameFromHash(functionHash uint32) string {
-	// Map common function hashes to their names
-	commonFunctions := map[uint32]string{
-		obf.GetHash("NtAllocateVirtualMemory"): "NtAllocateVirtualMemory",
-		obf.GetHash("NtWriteVirtualMemory"):    "NtWriteVirtualMemory", 
-		obf.GetHash("NtCreateThreadEx"):        "NtCreateThreadEx",
-		obf.GetHash("NtProtectVirtualMemory"):  "NtProtectVirtualMemory",
-		obf.GetHash("NtCreateProcess"):         "NtCreateProcess",
-		obf.GetHash("NtCreateThread"):          "NtCreateThread",
-		obf.GetHash("NtOpenProcess"):           "NtOpenProcess",
-		obf.GetHash("NtClose"):                 "NtClose",
-	}
-	
-	return commonFunctions[functionHash]
 }
 
 // GetSyscallAndAddress returns both the syscall number and the address of the syscall instruction
@@ -646,10 +693,16 @@ func tryAlternativeExtractionMethods(funcBytes []byte, funcAddr uintptr, functio
 
 // GetSyscallWithValidation provides additional metadata and validation
 func GetSyscallWithValidation(functionHash uint32) (uint16, bool, error) {
+	// Check for known invalid functions first to avoid unnecessary retries
+	functionName := getFunctionNameFromHash(functionHash)
+	if functionName == "NtInvalidFunction" || functionName == "CreateThread" {
+		return 0, false, fmt.Errorf("function %s is not a valid ntdll syscall", functionName)
+	}
+	
 	syscallNum := GetSyscallNumber(functionHash)
 	
 	if syscallNum == 0 {
-		return 0, false, fmt.Errorf("failed to resolve syscall for hash 0x%X", functionHash)
+		return 0, false, fmt.Errorf("failed to resolve syscall for hash 0x%X (%s)", functionHash, functionName)
 	}
 
 	// Additional validation
