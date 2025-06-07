@@ -65,6 +65,8 @@ A Go library providing **TRUE direct Windows API syscalls** using external assem
 
 ## Quick Start
 
+([View GoDocs](https://pkg.go.dev/github.com/carved4/go-direct-syscall))
+
 ### Installation
 
 ```bash
