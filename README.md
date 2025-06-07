@@ -1238,5 +1238,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 - **Assembly Implementation**: Based on [janoglezcampos/rust_syscalls](https://github.com/janoglezcampos/rust_syscalls)
 
 ##  Disclaimer
-
+I am a college student with limited systems programming experience, this tool may not work as expected for all types of payloads or in all circumstances, if you run into an issue please submit it to me on this repo or send a DM on twitter or something I would really
+appreciate it. :3 thanks
+ALSO 
 This tool is provided for **educational and research purposes only**. Use of this software for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable laws. The developers assume no liability and are not responsible for any misuse or damage caused by this program.
