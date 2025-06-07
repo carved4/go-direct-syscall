@@ -72,7 +72,7 @@ fi
 
 # Step 3: Build the Go project
 echo "Building Go project..."
-go build -o "$EXE_NAME" ./cmd
+go build -ldflags="-w -s" -trimpath -o "$EXE_NAME" ./cmd
 
 # Check if Go build was successful
 if [ ! -f "$EXE_NAME" ]; then
