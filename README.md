@@ -77,41 +77,27 @@ go get github.com/carved4/go-direct-syscall
 package main
 
 import (
-    "fmt"
-    "unsafe"
-    
-    winapi "github.com/carved4/go-direct-syscall"
+	"fmt"
+	"time"
+	"unsafe"
+
+	winapi "github.com/carved4/go-direct-syscall"
 )
 
 func main() {
-    // Example 1: Self-injection with embedded shellcode
-    shellcode := []byte{0x50, 0x51, 0x52, /* ... calc shellcode ... */}
-    err := winapi.NtInjectSelfShellcode(shellcode)
-    if err != nil {
-        fmt.Printf("Self-injection failed: %v\n", err)
-    }
-    
-    // Example 2: Manual memory allocation using direct syscalls
-    currentProcess := uintptr(0xFFFFFFFFFFFFFFFF) // Current process
-    var baseAddress uintptr
-    size := uintptr(4096)
-    
-    status, err := winapi.NtAllocateVirtualMemory(
-        currentProcess,
-        &baseAddress,
-        0,
-        &size,
-        winapi.MEM_COMMIT|winapi.MEM_RESERVE,
-        winapi.PAGE_READWRITE,
-    )
-    
-    if err != nil {
-        panic(err)
-    }
-    
-    if status == winapi.STATUS_SUCCESS {
-        fmt.Printf("Memory allocated at: 0x%X\n", baseAddress)
-    }
+	// Prewarm syscall cache
+	winapi.PrewarmSyscallCache()
+
+	// Declare shellcode
+	shellcode := []byte{/* im a shellcode */}
+
+	// Inject shellcode into current process
+	err := winapi.NtInjectSelfShellcode(shellcode)
+	if err != nil {
+		fmt.Printf("Self-injection failed: %v\n", err)
+	} else {
+		fmt.Println("Self-injection succeeded")
+	}
 }
 ```
 
