@@ -460,20 +460,6 @@ func main() {
 - Functions are automatically sorted alphabetically
 - Only includes functions with valid syscall stubs
 
-**Example Output:**
-```go
-var SyscallTable = map[string]uint16{
-	"NtAcceptConnectPort": 2,
-	"NtAccessCheckAndAuditAlarm": 41,
-	"NtAccessCheckByType": 99,
-	"NtAccessCheckByTypeAndAuditAlarm": 89,
-	"NtAccessCheckByTypeResultList": 100,
-	"NtAccessCheckByTypeResultListAndAuditAlarm": 101,
-	"NtAccessCheckByTypeResultListAndAuditAlarmByHandle": 102,
-	"NtAcquireCrossVmMutant": 103,
-	"NtAcquireProcessActivityReference": 104,
-```
-
 ## Security Bypass Features
 
 The library includes comprehensive security bypass capabilities that can disable common Windows security mechanisms before performing operations. These features use direct syscalls and manual function resolution to avoid detection.
