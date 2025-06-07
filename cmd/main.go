@@ -461,7 +461,7 @@ func main() {
 		}
 		fmt.Println()
 		
-		syscalls, err := winapi.DumpAllSyscalls()
+		syscalls, err := winapi.DumpAllSyscallsWithFiles()
 		if err != nil {
 			fmt.Printf("Failed to dump syscalls: %v\n", err)
 			os.Exit(1)
