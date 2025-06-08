@@ -130,50 +130,20 @@ func NtAllocateVirtualMemory(processHandle uintptr, baseAddress *uintptr, zeroBi
 // NtWriteVirtualMemory writes to memory in a process
 func NtWriteVirtualMemory(processHandle uintptr, baseAddress uintptr, buffer unsafe.Pointer, size uintptr, bytesWritten *uintptr) (uintptr, error) {
 	debug.Printfln("WINAPI", "NtWriteVirtualMemory called\n")
-
-	// Initialize bytesWritten to 0 before the syscall
+	
+	// Make the syscall (simple and direct like other functions)
+	result, err := DirectSyscall("NtWriteVirtualMemory",
+		processHandle,
+		baseAddress,
+		uintptr(buffer),
+		size,
+		uintptr(unsafe.Pointer(bytesWritten)))
+	
+	// Only log bytes written if pointer is valid
 	if bytesWritten != nil {
-		*bytesWritten = 0
-	}
-	
-	// Create a local bytesWritten if none was provided
-	var localBytesWritten uintptr
-	if bytesWritten == nil {
-		bytesWritten = &localBytesWritten
-	}
-	
-	// Maximum number of retries
-	const maxRetries = 3
-	var result uintptr
-	var err error
-	
-	// Add a small delay before syscall to ensure everything is properly set up
-	time.Sleep(100 * time.Millisecond)
-	
-	// Try a few times with increasing delays if needed
-	for i := 0; i < maxRetries; i++ {
-		// Make the syscall
-		result, err = DirectSyscall("NtWriteVirtualMemory",
-			processHandle,
-			baseAddress,
-			uintptr(buffer),
-			size,
-			uintptr(unsafe.Pointer(bytesWritten)))
-		
-		debug.Printfln("WINAPI", "Attempt %d - Result status: 0x%X\n", i+1, result)
-		debug.Printfln("WINAPI", "Attempt %d - Bytes written: %d\n", i+1, *bytesWritten)
-		
-		// Check if bytes were written
-		if *bytesWritten > 0 {
-			break
-		}
-		
-		// If no bytes written and not the last attempt, wait and retry
-		if i < maxRetries-1 {
-			waitTime := time.Duration(100*(i+1)) * time.Millisecond
-			debug.Printfln("WINAPI", "No bytes written, retrying in %v...\n", waitTime)
-			time.Sleep(waitTime)
-		}
+		debug.Printfln("WINAPI", "Result status: 0x%X, Bytes written: %d\n", result, *bytesWritten)
+	} else {
+		debug.Printfln("WINAPI", "Result status: 0x%X\n", result)
 	}
 	
 	return result, err
