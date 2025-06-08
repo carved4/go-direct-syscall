@@ -218,6 +218,15 @@ func NtQueryInformationProcess(processHandle uintptr, processInformationClass ui
 		uintptr(unsafe.Pointer(returnLength)))
 }
 
+// NtSetInformationProcess sets process information
+func NtSetInformationProcess(processHandle uintptr, processInformationClass uintptr, processInformation unsafe.Pointer, processInformationLength uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetInformationProcess",
+		processHandle,
+		processInformationClass,
+		uintptr(processInformation),
+		processInformationLength)
+}
+
 // NtCreateFile creates or opens a file
 func NtCreateFile(fileHandle *uintptr, desiredAccess uintptr, objectAttributes uintptr, ioStatusBlock uintptr, allocationSize *uint64, fileAttributes uintptr, shareAccess uintptr, createDisposition uintptr, createOptions uintptr, eaBuffer unsafe.Pointer, eaLength uintptr) (uintptr, error) {
 	return DirectSyscall("NtCreateFile",
