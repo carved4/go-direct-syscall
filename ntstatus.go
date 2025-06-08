@@ -8,6 +8,7 @@ func FormatNTStatus(status uintptr) string {
 	// Map of common NTSTATUS codes to their descriptions
 	statusDescriptions := map[uint32]string{
 		STATUS_SUCCESS:                     "STATUS_SUCCESS",
+		0x00000102:                         "WAIT_TIMEOUT", // Different from STATUS_TIMEOUT
 		STATUS_BUFFER_OVERFLOW:             "STATUS_BUFFER_OVERFLOW", 
 		STATUS_INFO_LENGTH_MISMATCH:        "STATUS_INFO_LENGTH_MISMATCH",
 		STATUS_INVALID_HANDLE:              "STATUS_INVALID_HANDLE",

