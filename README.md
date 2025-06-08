@@ -4,6 +4,14 @@
 > No `LoadLibrary`, no `GetProcAddress` and no AV-triggering WinAPI calls.  
 > *(Unless you explicitly use the `DirectCall` feature to invoke higher-level APIs like `CreateThread`, which still pass through `ntdll` and call `NtCreateThreadEx` internally.)*
 
+## What This Is Not
+
+- Not a general-purpose Windows API wrapper for Go  
+- Not compatible with `golang.org/x/sys/windows` or Go’s native `syscall` package  
+- Not a cross-architecture solution.. this library currently supports only 64-bit Windows targets  
+- Not a PE or DLL reflective loader, this library focuses on shellcode injection and direct NT syscall execution  
+- Not designed for restricted environments where low-level system access is blocked (for example, AppContainers, HVCI, or sandboxed runtimes)
+
 ## Table of Contents
 
 - [Features](#features)
