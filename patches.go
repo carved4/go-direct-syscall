@@ -181,64 +181,6 @@ func PatchDbgUiRemoteBreakin() error {
 	return nil
 }
 
-// PatchDbgBreakPoint patches DbgBreakPoint to prevent breakpoint interrupts
-func PatchDbgBreakPoint() error {
-	// 1. Get the base address of ntdll.dll
-	ntdllHash := obf.GetHash("ntdll.dll")
-	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
-	if ntdllBase == 0 {
-		return fmt.Errorf("ntdll.dll not found")
-	}
-
-	// 2. Get the address of DbgBreakPoint
-	functionHash := obf.GetHash("DbgBreakPoint")
-	procAddr := syscallresolve.GetFunctionAddress(ntdllBase, functionHash)
-	if procAddr == 0 {
-		return fmt.Errorf("DbgBreakPoint function not found")
-	}
-
-	// 3. Change protection to RWX
-	const (
-		currentProcess      = ^uintptr(0)
-		PAGE_EXEC_READWRITE = 0x40
-	)
-	patch := []byte{0x31, 0xC0, 0xC3} // xor eax, eax; ret
-	patchSize := uintptr(len(patch))
-	oldProtect := uintptr(0)
-	status, err := DirectSyscall(
-		"NtProtectVirtualMemory",
-		currentProcess,
-		uintptr(unsafe.Pointer(&procAddr)),
-		uintptr(unsafe.Pointer(&patchSize)),
-		uintptr(PAGE_EXEC_READWRITE),
-		uintptr(unsafe.Pointer(&oldProtect)))
-	if err != nil {
-		return fmt.Errorf("NtProtectVirtualMemory (make RWX) failed: %v", err)
-	}
-	if !IsNTStatusSuccess(status) {
-		return fmt.Errorf("NtProtectVirtualMemory (make RWX) returned: %s", FormatNTStatus(status))
-	}
-
-	// 4. Overwrite with the patch bytes
-	for i := 0; i < len(patch); i++ {
-		*(*byte)(unsafe.Pointer(procAddr + uintptr(i))) = patch[i]
-	}
-
-	// 5. Restore the original protection
-	status, _ = DirectSyscall(
-		"NtProtectVirtualMemory",
-		currentProcess,
-		uintptr(unsafe.Pointer(&procAddr)),
-		uintptr(unsafe.Pointer(&patchSize)),
-		oldProtect,
-		uintptr(unsafe.Pointer(&oldProtect)))
-	if !IsNTStatusSuccess(status) {
-		return fmt.Errorf("NtProtectVirtualMemory (restore) returned: %s", FormatNTStatus(status))
-	}
-
-	return nil
-}
-
 // PatchNtTraceEvent patches NtTraceEvent to prevent trace event logging
 func PatchNtTraceEvent() error {
 	// 1. Get the base address of ntdll.dll
@@ -364,7 +306,6 @@ func ApplyAllPatches() (successful []string, failed map[string]error) {
 		"AMSI":                  PatchAMSI,
 		"ETW":                   PatchETW,
 		"DbgUiRemoteBreakin":    PatchDbgUiRemoteBreakin,
-		"DbgBreakPoint":         PatchDbgBreakPoint,
 		"NtTraceEvent":          PatchNtTraceEvent,
 		"NtSystemDebugControl":  PatchNtSystemDebugControl,
 	}
