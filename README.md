@@ -474,7 +474,7 @@ The library includes comprehensive security bypass capabilities that can disable
 
 ### Available Security Patches
 
-NOTE: USING APPLYALL ON SELF INJECTION WILL CAUSE SEGFAULT FOR REASONS UNBEKNOWNST TO ME
+>NOTE: USING APPLYALL ON SELF INJECTION WILL CAUSE SEGFAULT FOR REASONS UNBEKNOWNST TO ME
 
 The library provides six different security bypass functions:
 
