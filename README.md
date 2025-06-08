@@ -179,7 +179,6 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `PatchAMSI` - Disable Anti-Malware Scan Interface
 - `PatchETW` - Disable Event Tracing for Windows
 - `PatchDbgUiRemoteBreakin` - Prevent remote debugger attachment
-- `PatchDbgBreakPoint` - Prevent breakpoint interrupts
 - `PatchNtTraceEvent` - Prevent trace event logging
 - `PatchNtSystemDebugControl` - Prevent debug control operations
 - `ApplyAllPatches` - Apply all security bypass patches at once
@@ -491,14 +490,13 @@ The library includes comprehensive security bypass capabilities that can disable
 
 >NOTE: USING APPLYALL ON SELF INJECTION WILL CAUSE SEGFAULT FOR REASONS UNBEKNOWNST TO ME
 
-The library provides six different security bypass functions:
+The library provides five different security bypass functions:
 
 1. **PatchAMSI** - Disables Anti-Malware Scan Interface
 2. **PatchETW** - Disables Event Tracing for Windows
 3. **PatchDbgUiRemoteBreakin** - Prevents remote debugger attachment
-4. **PatchDbgBreakPoint** - Prevents breakpoint interrupts
-5. **PatchNtTraceEvent** - Prevents trace event logging
-6. **PatchNtSystemDebugControl** - Prevents debug control operations
+4. **PatchNtTraceEvent** - Prevents trace event logging
+5. **PatchNtSystemDebugControl** - Prevents debug control operations
 
 ### AMSI Bypass
 
@@ -571,20 +569,6 @@ if err != nil {
 
 **Patch Details**: Overwrites function with single `ret` instruction (0xC3)
 
-#### DbgBreakPoint Bypass
-
-**DbgBreakPoint** is used to trigger breakpoint interrupts. Patching this function prevents breakpoint-based debugging and analysis.
-
-```go
-// Prevent breakpoint interrupts
-err := winapi.PatchDbgBreakPoint()
-if err != nil {
-    fmt.Printf("DbgBreakPoint patch failed: %v\n", err)
-}
-```
-
-**Patch Details**: Overwrites function with `xor eax, eax; ret` (0x31, 0xC0, 0xC3)
-
 #### NtTraceEvent Bypass
 
 **NtTraceEvent** is used for trace event logging and debugging. Disabling this function prevents trace-based monitoring and analysis.
@@ -655,7 +639,6 @@ Disabling security mechanisms...
 Patching NtSystemDebugControl... SUCCESS
 Patching ETW... SUCCESS
 Patching DbgUiRemoteBreakin... SUCCESS
-Patching DbgBreakPoint... SUCCESS
 Patching NtTraceEvent... SUCCESS
 Patching AMSI... FAILED: amsi.dll not found (not loaded)
 Successfully applied 5/6 security patches
