@@ -76,7 +76,7 @@
 
 ## Quick Start
 
-([View GoDocs](https://pkg.go.dev/github.com/carved4/go-direct-syscall))
+[go docs](https://pkg.go.dev/github.com/carved4/go-direct-syscall)
 
 ### Installation
 
