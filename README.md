@@ -1,6 +1,8 @@
 # Windows Direct Syscall Library for Go
 
-A Go library providing **TRUE direct Windows API syscalls** using external assembly and PE parsing. This library enables developers to call any Windows API function directly through syscalls, bypassing traditional API hooking points.
+> **TL;DR:** This Go library provides true direct syscalls on Windows (via custom NASM stubs), along with safe typed wrappers for shellcode injection, memory operations and AMSI/ETW bypass.  
+> No `LoadLibrary`, no `GetProcAddress` and no AV-triggering WinAPI calls.  
+> *(Unless you explicitly use the `DirectCall` feature to invoke higher-level APIs like `CreateThread`, which still pass through `ntdll` and call `NtCreateThreadEx` internally.)*
 
 ## Table of Contents
 
