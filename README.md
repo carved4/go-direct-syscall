@@ -85,6 +85,7 @@ go get github.com/carved4/go-direct-syscall
 ```
 
 ### Basic Usage
+> best results for shellcode execution come from https://github.com/Binject/go-donut - make your payloads with that :3
 
 ```go
 package main
