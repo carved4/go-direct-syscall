@@ -537,7 +537,7 @@ func NtDuplicateObject(sourceProcessHandle uintptr, sourceHandle uintptr, target
 		options)
 }
 
-// NtQueryObject queries object information
+// NtQueryObject queries information about an object
 func NtQueryObject(handle uintptr, objectInformationClass uintptr, objectInformation unsafe.Pointer, objectInformationLength uintptr, returnLength *uintptr) (uintptr, error) {
 	return DirectSyscall("NtQueryObject",
 		handle,
@@ -683,6 +683,119 @@ func NtSetInformationFile(fileHandle uintptr, ioStatusBlock uintptr, fileInforma
 		uintptr(fileInformation),
 		length,
 		fileInformationClass)
+}
+
+// NtDeviceIoControlFile performs an I/O control operation on a file
+func NtDeviceIoControlFile(fileHandle uintptr, event uintptr, apcRoutine uintptr, apcContext uintptr, ioStatusBlock uintptr, ioControlCode uintptr, inputBuffer unsafe.Pointer, inputBufferLength uintptr, outputBuffer unsafe.Pointer, outputBufferLength uintptr) (uintptr, error) {
+	return DirectSyscall("NtDeviceIoControlFile",
+		fileHandle,
+		event,
+		apcRoutine,
+		apcContext,
+		ioStatusBlock,
+		ioControlCode,
+		uintptr(inputBuffer),
+		inputBufferLength,
+		uintptr(outputBuffer),
+		outputBufferLength)
+}
+
+// NtRemoveIoCompletion removes a completed I/O operation from an I/O completion port
+func NtRemoveIoCompletion(portHandle uintptr, keyPtr *uintptr, apcContextPtr *uintptr, ioStatusBlock uintptr, timeout *uint64) (uintptr, error) {
+	return DirectSyscall("NtRemoveIoCompletion",
+		portHandle,
+		uintptr(unsafe.Pointer(keyPtr)),
+		uintptr(unsafe.Pointer(apcContextPtr)),
+		ioStatusBlock,
+		uintptr(unsafe.Pointer(timeout)))
+}
+
+// NtReleaseSemaphore releases a semaphore object
+func NtReleaseSemaphore(semaphoreHandle uintptr, releaseCount uintptr, previousCount *uintptr) (uintptr, error) {
+	return DirectSyscall("NtReleaseSemaphore",
+		semaphoreHandle,
+		releaseCount,
+		uintptr(unsafe.Pointer(previousCount)))
+}
+
+// NtReplyWaitReceivePort waits for and receives a message on a port, optionally sending a reply
+func NtReplyWaitReceivePort(portHandle uintptr, portContext *uintptr, replyMessage uintptr, receiveMessage uintptr) (uintptr, error) {
+	return DirectSyscall("NtReplyWaitReceivePort",
+		portHandle,
+		uintptr(unsafe.Pointer(portContext)),
+		replyMessage,
+		receiveMessage)
+}
+
+// NtReplyPort sends a reply message to a port
+func NtReplyPort(portHandle uintptr, replyMessage uintptr) (uintptr, error) {
+	return DirectSyscall("NtReplyPort",
+		portHandle,
+		replyMessage)
+}
+
+// NtSetInformationThread sets information about a thread
+func NtSetInformationThread(threadHandle uintptr, threadInformationClass uintptr, threadInformation unsafe.Pointer, threadInformationLength uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetInformationThread",
+		threadHandle,
+		threadInformationClass,
+		uintptr(threadInformation),
+		threadInformationLength)
+}
+
+// NtQueryInformationThread queries information about a thread
+func NtQueryInformationThread(threadHandle uintptr, threadInformationClass uintptr, threadInformation unsafe.Pointer, threadInformationLength uintptr, returnLength *uintptr) (uintptr, error) {
+	return DirectSyscall("NtQueryInformationThread",
+		threadHandle,
+		threadInformationClass,
+		uintptr(threadInformation),
+		threadInformationLength,
+		uintptr(unsafe.Pointer(returnLength)))
+}
+
+// NtFlushInstructionCache flushes the instruction cache for the specified process
+// This is critical for code injection scenarios to ensure cache coherency
+func NtFlushInstructionCache(processHandle uintptr, baseAddress uintptr, size uintptr) (uintptr, error) {
+	return DirectSyscall("NtFlushInstructionCache",
+		processHandle,
+		baseAddress,
+		size)
+}
+
+// NtSetEventBoostPriority temporarily boosts the priority of waiting threads
+func NtSetEventBoostPriority(eventHandle uintptr) (uintptr, error) {
+	return DirectSyscall("NtSetEventBoostPriority",
+		eventHandle)
+}
+
+// NtQueryPerformanceCounter queries the performance counter
+func NtQueryPerformanceCounter(performanceCounter *uint64, performanceFrequency *uint64) (uintptr, error) {
+	return DirectSyscall("NtQueryPerformanceCounter",
+		uintptr(unsafe.Pointer(performanceCounter)),
+		uintptr(unsafe.Pointer(performanceFrequency)))
+}
+
+// NtOpenThreadTokenEx opens the access token associated with a thread with extended parameters
+func NtOpenThreadTokenEx(threadHandle uintptr, desiredAccess uintptr, openAsSelf bool, handleAttributes uintptr, tokenHandle *uintptr) (uintptr, error) {
+	openSelf := uintptr(0)
+	if openAsSelf {
+		openSelf = 1
+	}
+	return DirectSyscall("NtOpenThreadTokenEx",
+		threadHandle,
+		desiredAccess,
+		openSelf,
+		handleAttributes,
+		uintptr(unsafe.Pointer(tokenHandle)))
+}
+
+// NtOpenProcessTokenEx opens the access token associated with a process with extended parameters
+func NtOpenProcessTokenEx(processHandle uintptr, desiredAccess uintptr, handleAttributes uintptr, tokenHandle *uintptr) (uintptr, error) {
+	return DirectSyscall("NtOpenProcessTokenEx",
+		processHandle,
+		desiredAccess,
+		handleAttributes,
+		uintptr(unsafe.Pointer(tokenHandle)))
 }
 
 // SyscallInfo holds information about a single syscall
@@ -1290,8 +1403,5 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 
 	return nil
 }
-
-
-
 
 

@@ -151,9 +151,23 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtOpenProcess` - Open process handles
 - `NtQuerySystemInformation` - Query system information
 - `NtQueryInformationProcess` - Query process information
+- `NtQueryInformationThread` - Query thread information
+- `NtSetInformationThread` - Set thread information
 - `NtCreateFile` / `NtReadFile` / `NtWriteFile` - File operations
+- `NtDeviceIoControlFile` - Perform I/O control operations on files
 - `NtClose` - Close handles
 - `NtWaitForSingleObject` - Wait for object signals
+- `NtQueryVirtualMemory` - Query virtual memory information
+- `NtQueryObject` - Query object information
+- `NtQueryPerformanceCounter` - Query high-precision performance counter
+- `NtFlushInstructionCache` - Flush instruction cache (critical for code injection)
+- `NtOpenProcessTokenEx` - Open process access tokens with extended parameters
+- `NtOpenThreadTokenEx` - Open thread access tokens with extended parameters
+- `NtReleaseSemaphore` - Release semaphore objects
+- `NtRemoveIoCompletion` - Remove completed I/O operations from completion ports
+- `NtReplyWaitReceivePort` - Wait for and receive messages on ports
+- `NtReplyPort` - Send reply messages to ports
+- `NtSetEventBoostPriority` - Boost priority of waiting threads
 
 **High-Level Functions:**
 - `NtInjectSelfShellcode` - Complete self-injection using direct syscalls
