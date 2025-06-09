@@ -1,5 +1,7 @@
 package winapi
 
+import "unsafe"
+
 // Common Windows constants for direct syscalls
 
 // Memory allocation types
@@ -257,6 +259,8 @@ const (
 	STATUS_ACCESS_DENIED          = 0xC0000022
 	STATUS_BUFFER_TOO_SMALL       = 0xC0000023
 	STATUS_OBJECT_TYPE_MISMATCH   = 0xC0000024
+	STATUS_OBJECT_NAME_INVALID    = 0xC0000033
+	STATUS_OBJECT_PATH_SYNTAX_BAD = 0xC000003B
 	STATUS_INVALID_PAGE_PROTECTION = 0xC0000045
 	STATUS_MUTANT_NOT_OWNED       = 0xC0000046
 	STATUS_SEMAPHORE_LIMIT_EXCEEDED = 0xC0000047
@@ -419,4 +423,101 @@ const (
 const (
 	ViewShare  = 1
 	ViewUnmap  = 2
-) 
+)
+
+// Object attributes flags
+const (
+	OBJ_INHERIT                    = 0x00000002
+	OBJ_PERMANENT                  = 0x00000010
+	OBJ_EXCLUSIVE                  = 0x00000020
+	OBJ_CASE_INSENSITIVE          = 0x00000040
+	OBJ_OPENIF                    = 0x00000080
+	OBJ_OPENLINK                  = 0x00000100
+	OBJ_KERNEL_HANDLE             = 0x00000200
+	OBJ_FORCE_ACCESS_CHECK        = 0x00000400
+	OBJ_VALID_ATTRIBUTES          = 0x000007F2
+)
+
+// File information classes for NtSetInformationFile
+const (
+	FileDirectoryInformation          = 1
+	FileFullDirectoryInformation      = 2
+	FileBothDirectoryInformation      = 3
+	FileBasicInformation             = 4
+	FileStandardInformation          = 5
+	FileInternalInformation          = 6
+	FileEaInformation                = 7
+	FileAccessInformation            = 8
+	FileNameInformation              = 9
+	FileRenameInformation            = 10
+	FileLinkInformation              = 11
+	FileNamesInformation             = 12
+	FileDispositionInformation       = 13
+	FilePositionInformation          = 14
+	FileFullEaInformation            = 15
+	FileModeInformation              = 16
+	FileAlignmentInformation         = 17
+	FileAllInformation               = 18
+	FileAllocationInformation        = 19
+	FileEndOfFileInformation         = 20
+	FileAlternateNameInformation     = 21
+	FileStreamInformation            = 22
+	FilePipeInformation              = 23
+	FilePipeLocalInformation         = 24
+	FilePipeRemoteInformation        = 25
+	FileMailslotQueryInformation     = 26
+	FileMailslotSetInformation       = 27
+	FileCompressionInformation       = 28
+	FileObjectIdInformation          = 29
+	FileCompletionInformation        = 30
+	FileMoveClusterInformation       = 31
+	FileQuotaInformation             = 32
+	FileReparsePointInformation      = 33
+	FileNetworkOpenInformation       = 34
+	FileAttributeTagInformation      = 35
+	FileTrackingInformation          = 36
+	FileIdBothDirectoryInformation   = 37
+	FileIdFullDirectoryInformation   = 38
+	FileValidDataLengthInformation   = 39
+	FileShortNameInformation         = 40
+)
+
+// IO_STATUS_BLOCK structure for I/O operations
+type IO_STATUS_BLOCK struct {
+	Status      uintptr
+	Information uintptr
+}
+
+// FILE_RENAME_INFO structure for file renaming
+type FILE_RENAME_INFO struct {
+	ReplaceIfExists uint8
+	RootDirectory   uintptr
+	FileNameLength  uint32
+	FileName        [1]uint16 // Variable length array
+}
+
+// FILE_DISPOSITION_INFO structure for file deletion
+type FILE_DISPOSITION_INFO struct {
+	DeleteFile uint8
+}
+
+// NewUnicodeString creates a UNICODE_STRING from a UTF-16 string pointer
+func NewUnicodeString(s *uint16) UNICODE_STRING {
+	if s == nil {
+		return UNICODE_STRING{}
+	}
+	
+	// Calculate length by finding null terminator
+	length := uint16(0)
+	ptr := s
+	for *ptr != 0 {
+		length++
+		ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2))
+	}
+	
+	return UNICODE_STRING{
+		Length:        length * 2, // Length in bytes
+		MaximumLength: (length + 1) * 2, // Include null terminator
+		Buffer:        s,
+	}
+} 

