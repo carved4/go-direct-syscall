@@ -940,7 +940,7 @@ The function performs the complete injection process:
 6. **Execution**: Creates thread with `NtCreateThreadEx`
 7. **Cleanup**: Frees both memory regions and closes handles
 
-All operations use **only direct syscalls** and no Win32 API dependencies! The smart compatibility layer ensures optimal performance with guaranteed reliability.
+All operations use **only direct syscalls** and no Win32 API dependencies!
 
 #### Remote Injection Examples
 
@@ -1479,9 +1479,12 @@ Unknown Function: SSN 0   - Warning (truly suspicious)
 
 ### Self-Deletion Capability
 
-The library includes `SelfDel()` for secure self-deletion of the current executable using NT APIs exclusively. This function employs advanced file manipulation techniques to ensure reliable deletion.
+The library includes `SelfDel()` for self-deletion of the current executable using NT APIs exclusively.
 
 #### **How SelfDel Works**
+>credit to https://github.com/Enelg52/OffensiveGo/tree/main/self_remove for implementation in go, although this is a common method 
+>this method does not work on Win 11 24H2, but I just saw this writeup https://tkyn.dev/2025-6-8-The-Not-So-Self-Deleting-Executable-on-24h2/ which explains a way to do it, most likely doable with my library :3
+
 
 The self-deletion process uses a sophisticated technique that bypasses standard file locking mechanisms:
 
@@ -1494,7 +1497,7 @@ The self-deletion process uses a sophisticated technique that bypasses standard 
 #### **Technical Implementation**
 
 ```go
-// Simple usage - call anywhere in your program
+// Simple usage yayyy call anywhere in your program (lol)
 winapi.SelfDel()
 
 // The file will be deleted when your process exits
@@ -1536,7 +1539,7 @@ func main() {
     winapi.SelfDel()
     
     // Program continues normally
-    // File deleted when process terminates
+    // File deleted when process terminates :P
 }
 ```
 
