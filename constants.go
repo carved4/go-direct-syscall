@@ -520,4 +520,92 @@ func NewUnicodeString(s *uint16) UNICODE_STRING {
 		MaximumLength: (length + 1) * 2, // Include null terminator
 		Buffer:        s,
 	}
+}
+
+// Thread information classes
+const (
+	ThreadBasicInformation = iota
+	ThreadTimes
+	ThreadPriority
+	ThreadBasePriority
+	ThreadAffinityMask
+	ThreadImpersonationToken
+	ThreadDescriptorTableEntry
+	ThreadEnableAlignmentFaultFixup
+	ThreadEventPair
+	ThreadQuerySetWin32StartAddress
+	ThreadZeroTlsCell
+	ThreadPerformanceCount
+	ThreadAmILastThread
+	ThreadIdealProcessor
+	ThreadPriorityBoost
+	ThreadSetTlsArrayAddress
+	ThreadIsIoPending
+	ThreadHideFromDebugger
+)
+
+// Token information classes  
+const (
+	TokenUser = iota + 1
+	TokenGroups
+	TokenPrivileges
+	TokenOwner
+	TokenPrimaryGroup
+	TokenDefaultDacl
+	TokenSource
+	TokenType
+	TokenImpersonationLevel
+	TokenStatistics
+	TokenRestrictedSids
+	TokenSessionId
+	TokenGroupsAndPrivileges
+	TokenSessionReference
+	TokenSandBoxInert
+	TokenAuditPolicy
+	TokenOrigin
+)
+
+// Privilege constants (LUID values)
+const (
+	SE_CREATE_TOKEN_PRIVILEGE            = 2
+	SE_ASSIGNPRIMARYTOKEN_PRIVILEGE      = 3
+	SE_LOCK_MEMORY_PRIVILEGE             = 4
+	SE_INCREASE_QUOTA_PRIVILEGE          = 5
+	SE_MACHINE_ACCOUNT_PRIVILEGE         = 6
+	SE_TCB_PRIVILEGE                     = 7
+	SE_SECURITY_PRIVILEGE                = 8
+	SE_TAKE_OWNERSHIP_PRIVILEGE          = 9
+	SE_LOAD_DRIVER_PRIVILEGE             = 10
+	SE_SYSTEM_PROFILE_PRIVILEGE          = 11
+	SE_SYSTEMTIME_PRIVILEGE              = 12
+	SE_PROF_SINGLE_PROCESS_PRIVILEGE     = 13
+	SE_INC_BASE_PRIORITY_PRIVILEGE       = 14
+	SE_CREATE_PAGEFILE_PRIVILEGE         = 15
+	SE_CREATE_PERMANENT_PRIVILEGE        = 16
+	SE_BACKUP_PRIVILEGE                  = 17
+	SE_RESTORE_PRIVILEGE                 = 18
+	SE_SHUTDOWN_PRIVILEGE                = 19
+	SE_DEBUG_PRIVILEGE                   = 20
+	SE_AUDIT_PRIVILEGE                   = 21
+	SE_SYSTEM_ENVIRONMENT_PRIVILEGE      = 22
+	SE_CHANGE_NOTIFY_PRIVILEGE           = 23
+	SE_REMOTE_SHUTDOWN_PRIVILEGE         = 24
+)
+
+// LUID structure for privileges
+type LUID struct {
+	LowPart  uint32
+	HighPart int32
+}
+
+// LUID_AND_ATTRIBUTES structure
+type LUID_AND_ATTRIBUTES struct {
+	Luid       LUID
+	Attributes uint32
+}
+
+// TOKEN_PRIVILEGES structure
+type TOKEN_PRIVILEGES struct {
+	PrivilegeCount uint32
+	Privileges     [1]LUID_AND_ATTRIBUTES // Variable length array
 } 

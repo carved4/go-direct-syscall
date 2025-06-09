@@ -27,6 +27,22 @@ func DirectSyscallByHash(functionHash uint32, args ...uintptr) (uintptr, error) 
 	return syscall.HashSyscall(functionHash, args...)
 }
 
+// GetCurrentProcessHandle returns the pseudo-handle for the current process
+func GetCurrentProcessHandle() uintptr {
+	return 0xFFFFFFFFFFFFFFFF // -1 as uintptr (current process pseudo-handle)
+}
+
+// GetCurrentThreadHandle returns the pseudo-handle for the current thread
+func GetCurrentThreadHandle() uintptr {
+	return 0xFFFFFFFFFFFFFFFE // -2 as uintptr (current thread pseudo-handle)
+}
+
+// GetCurrentProcessId returns the current process ID
+func GetCurrentProcessId() uintptr {
+	pid := os.Getpid()
+	return uintptr(pid)
+}
+
 // DirectCall executes a direct call to any Windows API function by address
 // This is different from DirectSyscall - it calls regular API functions, not syscalls
 func DirectCall(functionAddr uintptr, args ...uintptr) (uintptr, error) {

