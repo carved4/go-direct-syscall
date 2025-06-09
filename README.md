@@ -74,7 +74,7 @@
 - **Obfuscation Support**: Function name hashing for stealth operations
 - **Security Bypass**: Built-in AMSI, ETW, and debug protection bypass capabilities  
 - **Privilege Escalation Framework**: Comprehensive discovery and exploitation of Windows privilege escalation vectors
-- **Automated Vulnerability Scanning**: Identifies DLL hijacking, binary planting, and service exploitation opportunities
+- **Automated Vulnerability Scanning**: Identifies binary planting and service exploitation opportunities
 - **Structured Exploitation**: Clean library functions for integrating privilege escalation into C2 frameworks
 - **Syscall Table Generation**: Automatic Go source file generation with pre-computed syscall numbers
 - **LOTS of Constants**: All common Windows constants included
@@ -711,7 +711,7 @@ The privilege escalation framework provides:
 
 - **Automated Discovery**: Scans the system for exploitable privilege escalation vectors
 - **Structured Results**: Returns categorized vulnerabilities with detailed metadata
-- **Multiple Attack Vectors**: Supports DLL hijacking, binary planting, service exploitation, and more
+- **Multiple Attack Vectors**: Supports binary planting, service exploitation, and more
 - **Clean Integration**: Simple library functions ready for C2 framework integration
 - **Silent Operation**: No verbose output, designed for production red team use
 - **Flexible Payloads**: Works with any custom payload or shellcode
@@ -730,7 +730,7 @@ The discovery module identifies privilege escalation opportunities across the Wi
 **`ScanDirectoryPermissions(path string) ([]EscalationVector, error)`**  
 - Analyzes file/directory permissions for weak ACLs
 - Identifies writable system directories
-- Detects DLL hijacking opportunities
+- Detects binary planting opportunities
 
 **`ScanServicePaths() ([]EscalationVector, error)`**
 - Enumerates Windows services for unquoted path vulnerabilities
@@ -766,16 +766,16 @@ func main() {
         summary.HighSeverityCount, len(vectors))
     
     // Process specific attack vectors
-    if dllVectors, exists := vectors["DLL Hijacking"]; exists {
-        fmt.Printf("DLL Hijacking opportunities: %d\n", len(dllVectors))
-        for _, vector := range dllVectors {
+    if pathVectors, exists := vectors["Binary Planting"]; exists {
+        fmt.Printf("Binary Planting opportunities: %d\n", len(pathVectors))
+        for _, vector := range pathVectors {
             fmt.Printf("  - %s (Severity: %s)\n", vector.Path, vector.Severity)
         }
     }
     
-    // Check for binary planting opportunities
-    if pathVectors, exists := vectors["Binary Planting"]; exists {
-        fmt.Printf("PATH directories available for hijacking: %d\n", len(pathVectors))
+    // Check for service replacement opportunities
+    if serviceVectors, exists := vectors["Service Replacement"]; exists {
+        fmt.Printf("Service replacement opportunities: %d\n", len(serviceVectors))
     }
 }
 ```
@@ -791,10 +791,7 @@ The exploitation module provides functions to exploit discovered privilege escal
 - Accepts custom payloads and configuration options
 - Returns detailed exploitation results
 
-**`ExploitDllHijacking(vector EscalationVector, payload []byte) (ExploitResult, error)`**
-- Exploits DLL hijacking vulnerabilities
-- Plants malicious DLL in target directory
-- Supports custom payload injection
+
 
 **`ExploitBinaryPlanting(vector EscalationVector, payload []byte) (ExploitResult, error)`**
 - Exploits PATH directory hijacking
@@ -958,7 +955,6 @@ func AutomatedPrivEsc() {
     // Step 3: Exploitation with preference order
     preferredMethods := []string{
         "Binary Planting",      // Most reliable
-        "DLL Hijacking",        // High success rate  
         "Task Scheduler",       // Good persistence
         "Service Replacement",  // System-level access
     }
@@ -982,7 +978,7 @@ Represents a single privilege escalation opportunity:
 
 ```go
 type EscalationVector struct {
-    Type        string    // "DLL Hijacking", "Binary Planting", etc.
+    Type        string    // "Binary Planting", "Service Replacement", etc.
     Path        string    // Target file/directory path
     Severity    string    // "High", "Medium", "Low"  
     Description string    // Human-readable description
@@ -996,7 +992,7 @@ Categorized map of privilege escalation vectors:
 
 ```go
 type PrivEscMap map[string][]EscalationVector
-// Categories: "DLL Hijacking", "Binary Planting", "Task Scheduler", etc.
+// Categories: "Binary Planting", "Task Scheduler", "Service Replacement", etc.
 ```
 
 #### ExploitResult
@@ -1020,7 +1016,6 @@ type ExploitResult struct {
 - **Production Mode**: Set `TestMode: false` for actual exploitation with your payloads
 
 #### Payload Requirements
-- **DLL Hijacking**: Requires DLL payloads (compiled .dll files)
 - **Binary Planting**: Requires executable payloads (.exe files)  
 - **Task Scheduler**: Works with any executable format
 - **Service Replacement**: Requires service-compatible executables

