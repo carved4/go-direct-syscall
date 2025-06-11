@@ -3,6 +3,7 @@ package syscallresolve
 
 import (
 	"fmt"
+	"runtime"
 	"sync"
 	"time"
 	"unsafe"
@@ -11,6 +12,37 @@ import (
 	"github.com/carved4/go-direct-syscall/pkg/debug"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 )
+
+/*
+#cgo LDFLAGS: -L../../ -ldo_syscall -ldo_call
+extern long long do_syscall(int ssn, int nargs, 
+    long long a0, long long a1, long long a2, long long a3, long long a4, long long a5,
+    long long a6, long long a7, long long a8, long long a9, long long a10, long long a11);
+extern long long do_call(void* func_addr, int nargs, 
+    long long a0, long long a1, long long a2, long long a3, long long a4, long long a5,
+    long long a6, long long a7, long long a8, long long a9, long long a10, long long a11);
+
+// This simulates what the assembly was doing using a C function
+// We're adding this to replace the assembly file with pure Go+C
+#include <stdint.h>
+
+#ifdef _WIN64
+// On 64-bit, the PEB is at GS:[0x60]
+uintptr_t getPEB() {
+    uintptr_t peb;
+    __asm__ ("movq %%gs:0x60, %0" : "=r" (peb));
+    return peb;
+}
+#else
+// On 32-bit, the PEB is at FS:[0x30]
+uintptr_t getPEB() {
+    uintptr_t peb;
+    __asm__ ("movl %%fs:0x30, %0" : "=r" (peb));
+    return peb;
+}
+#endif
+*/
+import "C"
 
 // Windows structures needed for PEB access
 type LIST_ENTRY struct {
@@ -66,21 +98,15 @@ type PEB struct {
 	SessionId              uint32
 }
 
-// GetPEB directly using assembly (Windows x64)
+// GetPEB returns the Process Environment Block address
 //
 //go:nosplit
 //go:noinline
-func GetPEB() uintptr
-
-// The x64 implementation is kept in assembly in pkg/syscallresolve/peb_windows_amd64.s
-// Using the following:
-/*
-// Assembly for peb_windows_amd64.s:
-TEXT ·GetPEB(SB), $0-8
-    MOVQ 0x60(GS), AX  // Access PEB from GS register (x64)
-    MOVQ AX, ret+0(FP)
-    RET
-*/
+func GetPEB() uintptr {
+	// Use CGO to access the PEB, simulating what the assembly was doing
+	// This is the most reliable cross-platform way to access thread-local storage
+	return uintptr(C.getPEB())
+}
 
 // UTF16ToString converts a UTF16 string to a Go string
 func UTF16ToString(ptr *uint16) string {
@@ -304,7 +330,7 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 
 // GetSyscallNumber extracts the syscall number from a NTDLL syscall function
 // This function uses ONLY manual PE parsing and PEB walking - NO Windows API calls
-func GetSyscallNumber(functionHash uint32) uint16 {
+func GetSyscallNumberLegacy(functionHash uint32) uint16 {
 	// Try cache first for performance
 	if cached := getSyscallFromCache(functionHash); cached != 0 {
 		return cached
@@ -659,6 +685,42 @@ func GetSyscallWithValidation(functionHash uint32) (uint16, bool, error) {
 	return syscallNum, isValid, nil
 }
 
+// GetSyscallNumber now prioritizes using the fresh ntdll copy
+// This is the main entry point for all syscall number resolution
+func GetSyscallNumber(functionHash uint32) uint16 {
+	// Try cache first
+	if cached := getSyscallFromCache(functionHash); cached != 0 {
+		return cached
+	}
+	
+	// Always prefer fresh ntdll copy
+	syscallNum := GetSyscallNumberFromFreshNtdll(functionHash)
+	if syscallNum != 0 {
+		return syscallNum
+	}
+	
+	// Fall back to the original method using PEB only if fresh ntdll failed
+	debug.Printfln("SYSCALLRESOLVE", "Fresh ntdll method failed, falling back to PEB method for hash: 0x%X\n", functionHash)
+	return GetSyscallNumberLegacy(functionHash)
+}
+
+// PrewarmFreshNtdll loads the fresh ntdll copy on startup
+// Call this function early in your application to ensure the fresh copy is ready
+func PrewarmFreshNtdll() error {
+	_, err := LoadFreshNtdllCopy()
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to prewarm fresh ntdll: %v\n", err)
+		return err
+	}
+	
+	// Also prewarm common syscalls
+	debug.Printfln("SYSCALLRESOLVE", "Prewarming common syscalls from fresh ntdll...\n")
+	PrewarmSyscallCache()
+	
+	debug.Printfln("SYSCALLRESOLVE", "Fresh ntdll prewarmed successfully\n")
+	return nil
+}
+
 // PrewarmSyscallCache preloads common syscall numbers for better performance
 func PrewarmSyscallCache() error {
 	// All NT functions available in winapi.go
@@ -718,10 +780,395 @@ func PrewarmSyscallCache() error {
 		"NtWaitForMultipleObjects",
 	}
 	
+	// Ensure fresh ntdll is loaded first
+	_, err := LoadFreshNtdllCopy()
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Warning: Failed to load fresh ntdll, falling back to legacy method for prewarming\n")
+	}
+	
+	// Now populate the cache
 	for _, funcName := range commonFunctions {
 		functionHash := obf.GetHash(funcName)
-		GetSyscallNumber(functionHash)
+		syscallNum := GetSyscallNumber(functionHash)
+		if syscallNum != 0 {
+			debug.Printfln("SYSCALLRESOLVE", "Prewarmed syscall for %s: %d\n", funcName, syscallNum)
+		}
 	}
 	
 	return nil
+}
+
+// DoSyscallExternal calls the external assembly function using cgo
+func DoSyscallExternal(ssn uint16, nargs uint32, args ...uintptr) uintptr {
+	// Lock the OS thread for syscall safety
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	
+	// Pad args to ensure we have exactly 12 arguments  
+	paddedArgs := make([]uintptr, 12)
+	copy(paddedArgs, args)
+	
+	result := C.do_syscall(
+		C.int(ssn),
+		C.int(nargs),
+		C.longlong(paddedArgs[0]),
+		C.longlong(paddedArgs[1]),
+		C.longlong(paddedArgs[2]),
+		C.longlong(paddedArgs[3]),
+		C.longlong(paddedArgs[4]),
+		C.longlong(paddedArgs[5]),
+		C.longlong(paddedArgs[6]),
+		C.longlong(paddedArgs[7]),
+		C.longlong(paddedArgs[8]),
+		C.longlong(paddedArgs[9]),
+		C.longlong(paddedArgs[10]),
+		C.longlong(paddedArgs[11]))
+	
+	return uintptr(result)
+}
+
+// ExternalSyscall is a wrapper that uses the external assembly implementation
+func ExternalSyscall(syscallNumber uint16, args ...uintptr) (uintptr, error) {
+	result := DoSyscallExternal(syscallNumber, uint32(len(args)), args...)
+	return result, nil
+}
+
+// HashSyscall executes a direct syscall using a function name hash
+// This simplifies API calls by automatically resolving the syscall number
+func HashSyscall(functionHash uint32, args ...uintptr) (uintptr, error) {
+	syscallNum := GetSyscallNumber(functionHash)
+	return ExternalSyscall(syscallNum, args...)
+}
+
+// DirectCall calls a Windows API function directly by address
+// This is different from DoSyscallExternal - it calls regular API functions, not syscalls
+func DirectCall(funcAddr uintptr, args ...uintptr) (uintptr, error) {
+	// Lock the OS thread for call safety
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	
+	// Pad args to ensure we have exactly 12 arguments  
+	paddedArgs := make([]uintptr, 12)
+	copy(paddedArgs, args)
+	
+	result := C.do_call(
+		unsafe.Pointer(funcAddr),
+		C.int(len(args)),
+		C.longlong(paddedArgs[0]),
+		C.longlong(paddedArgs[1]),
+		C.longlong(paddedArgs[2]),
+		C.longlong(paddedArgs[3]),
+		C.longlong(paddedArgs[4]),
+		C.longlong(paddedArgs[5]),
+		C.longlong(paddedArgs[6]),
+		C.longlong(paddedArgs[7]),
+		C.longlong(paddedArgs[8]),
+		C.longlong(paddedArgs[9]),
+		C.longlong(paddedArgs[10]),
+		C.longlong(paddedArgs[11]))
+	
+	return uintptr(result), nil
+}
+
+// FreshNtdllBase holds the base address of the clean ntdll.dll mapping
+var FreshNtdllBase uintptr
+var freshNtdllOnce sync.Once
+
+// Constants needed for NT API calls
+const (
+	SECTION_MAP_READ     = 0x0004
+	PAGE_READONLY        = 0x02
+	SEC_IMAGE            = 0x1000000
+	FILE_SHARE_READ      = 0x00000001
+	FILE_SHARE_WRITE     = 0x00000002
+	FILE_SHARE_DELETE    = 0x00000004
+	GENERIC_READ         = 0x80000000
+	FILE_ATTRIBUTE_NORMAL = 0x00000080
+	CREATE_ALWAYS        = 2
+	OPEN_EXISTING        = 3
+	OBJ_CASE_INSENSITIVE = 0x00000040
+	ViewShare            = 1
+	STATUS_SUCCESS       = 0
+)
+
+// UNICODE_STRING Windows struct for object names
+type NT_UNICODE_STRING struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *uint16
+}
+
+// OBJECT_ATTRIBUTES Windows struct for object handles
+type NT_OBJECT_ATTRIBUTES struct {
+	Length                   uint32
+	RootDirectory            uintptr
+	ObjectName               *NT_UNICODE_STRING
+	Attributes               uint32
+	SecurityDescriptor       uintptr
+	SecurityQualityOfService uintptr
+}
+
+// IO_STATUS_BLOCK Windows struct for I/O operations
+type NT_IO_STATUS_BLOCK struct {
+	Status      uintptr
+	Information uintptr
+}
+
+// LoadFreshNtdllCopy maps a fresh copy of ntdll.dll from disk to avoid hooks
+func LoadFreshNtdllCopy() (uintptr, error) {
+	var err error
+	
+	freshNtdllOnce.Do(func() {
+		// Get the system directory path
+		systemDir := `C:\Windows\System32\ntdll.dll`
+		
+		// Initialize the syscall numbers we need
+		ntCreateFileHash := obf.GetHash("NtCreateFile")
+		ntCreateSectionHash := obf.GetHash("NtCreateSection") 
+		ntMapViewOfSectionHash := obf.GetHash("NtMapViewOfSection")
+		ntCloseHash := obf.GetHash("NtClose")
+		
+		// Get syscall numbers directly
+		ntCreateFileSSN := GetSyscallNumberLegacy(ntCreateFileHash)
+		ntCreateSectionSSN := GetSyscallNumberLegacy(ntCreateSectionHash)
+		ntMapViewOfSectionSSN := GetSyscallNumberLegacy(ntMapViewOfSectionHash) 
+		ntCloseSSN := GetSyscallNumberLegacy(ntCloseHash)
+		
+		// Convert the path to a UNICODE_STRING
+		ntPathStr := StringToUTF16(systemDir)
+		
+		// Calculate UTF-16 string length properly (without direct indexing)
+		// More precisely calculate the length by measuring the actual UTF-16 encoded string
+		// We need to do this without indexing the *uint16 directly
+		actualLen := uint16(0)
+		ptr := unsafe.Pointer(ntPathStr)
+		for {
+			// Read the current UTF-16 character
+			if *(*uint16)(ptr) == 0 {
+				break // Found null terminator
+			}
+			actualLen += 2 // Count 2 bytes for each UTF-16 character
+			ptr = unsafe.Pointer(uintptr(ptr) + 2) // Move to next UTF-16 character
+		}
+		
+		objectName := NT_UNICODE_STRING{
+			Length:        actualLen,
+			MaximumLength: actualLen + 2, // Add space for null terminator
+			Buffer:        ntPathStr,
+		}
+		
+		// Create OBJECT_ATTRIBUTES structure
+		objAttr := NT_OBJECT_ATTRIBUTES{
+			Length:                   uint32(unsafe.Sizeof(NT_OBJECT_ATTRIBUTES{})),
+			RootDirectory:            0,
+			ObjectName:               &objectName,
+			Attributes:               OBJ_CASE_INSENSITIVE,
+			SecurityDescriptor:       0,
+			SecurityQualityOfService: 0,
+		}
+		
+		// Initialize IO_STATUS_BLOCK
+		var ioStatusBlock NT_IO_STATUS_BLOCK
+		
+		// Open the file
+		var fileHandle uintptr
+		status, _ := ExternalSyscall(ntCreateFileSSN,
+			uintptr(unsafe.Pointer(&fileHandle)),
+			GENERIC_READ,
+			uintptr(unsafe.Pointer(&objAttr)),
+			uintptr(unsafe.Pointer(&ioStatusBlock)),
+			0, // AllocationSize
+			FILE_ATTRIBUTE_NORMAL,
+			FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+			OPEN_EXISTING,
+			0, // CreateOptions
+			0, // EaBuffer
+			0, // EaLength
+		)
+		
+		if status != STATUS_SUCCESS {
+			debug.Printfln("SYSCALLRESOLVE", "NtCreateFile failed with status: 0x%X\n", status)
+			err = fmt.Errorf("failed to open ntdll.dll: 0x%X", status)
+			return
+		}
+		defer ExternalSyscall(ntCloseSSN, fileHandle)
+		
+		// Create a section for the file
+		var sectionHandle uintptr
+		status, _ = ExternalSyscall(ntCreateSectionSSN,
+			uintptr(unsafe.Pointer(&sectionHandle)),
+			SECTION_MAP_READ,
+			0, // ObjectAttributes
+			0, // MaximumSize
+			PAGE_READONLY,
+			SEC_IMAGE,
+			fileHandle,
+		)
+		
+		if status != STATUS_SUCCESS {
+			debug.Printfln("SYSCALLRESOLVE", "NtCreateSection failed with status: 0x%X\n", status)
+			err = fmt.Errorf("failed to create section for ntdll.dll: 0x%X", status)
+			return
+		}
+		defer ExternalSyscall(ntCloseSSN, sectionHandle)
+		
+		// Map the section into memory
+		var baseAddress uintptr
+		var viewSize uintptr
+		status, _ = ExternalSyscall(ntMapViewOfSectionSSN,
+			sectionHandle,
+			uintptr(0xFFFFFFFFFFFFFFFF), // Current process
+			uintptr(unsafe.Pointer(&baseAddress)),
+			0, // ZeroBits
+			0, // CommitSize
+			0, // SectionOffset
+			uintptr(unsafe.Pointer(&viewSize)),
+			ViewShare,
+			0, // AllocationType
+			PAGE_READONLY,
+		)
+		
+		if status != STATUS_SUCCESS {
+			debug.Printfln("SYSCALLRESOLVE", "NtMapViewOfSection failed with status: 0x%X\n", status)
+			err = fmt.Errorf("failed to map view of ntdll.dll: 0x%X", status)
+			return
+		}
+		
+		// Store the base address
+		FreshNtdllBase = baseAddress
+		debug.Printfln("SYSCALLRESOLVE", "Mapped fresh ntdll.dll at: 0x%X, size: %d bytes\n", 
+			baseAddress, viewSize)
+	})
+	
+	if err != nil {
+		return 0, err
+	}
+	
+	return FreshNtdllBase, nil
+}
+
+// StringToUTF16 converts a Go string to a UTF16 string pointer
+func StringToUTF16(s string) *uint16 {
+	if s == "" {
+		// Return pointer to null terminator for empty strings
+		nullTerm := uint16(0)
+		return &nullTerm
+	}
+	
+	// Convert string to runes first (handles Unicode properly)
+	runes := []rune(s)
+	
+	// Allocate buffer for UTF16 + null terminator
+	utf16Slice := make([]uint16, 0, len(runes)+1)
+	
+	// Convert each rune to UTF16
+	for _, r := range runes {
+		if r < 0x10000 {
+			// Basic Multilingual Plane - single UTF16 unit
+			utf16Slice = append(utf16Slice, uint16(r))
+		} else {
+			// Supplementary plane - needs surrogate pair
+			r -= 0x10000
+			high := uint16((r>>10)&0x3FF) + 0xD800  // High surrogate
+			low := uint16(r&0x3FF) + 0xDC00         // Low surrogate
+			utf16Slice = append(utf16Slice, high, low)
+		}
+	}
+	
+	// Add null terminator
+	utf16Slice = append(utf16Slice, 0)
+	
+	// Return pointer to first element
+	return &utf16Slice[0]
+}
+
+// GetFunctionAddressFromFreshNtdll retrieves a function address from the fresh ntdll copy
+func GetFunctionAddressFromFreshNtdll(functionHash uint32) uintptr {
+	// Ensure fresh ntdll is loaded
+	freshBase, err := LoadFreshNtdllCopy()
+	if err != nil || freshBase == 0 {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to load fresh ntdll.dll: %v\n", err)
+		return 0
+	}
+	
+	// Read the PE header to get the size of the image
+	dosHeader := (*[64]byte)(unsafe.Pointer(freshBase))
+	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
+		debug.Printfln("SYSCALLRESOLVE", "Invalid DOS signature in fresh ntdll\n")
+		return 0
+	}
+	
+	// Get the offset to the PE header
+	peOffset := *(*uint32)(unsafe.Pointer(freshBase + 60))
+	if peOffset >= 1024 {
+		debug.Printfln("SYSCALLRESOLVE", "PE offset too large in fresh ntdll: %d\n", peOffset)
+		return 0
+	}
+	
+	// Read the PE header to get the SizeOfImage
+	peHeader := (*[1024]byte)(unsafe.Pointer(freshBase + uintptr(peOffset)))
+	if peHeader[0] != 'P' || peHeader[1] != 'E' {
+		debug.Printfln("SYSCALLRESOLVE", "Invalid PE signature in fresh ntdll\n")
+		return 0
+	}
+	
+	// SizeOfImage is at offset 56 from the start of the OptionalHeader
+	// OptionalHeader starts at offset 24 from PE signature
+	sizeOfImage := *(*uint32)(unsafe.Pointer(freshBase + uintptr(peOffset) + 24 + 56))
+	
+	// Create a memory reader for the PE file with the correct size
+	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(freshBase)), sizeOfImage)
+	
+	// Parse the PE file from memory
+	file, err := pe.NewFileFromMemory(&memoryReaderAt{data: dataSlice})
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to parse fresh ntdll PE: %v\n", err)
+		return 0
+	}
+	defer file.Close()
+
+	// Get the exports
+	exports, err := file.Exports()
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get exports from fresh ntdll: %v\n", err)
+		return 0
+	}
+
+	// Search for the function by hash
+	for _, export := range exports {
+		if export.Name != "" {
+			currentHash := obf.DBJ2HashStr(export.Name)
+			if currentHash == functionHash {
+				// Return the function address (module base + RVA)
+				return freshBase + uintptr(export.VirtualAddress)
+			}
+		}
+	}
+
+	return 0
+}
+
+// GetSyscallNumberFromFreshNtdll extracts the syscall number from the fresh ntdll copy
+func GetSyscallNumberFromFreshNtdll(functionHash uint32) uint16 {
+	// Try cache first for performance
+	if cached := getSyscallFromCache(functionHash); cached != 0 {
+		return cached
+	}
+	
+	// Get the function address in the fresh ntdll
+	funcAddr := GetFunctionAddressFromFreshNtdll(functionHash)
+	if funcAddr == 0 {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to find function in fresh ntdll for hash: 0x%X\n", functionHash)
+		return 0
+	}
+	
+	// Extract the syscall number with validation
+	syscallNumber := extractSyscallNumberWithValidation(funcAddr, functionHash)
+	
+	// Cache the result if valid
+	if syscallNumber != 0 {
+		cacheSyscallNumber(functionHash, syscallNumber)
+	}
+	
+	return syscallNumber
 }

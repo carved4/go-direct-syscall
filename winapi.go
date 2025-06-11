@@ -10,7 +10,6 @@ import (
 	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-direct-syscall/pkg/debug"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
-	"github.com/carved4/go-direct-syscall/pkg/syscall"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
 )
 
@@ -18,13 +17,13 @@ import (
 // This is the main function library users should use
 func DirectSyscall(functionName string, args ...uintptr) (uintptr, error) {
 	functionHash := obf.GetHash(functionName)
-	return syscall.HashSyscall(functionHash, args...)
+	return syscallresolve.HashSyscall(functionHash, args...)
 }
 
 // DirectSyscallByHash executes a direct syscall by function name hash
 // Useful for obfuscation when you want to pre-compute hashes
 func DirectSyscallByHash(functionHash uint32, args ...uintptr) (uintptr, error) {
-	return syscall.HashSyscall(functionHash, args...)
+	return syscallresolve.HashSyscall(functionHash, args...)
 }
 
 // GetCurrentProcessHandle returns the pseudo-handle for the current process
@@ -46,7 +45,7 @@ func GetCurrentProcessId() uintptr {
 // DirectCall executes a direct call to any Windows API function by address
 // This is different from DirectSyscall - it calls regular API functions, not syscalls
 func DirectCall(functionAddr uintptr, args ...uintptr) (uintptr, error) {
-	return syscall.DirectCall(functionAddr, args...)
+	return syscallresolve.DirectCall(functionAddr, args...)
 }
 
 // GetSyscallNumber returns the syscall number for a given function name
@@ -1562,6 +1561,12 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	debug.Printfln("WINAPI", "Remote thread created and running - not waiting for completion\n")
 
 	return nil
+}
+
+// PrewarmFreshNtdll loads a fresh copy of ntdll.dll from disk and preloads syscalls
+// This provides maximum hook evasion by using a clean ntdll.dll copy for all syscalls
+func PrewarmFreshNtdll() error {
+	return syscallresolve.PrewarmFreshNtdll()
 }
 
 
