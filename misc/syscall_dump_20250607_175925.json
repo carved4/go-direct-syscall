@@ -1,0 +1,5663 @@
+{
+  "timestamp": "2025-06-07T17:59:25-04:00",
+  "system_info": {
+    "os": "Windows",
+    "architecture": "x64",
+    "ntdll_base": "0x7FFFAB480000"
+  },
+  "syscalls": [
+    {
+      "Name": "ZwWorkerFactoryWorkerReady",
+      "Hash": 525269751,
+      "SyscallNumber": 1,
+      "Address": 140736067065088
+    },
+    {
+      "Name": "NtWorkerFactoryWorkerReady",
+      "Hash": 3848641640,
+      "SyscallNumber": 1,
+      "Address": 140736067065088
+    },
+    {
+      "Name": "ZwAcceptConnectPort",
+      "Hash": 1493327093,
+      "SyscallNumber": 2,
+      "Address": 140736067065120
+    },
+    {
+      "Name": "NtAcceptConnectPort",
+      "Hash": 1149447046,
+      "SyscallNumber": 2,
+      "Address": 140736067065120
+    },
+    {
+      "Name": "ZwMapUserPhysicalPagesScatter",
+      "Hash": 4003963894,
+      "SyscallNumber": 3,
+      "Address": 140736067065152
+    },
+    {
+      "Name": "NtMapUserPhysicalPagesScatter",
+      "Hash": 1568971719,
+      "SyscallNumber": 3,
+      "Address": 140736067065152
+    },
+    {
+      "Name": "ZwWaitForSingleObject",
+      "Hash": 431838571,
+      "SyscallNumber": 4,
+      "Address": 140736067065184
+    },
+    {
+      "Name": "NtWaitForSingleObject",
+      "Hash": 3903589436,
+      "SyscallNumber": 4,
+      "Address": 140736067065184
+    },
+    {
+      "Name": "ZwCallbackReturn",
+      "Hash": 329966979,
+      "SyscallNumber": 5,
+      "Address": 140736067065216
+    },
+    {
+      "Name": "NtCallbackReturn",
+      "Hash": 2539050420,
+      "SyscallNumber": 5,
+      "Address": 140736067065216
+    },
+    {
+      "Name": "ZwReadFile",
+      "Hash": 1087197842,
+      "SyscallNumber": 6,
+      "Address": 140736067065248
+    },
+    {
+      "Name": "NtReadFile",
+      "Hash": 3000578563,
+      "SyscallNumber": 6,
+      "Address": 140736067065248
+    },
+    {
+      "Name": "NtDeviceIoControlFile",
+      "Hash": 97877456,
+      "SyscallNumber": 7,
+      "Address": 140736067065280
+    },
+    {
+      "Name": "ZwDeviceIoControlFile",
+      "Hash": 921093887,
+      "SyscallNumber": 7,
+      "Address": 140736067065280
+    },
+    {
+      "Name": "NtWriteFile",
+      "Hash": 3772128690,
+      "SyscallNumber": 8,
+      "Address": 140736067065312
+    },
+    {
+      "Name": "ZwWriteFile",
+      "Hash": 760107041,
+      "SyscallNumber": 8,
+      "Address": 140736067065312
+    },
+    {
+      "Name": "NtRemoveIoCompletion",
+      "Hash": 116693607,
+      "SyscallNumber": 9,
+      "Address": 140736067065344
+    },
+    {
+      "Name": "ZwRemoveIoCompletion",
+      "Hash": 2874800566,
+      "SyscallNumber": 9,
+      "Address": 140736067065344
+    },
+    {
+      "Name": "NtReleaseSemaphore",
+      "Hash": 4166448716,
+      "SyscallNumber": 10,
+      "Address": 140736067065376
+    },
+    {
+      "Name": "ZwReleaseSemaphore",
+      "Hash": 3656267227,
+      "SyscallNumber": 10,
+      "Address": 140736067065376
+    },
+    {
+      "Name": "NtReplyWaitReceivePort",
+      "Hash": 431647856,
+      "SyscallNumber": 11,
+      "Address": 140736067065408
+    },
+    {
+      "Name": "ZwReplyWaitReceivePort",
+      "Hash": 1827986303,
+      "SyscallNumber": 11,
+      "Address": 140736067065408
+    },
+    {
+      "Name": "NtReplyPort",
+      "Hash": 2762866104,
+      "SyscallNumber": 12,
+      "Address": 140736067065440
+    },
+    {
+      "Name": "ZwReplyPort",
+      "Hash": 4045811751,
+      "SyscallNumber": 12,
+      "Address": 140736067065440
+    },
+    {
+      "Name": "NtSetInformationThread",
+      "Hash": 205259761,
+      "SyscallNumber": 13,
+      "Address": 140736067065472
+    },
+    {
+      "Name": "ZwSetInformationThread",
+      "Hash": 1601598208,
+      "SyscallNumber": 13,
+      "Address": 140736067065472
+    },
+    {
+      "Name": "ZwSetEvent",
+      "Hash": 1501296964,
+      "SyscallNumber": 14,
+      "Address": 140736067065504
+    },
+    {
+      "Name": "NtSetEvent",
+      "Hash": 3414677685,
+      "SyscallNumber": 14,
+      "Address": 140736067065504
+    },
+    {
+      "Name": "ZwClose",
+      "Hash": 3817945484,
+      "SyscallNumber": 15,
+      "Address": 140736067065536
+    },
+    {
+      "Name": "NtClose",
+      "Hash": 1087825565,
+      "SyscallNumber": 15,
+      "Address": 140736067065536
+    },
+    {
+      "Name": "ZwQueryObject",
+      "Hash": 330060771,
+      "SyscallNumber": 16,
+      "Address": 140736067065568
+    },
+    {
+      "Name": "NtQueryObject",
+      "Hash": 3361589684,
+      "SyscallNumber": 16,
+      "Address": 140736067065568
+    },
+    {
+      "Name": "ZwQueryInformationFile",
+      "Hash": 362360114,
+      "SyscallNumber": 17,
+      "Address": 140736067065600
+    },
+    {
+      "Name": "NtQueryInformationFile",
+      "Hash": 3260988963,
+      "SyscallNumber": 17,
+      "Address": 140736067065600
+    },
+    {
+      "Name": "ZwOpenKey",
+      "Hash": 2971514865,
+      "SyscallNumber": 18,
+      "Address": 140736067065632
+    },
+    {
+      "Name": "NtOpenKey",
+      "Hash": 1988291906,
+      "SyscallNumber": 18,
+      "Address": 140736067065632
+    },
+    {
+      "Name": "ZwEnumerateValueKey",
+      "Hash": 3909711970,
+      "SyscallNumber": 19,
+      "Address": 140736067065664
+    },
+    {
+      "Name": "NtEnumerateValueKey",
+      "Hash": 3565831923,
+      "SyscallNumber": 19,
+      "Address": 140736067065664
+    },
+    {
+      "Name": "ZwFindAtom",
+      "Hash": 2146487432,
+      "SyscallNumber": 20,
+      "Address": 140736067065696
+    },
+    {
+      "Name": "NtFindAtom",
+      "Hash": 4059868153,
+      "SyscallNumber": 20,
+      "Address": 140736067065696
+    },
+    {
+      "Name": "NtQueryDefaultLocale",
+      "Hash": 3089343282,
+      "SyscallNumber": 21,
+      "Address": 140736067065728
+    },
+    {
+      "Name": "ZwQueryDefaultLocale",
+      "Hash": 1552482945,
+      "SyscallNumber": 21,
+      "Address": 140736067065728
+    },
+    {
+      "Name": "ZwQueryKey",
+      "Hash": 780908085,
+      "SyscallNumber": 22,
+      "Address": 140736067065760
+    },
+    {
+      "Name": "NtQueryKey",
+      "Hash": 2694288806,
+      "SyscallNumber": 22,
+      "Address": 140736067065760
+    },
+    {
+      "Name": "ZwQueryValueKey",
+      "Hash": 3736093458,
+      "SyscallNumber": 23,
+      "Address": 140736067065792
+    },
+    {
+      "Name": "NtQueryValueKey",
+      "Hash": 2241229091,
+      "SyscallNumber": 23,
+      "Address": 140736067065792
+    },
+    {
+      "Name": "ZwAllocateVirtualMemory",
+      "Hash": 2987133403,
+      "SyscallNumber": 24,
+      "Address": 140736067065824
+    },
+    {
+      "Name": "NtAllocateVirtualMemory",
+      "Hash": 4152604908,
+      "SyscallNumber": 24,
+      "Address": 140736067065824
+    },
+    {
+      "Name": "ZwQueryInformationProcess",
+      "Hash": 180135537,
+      "SyscallNumber": 25,
+      "Address": 140736067065856
+    },
+    {
+      "Name": "NtQueryInformationProcess",
+      "Hash": 2363252162,
+      "SyscallNumber": 25,
+      "Address": 140736067065856
+    },
+    {
+      "Name": "ZwWaitForMultipleObjects32",
+      "Hash": 4225324653,
+      "SyscallNumber": 26,
+      "Address": 140736067065888
+    },
+    {
+      "Name": "NtWaitForMultipleObjects32",
+      "Hash": 3253729246,
+      "SyscallNumber": 26,
+      "Address": 140736067065888
+    },
+    {
+      "Name": "NtWriteFileGather",
+      "Hash": 849077229,
+      "SyscallNumber": 27,
+      "Address": 140736067065920
+    },
+    {
+      "Name": "ZwWriteFileGather",
+      "Hash": 963767708,
+      "SyscallNumber": 27,
+      "Address": 140736067065920
+    },
+    {
+      "Name": "NtSetInformationProcess",
+      "Hash": 1995429464,
+      "SyscallNumber": 28,
+      "Address": 140736067065952
+    },
+    {
+      "Name": "ZwSetInformationProcess",
+      "Hash": 829957959,
+      "SyscallNumber": 28,
+      "Address": 140736067065952
+    },
+    {
+      "Name": "ZwCreateKey",
+      "Hash": 3026808819,
+      "SyscallNumber": 29,
+      "Address": 140736067065984
+    },
+    {
+      "Name": "NtCreateKey",
+      "Hash": 1743863172,
+      "SyscallNumber": 29,
+      "Address": 140736067065984
+    },
+    {
+      "Name": "NtFreeVirtualMemory",
+      "Hash": 671270409,
+      "SyscallNumber": 30,
+      "Address": 140736067066016
+    },
+    {
+      "Name": "ZwFreeVirtualMemory",
+      "Hash": 1015150456,
+      "SyscallNumber": 30,
+      "Address": 140736067066016
+    },
+    {
+      "Name": "ZwImpersonateClientOfPort",
+      "Hash": 2696483798,
+      "SyscallNumber": 31,
+      "Address": 140736067066048
+    },
+    {
+      "Name": "NtImpersonateClientOfPort",
+      "Hash": 584633127,
+      "SyscallNumber": 31,
+      "Address": 140736067066048
+    },
+    {
+      "Name": "NtReleaseMutant",
+      "Hash": 3163901921,
+      "SyscallNumber": 32,
+      "Address": 140736067066080
+    },
+    {
+      "Name": "ZwReleaseMutant",
+      "Hash": 363798992,
+      "SyscallNumber": 32,
+      "Address": 140736067066080
+    },
+    {
+      "Name": "NtQueryInformationToken",
+      "Hash": 255270884,
+      "SyscallNumber": 33,
+      "Address": 140736067066112
+    },
+    {
+      "Name": "ZwQueryInformationToken",
+      "Hash": 3384766675,
+      "SyscallNumber": 33,
+      "Address": 140736067066112
+    },
+    {
+      "Name": "ZwRequestWaitReplyPort",
+      "Hash": 2196430501,
+      "SyscallNumber": 34,
+      "Address": 140736067066144
+    },
+    {
+      "Name": "NtRequestWaitReplyPort",
+      "Hash": 800092054,
+      "SyscallNumber": 34,
+      "Address": 140736067066144
+    },
+    {
+      "Name": "NtQueryVirtualMemory",
+      "Hash": 281077853,
+      "SyscallNumber": 35,
+      "Address": 140736067066176
+    },
+    {
+      "Name": "ZwQueryVirtualMemory",
+      "Hash": 3039184812,
+      "SyscallNumber": 35,
+      "Address": 140736067066176
+    },
+    {
+      "Name": "ZwOpenThreadToken",
+      "Hash": 2265534849,
+      "SyscallNumber": 36,
+      "Address": 140736067066208
+    },
+    {
+      "Name": "NtOpenThreadToken",
+      "Hash": 2150844370,
+      "SyscallNumber": 36,
+      "Address": 140736067066208
+    },
+    {
+      "Name": "NtQueryInformationThread",
+      "Hash": 4120921627,
+      "SyscallNumber": 37,
+      "Address": 140736067066240
+    },
+    {
+      "Name": "ZwQueryInformationThread",
+      "Hash": 20100330,
+      "SyscallNumber": 37,
+      "Address": 140736067066240
+    },
+    {
+      "Name": "ZwOpenProcess",
+      "Hash": 2530312519,
+      "SyscallNumber": 38,
+      "Address": 140736067066272
+    },
+    {
+      "Name": "NtOpenProcess",
+      "Hash": 1266874136,
+      "SyscallNumber": 38,
+      "Address": 140736067066272
+    },
+    {
+      "Name": "NtSetInformationFile",
+      "Hash": 3458535033,
+      "SyscallNumber": 39,
+      "Address": 140736067066304
+    },
+    {
+      "Name": "ZwSetInformationFile",
+      "Hash": 1921674696,
+      "SyscallNumber": 39,
+      "Address": 140736067066304
+    },
+    {
+      "Name": "ZwMapViewOfSection",
+      "Hash": 3086736217,
+      "SyscallNumber": 40,
+      "Address": 140736067066336
+    },
+    {
+      "Name": "NtMapViewOfSection",
+      "Hash": 3596917706,
+      "SyscallNumber": 40,
+      "Address": 140736067066336
+    },
+    {
+      "Name": "NtAccessCheckAndAuditAlarm",
+      "Hash": 630881486,
+      "SyscallNumber": 41,
+      "Address": 140736067066368
+    },
+    {
+      "Name": "ZwAccessCheckAndAuditAlarm",
+      "Hash": 1602476893,
+      "SyscallNumber": 41,
+      "Address": 140736067066368
+    },
+    {
+      "Name": "NtUnmapViewOfSection",
+      "Hash": 1789137613,
+      "SyscallNumber": 42,
+      "Address": 140736067066400
+    },
+    {
+      "Name": "ZwUnmapViewOfSection",
+      "Hash": 252277276,
+      "SyscallNumber": 42,
+      "Address": 140736067066400
+    },
+    {
+      "Name": "NtReplyWaitReceivePortEx",
+      "Hash": 1913082285,
+      "SyscallNumber": 43,
+      "Address": 140736067066432
+    },
+    {
+      "Name": "ZwReplyWaitReceivePortEx",
+      "Hash": 2107228284,
+      "SyscallNumber": 43,
+      "Address": 140736067066432
+    },
+    {
+      "Name": "NtTerminateProcess",
+      "Hash": 1322900815,
+      "SyscallNumber": 44,
+      "Address": 140736067066464
+    },
+    {
+      "Name": "ZwTerminateProcess",
+      "Hash": 812719326,
+      "SyscallNumber": 44,
+      "Address": 140736067066464
+    },
+    {
+      "Name": "NtSetEventBoostPriority",
+      "Hash": 2452506302,
+      "SyscallNumber": 45,
+      "Address": 140736067066496
+    },
+    {
+      "Name": "ZwSetEventBoostPriority",
+      "Hash": 1287034797,
+      "SyscallNumber": 45,
+      "Address": 140736067066496
+    },
+    {
+      "Name": "ZwReadFileScatter",
+      "Hash": 572229160,
+      "SyscallNumber": 46,
+      "Address": 140736067066528
+    },
+    {
+      "Name": "NtReadFileScatter",
+      "Hash": 457538681,
+      "SyscallNumber": 46,
+      "Address": 140736067066528
+    },
+    {
+      "Name": "ZwOpenThreadTokenEx",
+      "Hash": 1856225022,
+      "SyscallNumber": 47,
+      "Address": 140736067066560
+    },
+    {
+      "Name": "NtOpenThreadTokenEx",
+      "Hash": 1512344975,
+      "SyscallNumber": 47,
+      "Address": 140736067066560
+    },
+    {
+      "Name": "ZwOpenProcessTokenEx",
+      "Hash": 1410350437,
+      "SyscallNumber": 48,
+      "Address": 140736067066592
+    },
+    {
+      "Name": "NtOpenProcessTokenEx",
+      "Hash": 2947210774,
+      "SyscallNumber": 48,
+      "Address": 140736067066592
+    },
+    {
+      "Name": "NtQueryPerformanceCounter",
+      "Hash": 1547176943,
+      "SyscallNumber": 49,
+      "Address": 140736067066624
+    },
+    {
+      "Name": "ZwQueryPerformanceCounter",
+      "Hash": 3659027614,
+      "SyscallNumber": 49,
+      "Address": 140736067066624
+    },
+    {
+      "Name": "ZwEnumerateKey",
+      "Hash": 44718469,
+      "SyscallNumber": 50,
+      "Address": 140736067066656
+    },
+    {
+      "Name": "NtEnumerateKey",
+      "Hash": 1300924790,
+      "SyscallNumber": 50,
+      "Address": 140736067066656
+    },
+    {
+      "Name": "ZwOpenFile",
+      "Hash": 3570534344,
+      "SyscallNumber": 51,
+      "Address": 140736067066688
+    },
+    {
+      "Name": "NtOpenFile",
+      "Hash": 1188947769,
+      "SyscallNumber": 51,
+      "Address": 140736067066688
+    },
+    {
+      "Name": "ZwDelayExecution",
+      "Hash": 1912424057,
+      "SyscallNumber": 52,
+      "Address": 140736067066720
+    },
+    {
+      "Name": "NtDelayExecution",
+      "Hash": 4121507498,
+      "SyscallNumber": 52,
+      "Address": 140736067066720
+    },
+    {
+      "Name": "ZwQueryDirectoryFile",
+      "Hash": 804942017,
+      "SyscallNumber": 53,
+      "Address": 140736067066752
+    },
+    {
+      "Name": "NtQueryDirectoryFile",
+      "Hash": 2341802354,
+      "SyscallNumber": 53,
+      "Address": 140736067066752
+    },
+    {
+      "Name": "NtQuerySystemInformation",
+      "Hash": 2076326184,
+      "SyscallNumber": 54,
+      "Address": 140736067066784
+    },
+    {
+      "Name": "ZwQuerySystemInformation",
+      "Hash": 2270472183,
+      "SyscallNumber": 54,
+      "Address": 140736067066784
+    },
+    {
+      "Name": "NtOpenSection",
+      "Hash": 323934734,
+      "SyscallNumber": 55,
+      "Address": 140736067066816
+    },
+    {
+      "Name": "ZwOpenSection",
+      "Hash": 1587373117,
+      "SyscallNumber": 55,
+      "Address": 140736067066816
+    },
+    {
+      "Name": "ZwQueryTimer",
+      "Hash": 16186285,
+      "SyscallNumber": 56,
+      "Address": 140736067066848
+    },
+    {
+      "Name": "NtQueryTimer",
+      "Hash": 628652894,
+      "SyscallNumber": 56,
+      "Address": 140736067066848
+    },
+    {
+      "Name": "NtFsControlFile",
+      "Hash": 3974092289,
+      "SyscallNumber": 57,
+      "Address": 140736067066880
+    },
+    {
+      "Name": "ZwFsControlFile",
+      "Hash": 1173989360,
+      "SyscallNumber": 57,
+      "Address": 140736067066880
+    },
+    {
+      "Name": "ZwWriteVirtualMemory",
+      "Hash": 1736204513,
+      "SyscallNumber": 58,
+      "Address": 140736067066912
+    },
+    {
+      "Name": "NtWriteVirtualMemory",
+      "Hash": 3273064850,
+      "SyscallNumber": 58,
+      "Address": 140736067066912
+    },
+    {
+      "Name": "ZwCloseObjectAuditAlarm",
+      "Hash": 3719530247,
+      "SyscallNumber": 59,
+      "Address": 140736067066944
+    },
+    {
+      "Name": "NtCloseObjectAuditAlarm",
+      "Hash": 590034456,
+      "SyscallNumber": 59,
+      "Address": 140736067066944
+    },
+    {
+      "Name": "ZwDuplicateObject",
+      "Hash": 1259856392,
+      "SyscallNumber": 60,
+      "Address": 140736067066976
+    },
+    {
+      "Name": "NtDuplicateObject",
+      "Hash": 1145165913,
+      "SyscallNumber": 60,
+      "Address": 140736067066976
+    },
+    {
+      "Name": "NtQueryAttributesFile",
+      "Hash": 3127457572,
+      "SyscallNumber": 61,
+      "Address": 140736067067008
+    },
+    {
+      "Name": "ZwQueryAttributesFile",
+      "Hash": 3950674003,
+      "SyscallNumber": 61,
+      "Address": 140736067067008
+    },
+    {
+      "Name": "NtClearEvent",
+      "Hash": 2794061264,
+      "SyscallNumber": 62,
+      "Address": 140736067067040
+    },
+    {
+      "Name": "ZwClearEvent",
+      "Hash": 2181594655,
+      "SyscallNumber": 62,
+      "Address": 140736067067040
+    },
+    {
+      "Name": "ZwReadVirtualMemory",
+      "Hash": 3081220722,
+      "SyscallNumber": 63,
+      "Address": 140736067067072
+    },
+    {
+      "Name": "NtReadVirtualMemory",
+      "Hash": 2737340675,
+      "SyscallNumber": 63,
+      "Address": 140736067067072
+    },
+    {
+      "Name": "NtOpenEvent",
+      "Hash": 579844731,
+      "SyscallNumber": 64,
+      "Address": 140736067067104
+    },
+    {
+      "Name": "ZwOpenEvent",
+      "Hash": 1862790378,
+      "SyscallNumber": 64,
+      "Address": 140736067067104
+    },
+    {
+      "Name": "ZwAdjustPrivilegesToken",
+      "Hash": 3896820828,
+      "SyscallNumber": 65,
+      "Address": 140736067067136
+    },
+    {
+      "Name": "NtAdjustPrivilegesToken",
+      "Hash": 767325037,
+      "SyscallNumber": 65,
+      "Address": 140736067067136
+    },
+    {
+      "Name": "NtDuplicateToken",
+      "Hash": 2383809315,
+      "SyscallNumber": 66,
+      "Address": 140736067067168
+    },
+    {
+      "Name": "ZwDuplicateToken",
+      "Hash": 174725874,
+      "SyscallNumber": 66,
+      "Address": 140736067067168
+    },
+    {
+      "Name": "ZwContinue",
+      "Hash": 2318306491,
+      "SyscallNumber": 67,
+      "Address": 140736067067200
+    },
+    {
+      "Name": "NtContinue",
+      "Hash": 4231687212,
+      "SyscallNumber": 67,
+      "Address": 140736067067200
+    },
+    {
+      "Name": "ZwQueryDefaultUILanguage",
+      "Hash": 1662748531,
+      "SyscallNumber": 68,
+      "Address": 140736067067232
+    },
+    {
+      "Name": "NtQueryDefaultUILanguage",
+      "Hash": 1468602532,
+      "SyscallNumber": 68,
+      "Address": 140736067067232
+    },
+    {
+      "Name": "ZwQueueApcThread",
+      "Hash": 2260366471,
+      "SyscallNumber": 69,
+      "Address": 140736067067264
+    },
+    {
+      "Name": "NtQueueApcThread",
+      "Hash": 174482616,
+      "SyscallNumber": 69,
+      "Address": 140736067067264
+    },
+    {
+      "Name": "ZwYieldExecution",
+      "Hash": 2603907873,
+      "SyscallNumber": 70,
+      "Address": 140736067067296
+    },
+    {
+      "Name": "NtYieldExecution",
+      "Hash": 518024018,
+      "SyscallNumber": 70,
+      "Address": 140736067067296
+    },
+    {
+      "Name": "NtAddAtom",
+      "Hash": 616341825,
+      "SyscallNumber": 71,
+      "Address": 140736067067328
+    },
+    {
+      "Name": "ZwAddAtom",
+      "Hash": 1599564784,
+      "SyscallNumber": 71,
+      "Address": 140736067067328
+    },
+    {
+      "Name": "ZwCreateEvent",
+      "Hash": 1948364140,
+      "SyscallNumber": 72,
+      "Address": 140736067067360
+    },
+    {
+      "Name": "NtCreateEvent",
+      "Hash": 684925757,
+      "SyscallNumber": 72,
+      "Address": 140736067067360
+    },
+    {
+      "Name": "ZwQueryVolumeInformationFile",
+      "Hash": 936363434,
+      "SyscallNumber": 73,
+      "Address": 140736067067392
+    },
+    {
+      "Name": "NtQueryVolumeInformationFile",
+      "Hash": 3725887323,
+      "SyscallNumber": 73,
+      "Address": 140736067067392
+    },
+    {
+      "Name": "ZwCreateSection",
+      "Hash": 287919423,
+      "SyscallNumber": 74,
+      "Address": 140736067067424
+    },
+    {
+      "Name": "NtCreateSection",
+      "Hash": 3088022352,
+      "SyscallNumber": 74,
+      "Address": 140736067067424
+    },
+    {
+      "Name": "ZwFlushBuffersFile",
+      "Hash": 2835123365,
+      "SyscallNumber": 75,
+      "Address": 140736067067456
+    },
+    {
+      "Name": "NtFlushBuffersFile",
+      "Hash": 3345304854,
+      "SyscallNumber": 75,
+      "Address": 140736067067456
+    },
+    {
+      "Name": "NtApphelpCacheControl",
+      "Hash": 636403686,
+      "SyscallNumber": 76,
+      "Address": 140736067067488
+    },
+    {
+      "Name": "ZwApphelpCacheControl",
+      "Hash": 1459620117,
+      "SyscallNumber": 76,
+      "Address": 140736067067488
+    },
+    {
+      "Name": "ZwCreateProcessEx",
+      "Hash": 375466438,
+      "SyscallNumber": 77,
+      "Address": 140736067067520
+    },
+    {
+      "Name": "NtCreateProcessEx",
+      "Hash": 260775959,
+      "SyscallNumber": 77,
+      "Address": 140736067067520
+    },
+    {
+      "Name": "ZwCreateThread",
+      "Hash": 442392002,
+      "SyscallNumber": 78,
+      "Address": 140736067067552
+    },
+    {
+      "Name": "NtCreateThread",
+      "Hash": 1698598323,
+      "SyscallNumber": 78,
+      "Address": 140736067067552
+    },
+    {
+      "Name": "NtIsProcessInJob",
+      "Hash": 3555881268,
+      "SyscallNumber": 79,
+      "Address": 140736067067584
+    },
+    {
+      "Name": "ZwIsProcessInJob",
+      "Hash": 1346797827,
+      "SyscallNumber": 79,
+      "Address": 140736067067584
+    },
+    {
+      "Name": "NtProtectVirtualMemory",
+      "Hash": 1357457544,
+      "SyscallNumber": 80,
+      "Address": 140736067067616
+    },
+    {
+      "Name": "ZwProtectVirtualMemory",
+      "Hash": 2753795991,
+      "SyscallNumber": 80,
+      "Address": 140736067067616
+    },
+    {
+      "Name": "ZwQuerySection",
+      "Hash": 3282625665,
+      "SyscallNumber": 81,
+      "Address": 140736067067648
+    },
+    {
+      "Name": "NtQuerySection",
+      "Hash": 243864690,
+      "SyscallNumber": 81,
+      "Address": 140736067067648
+    },
+    {
+      "Name": "NtResumeThread",
+      "Hash": 1514914768,
+      "SyscallNumber": 82,
+      "Address": 140736067067680
+    },
+    {
+      "Name": "ZwResumeThread",
+      "Hash": 258708447,
+      "SyscallNumber": 82,
+      "Address": 140736067067680
+    },
+    {
+      "Name": "ZwTerminateThread",
+      "Hash": 3553333687,
+      "SyscallNumber": 83,
+      "Address": 140736067067712
+    },
+    {
+      "Name": "NtTerminateThread",
+      "Hash": 3438643208,
+      "SyscallNumber": 83,
+      "Address": 140736067067712
+    },
+    {
+      "Name": "ZwReadRequestData",
+      "Hash": 1304901589,
+      "SyscallNumber": 84,
+      "Address": 140736067067744
+    },
+    {
+      "Name": "NtReadRequestData",
+      "Hash": 1190211110,
+      "SyscallNumber": 84,
+      "Address": 140736067067744
+    },
+    {
+      "Name": "NtCreateFile",
+      "Hash": 1712734139,
+      "SyscallNumber": 85,
+      "Address": 140736067067776
+    },
+    {
+      "Name": "ZwCreateFile",
+      "Hash": 1100267530,
+      "SyscallNumber": 85,
+      "Address": 140736067067776
+    },
+    {
+      "Name": "ZwQueryEvent",
+      "Hash": 4293823534,
+      "SyscallNumber": 86,
+      "Address": 140736067067808
+    },
+    {
+      "Name": "NtQueryEvent",
+      "Hash": 611322847,
+      "SyscallNumber": 86,
+      "Address": 140736067067808
+    },
+    {
+      "Name": "NtWriteRequestData",
+      "Hash": 1356349173,
+      "SyscallNumber": 87,
+      "Address": 140736067067840
+    },
+    {
+      "Name": "ZwWriteRequestData",
+      "Hash": 846167684,
+      "SyscallNumber": 87,
+      "Address": 140736067067840
+    },
+    {
+      "Name": "ZwOpenDirectoryObject",
+      "Hash": 3275674388,
+      "SyscallNumber": 88,
+      "Address": 140736067067872
+    },
+    {
+      "Name": "NtOpenDirectoryObject",
+      "Hash": 2452457957,
+      "SyscallNumber": 88,
+      "Address": 140736067067872
+    },
+    {
+      "Name": "ZwAccessCheckByTypeAndAuditAlarm",
+      "Hash": 2378615386,
+      "SyscallNumber": 89,
+      "Address": 140736067067904
+    },
+    {
+      "Name": "NtAccessCheckByTypeAndAuditAlarm",
+      "Hash": 1728511115,
+      "SyscallNumber": 89,
+      "Address": 140736067067904
+    },
+    {
+      "Name": "NtWaitForMultipleObjects",
+      "Hash": 2396968665,
+      "SyscallNumber": 91,
+      "Address": 140736067067952
+    },
+    {
+      "Name": "ZwWaitForMultipleObjects",
+      "Hash": 2591114664,
+      "SyscallNumber": 91,
+      "Address": 140736067067952
+    },
+    {
+      "Name": "NtSetInformationObject",
+      "Hash": 2179856,
+      "SyscallNumber": 92,
+      "Address": 140736067067984
+    },
+    {
+      "Name": "ZwSetInformationObject",
+      "Hash": 1398518303,
+      "SyscallNumber": 92,
+      "Address": 140736067067984
+    },
+    {
+      "Name": "ZwCancelIoFile",
+      "Hash": 1985604404,
+      "SyscallNumber": 93,
+      "Address": 140736067068016
+    },
+    {
+      "Name": "NtCancelIoFile",
+      "Hash": 3241810725,
+      "SyscallNumber": 93,
+      "Address": 140736067068016
+    },
+    {
+      "Name": "ZwTraceEvent",
+      "Hash": 1279319335,
+      "SyscallNumber": 94,
+      "Address": 140736067068048
+    },
+    {
+      "Name": "NtTraceEvent",
+      "Hash": 1891785944,
+      "SyscallNumber": 94,
+      "Address": 140736067068048
+    },
+    {
+      "Name": "NtPowerInformation",
+      "Hash": 3883621690,
+      "SyscallNumber": 95,
+      "Address": 140736067068080
+    },
+    {
+      "Name": "ZwPowerInformation",
+      "Hash": 3373440201,
+      "SyscallNumber": 95,
+      "Address": 140736067068080
+    },
+    {
+      "Name": "NtSetValueKey",
+      "Hash": 3651147321,
+      "SyscallNumber": 96,
+      "Address": 140736067068112
+    },
+    {
+      "Name": "ZwSetValueKey",
+      "Hash": 619618408,
+      "SyscallNumber": 96,
+      "Address": 140736067068112
+    },
+    {
+      "Name": "NtCancelTimer",
+      "Hash": 1672879982,
+      "SyscallNumber": 97,
+      "Address": 140736067068144
+    },
+    {
+      "Name": "ZwCancelTimer",
+      "Hash": 2936318365,
+      "SyscallNumber": 97,
+      "Address": 140736067068144
+    },
+    {
+      "Name": "ZwSetTimer",
+      "Hash": 1518627011,
+      "SyscallNumber": 98,
+      "Address": 140736067068176
+    },
+    {
+      "Name": "NtSetTimer",
+      "Hash": 3432007732,
+      "SyscallNumber": 98,
+      "Address": 140736067068176
+    },
+    {
+      "Name": "NtAccessCheckByType",
+      "Hash": 1913908788,
+      "SyscallNumber": 99,
+      "Address": 140736067068208
+    },
+    {
+      "Name": "ZwAccessCheckByType",
+      "Hash": 2257788835,
+      "SyscallNumber": 99,
+      "Address": 140736067068208
+    },
+    {
+      "Name": "ZwAccessCheckByTypeResultList",
+      "Hash": 3473633982,
+      "SyscallNumber": 100,
+      "Address": 140736067068240
+    },
+    {
+      "Name": "NtAccessCheckByTypeResultList",
+      "Hash": 1038641807,
+      "SyscallNumber": 100,
+      "Address": 140736067068240
+    },
+    {
+      "Name": "ZwAccessCheckByTypeResultListAndAuditAlarm",
+      "Hash": 3954446677,
+      "SyscallNumber": 101,
+      "Address": 140736067068272
+    },
+    {
+      "Name": "NtAccessCheckByTypeResultListAndAuditAlarm",
+      "Hash": 4145640646,
+      "SyscallNumber": 101,
+      "Address": 140736067068272
+    },
+    {
+      "Name": "NtAccessCheckByTypeResultListAndAuditAlarmByHandle",
+      "Hash": 3560731341,
+      "SyscallNumber": 102,
+      "Address": 140736067068304
+    },
+    {
+      "Name": "ZwAccessCheckByTypeResultListAndAuditAlarmByHandle",
+      "Hash": 2838900316,
+      "SyscallNumber": 102,
+      "Address": 140736067068304
+    },
+    {
+      "Name": "ZwAcquireCrossVmMutant",
+      "Hash": 272598150,
+      "SyscallNumber": 103,
+      "Address": 140736067068336
+    },
+    {
+      "Name": "NtAcquireCrossVmMutant",
+      "Hash": 3171226999,
+      "SyscallNumber": 103,
+      "Address": 140736067068336
+    },
+    {
+      "Name": "ZwAcquireProcessActivityReference",
+      "Hash": 1188839419,
+      "SyscallNumber": 104,
+      "Address": 140736067068368
+    },
+    {
+      "Name": "NtAcquireProcessActivityReference",
+      "Hash": 1210234956,
+      "SyscallNumber": 104,
+      "Address": 140736067068368
+    },
+    {
+      "Name": "NtAddAtomEx",
+      "Hash": 1181351614,
+      "SyscallNumber": 105,
+      "Address": 140736067068400
+    },
+    {
+      "Name": "ZwAddAtomEx",
+      "Hash": 2464297261,
+      "SyscallNumber": 105,
+      "Address": 140736067068400
+    },
+    {
+      "Name": "NtAddBootEntry",
+      "Hash": 2365376374,
+      "SyscallNumber": 106,
+      "Address": 140736067068432
+    },
+    {
+      "Name": "ZwAddBootEntry",
+      "Hash": 1109170053,
+      "SyscallNumber": 106,
+      "Address": 140736067068432
+    },
+    {
+      "Name": "NtAddDriverEntry",
+      "Hash": 4227962286,
+      "SyscallNumber": 107,
+      "Address": 140736067068464
+    },
+    {
+      "Name": "ZwAddDriverEntry",
+      "Hash": 2018878845,
+      "SyscallNumber": 107,
+      "Address": 140736067068464
+    },
+    {
+      "Name": "NtAdjustGroupsToken",
+      "Hash": 3921369875,
+      "SyscallNumber": 108,
+      "Address": 140736067068496
+    },
+    {
+      "Name": "ZwAdjustGroupsToken",
+      "Hash": 4265249922,
+      "SyscallNumber": 108,
+      "Address": 140736067068496
+    },
+    {
+      "Name": "ZwAdjustTokenClaimsAndDeviceGroups",
+      "Hash": 174289566,
+      "SyscallNumber": 109,
+      "Address": 140736067068528
+    },
+    {
+      "Name": "NtAdjustTokenClaimsAndDeviceGroups",
+      "Hash": 880342287,
+      "SyscallNumber": 109,
+      "Address": 140736067068528
+    },
+    {
+      "Name": "ZwAlertResumeThread",
+      "Hash": 1881165719,
+      "SyscallNumber": 110,
+      "Address": 140736067068560
+    },
+    {
+      "Name": "NtAlertResumeThread",
+      "Hash": 1537285672,
+      "SyscallNumber": 110,
+      "Address": 140736067068560
+    },
+    {
+      "Name": "NtAlertThread",
+      "Hash": 3647663255,
+      "SyscallNumber": 111,
+      "Address": 140736067068592
+    },
+    {
+      "Name": "ZwAlertThread",
+      "Hash": 616134342,
+      "SyscallNumber": 111,
+      "Address": 140736067068592
+    },
+    {
+      "Name": "NtAlertThreadByThreadId",
+      "Hash": 3237275447,
+      "SyscallNumber": 112,
+      "Address": 140736067068624
+    },
+    {
+      "Name": "ZwAlertThreadByThreadId",
+      "Hash": 2071803942,
+      "SyscallNumber": 112,
+      "Address": 140736067068624
+    },
+    {
+      "Name": "ZwAllocateLocallyUniqueId",
+      "Hash": 2474298447,
+      "SyscallNumber": 113,
+      "Address": 140736067068656
+    },
+    {
+      "Name": "NtAllocateLocallyUniqueId",
+      "Hash": 362447776,
+      "SyscallNumber": 113,
+      "Address": 140736067068656
+    },
+    {
+      "Name": "ZwAllocateReserveObject",
+      "Hash": 3876344558,
+      "SyscallNumber": 114,
+      "Address": 140736067068688
+    },
+    {
+      "Name": "NtAllocateReserveObject",
+      "Hash": 746848767,
+      "SyscallNumber": 114,
+      "Address": 140736067068688
+    },
+    {
+      "Name": "ZwAllocateUserPhysicalPages",
+      "Hash": 2876258183,
+      "SyscallNumber": 115,
+      "Address": 140736067068720
+    },
+    {
+      "Name": "NtAllocateUserPhysicalPages",
+      "Hash": 878380824,
+      "SyscallNumber": 115,
+      "Address": 140736067068720
+    },
+    {
+      "Name": "ZwAllocateUserPhysicalPagesEx",
+      "Hash": 1214004868,
+      "SyscallNumber": 116,
+      "Address": 140736067068752
+    },
+    {
+      "Name": "NtAllocateUserPhysicalPagesEx",
+      "Hash": 3073979989,
+      "SyscallNumber": 116,
+      "Address": 140736067068752
+    },
+    {
+      "Name": "ZwAllocateUuids",
+      "Hash": 197761733,
+      "SyscallNumber": 117,
+      "Address": 140736067068784
+    },
+    {
+      "Name": "NtAllocateUuids",
+      "Hash": 2997864662,
+      "SyscallNumber": 117,
+      "Address": 140736067068784
+    },
+    {
+      "Name": "NtAllocateVirtualMemoryEx",
+      "Hash": 3881151785,
+      "SyscallNumber": 118,
+      "Address": 140736067068816
+    },
+    {
+      "Name": "ZwAllocateVirtualMemoryEx",
+      "Hash": 1698035160,
+      "SyscallNumber": 118,
+      "Address": 140736067068816
+    },
+    {
+      "Name": "NtAlpcAcceptConnectPort",
+      "Hash": 2773080454,
+      "SyscallNumber": 119,
+      "Address": 140736067068848
+    },
+    {
+      "Name": "ZwAlpcAcceptConnectPort",
+      "Hash": 1607608949,
+      "SyscallNumber": 119,
+      "Address": 140736067068848
+    },
+    {
+      "Name": "NtAlpcCancelMessage",
+      "Hash": 3802338962,
+      "SyscallNumber": 120,
+      "Address": 140736067068880
+    },
+    {
+      "Name": "ZwAlpcCancelMessage",
+      "Hash": 4146219009,
+      "SyscallNumber": 120,
+      "Address": 140736067068880
+    },
+    {
+      "Name": "NtAlpcConnectPort",
+      "Hash": 3808417302,
+      "SyscallNumber": 121,
+      "Address": 140736067068912
+    },
+    {
+      "Name": "ZwAlpcConnectPort",
+      "Hash": 3923107781,
+      "SyscallNumber": 121,
+      "Address": 140736067068912
+    },
+    {
+      "Name": "NtAlpcConnectPortEx",
+      "Hash": 2723003603,
+      "SyscallNumber": 122,
+      "Address": 140736067068944
+    },
+    {
+      "Name": "ZwAlpcConnectPortEx",
+      "Hash": 3066883650,
+      "SyscallNumber": 122,
+      "Address": 140736067068944
+    },
+    {
+      "Name": "ZwAlpcCreatePort",
+      "Hash": 3044955055,
+      "SyscallNumber": 123,
+      "Address": 140736067068976
+    },
+    {
+      "Name": "NtAlpcCreatePort",
+      "Hash": 959071200,
+      "SyscallNumber": 123,
+      "Address": 140736067068976
+    },
+    {
+      "Name": "ZwAlpcCreatePortSection",
+      "Hash": 1338300772,
+      "SyscallNumber": 124,
+      "Address": 140736067069008
+    },
+    {
+      "Name": "NtAlpcCreatePortSection",
+      "Hash": 2503772277,
+      "SyscallNumber": 124,
+      "Address": 140736067069008
+    },
+    {
+      "Name": "NtAlpcCreateResourceReserve",
+      "Hash": 3465683487,
+      "SyscallNumber": 125,
+      "Address": 140736067069040
+    },
+    {
+      "Name": "ZwAlpcCreateResourceReserve",
+      "Hash": 1168593550,
+      "SyscallNumber": 125,
+      "Address": 140736067069040
+    },
+    {
+      "Name": "ZwAlpcCreateSectionView",
+      "Hash": 4202433178,
+      "SyscallNumber": 126,
+      "Address": 140736067069072
+    },
+    {
+      "Name": "NtAlpcCreateSectionView",
+      "Hash": 1072937387,
+      "SyscallNumber": 126,
+      "Address": 140736067069072
+    },
+    {
+      "Name": "NtAlpcCreateSecurityContext",
+      "Hash": 3001524216,
+      "SyscallNumber": 127,
+      "Address": 140736067069104
+    },
+    {
+      "Name": "ZwAlpcCreateSecurityContext",
+      "Hash": 704434279,
+      "SyscallNumber": 127,
+      "Address": 140736067069104
+    },
+    {
+      "Name": "NtAlpcDeletePortSection",
+      "Hash": 3981993172,
+      "SyscallNumber": 128,
+      "Address": 140736067069136
+    },
+    {
+      "Name": "ZwAlpcDeletePortSection",
+      "Hash": 2816521667,
+      "SyscallNumber": 128,
+      "Address": 140736067069136
+    },
+    {
+      "Name": "NtAlpcDeleteResourceReserve",
+      "Hash": 1341330942,
+      "SyscallNumber": 129,
+      "Address": 140736067069168
+    },
+    {
+      "Name": "ZwAlpcDeleteResourceReserve",
+      "Hash": 3339208301,
+      "SyscallNumber": 129,
+      "Address": 140736067069168
+    },
+    {
+      "Name": "ZwAlpcDeleteSectionView",
+      "Hash": 1385686777,
+      "SyscallNumber": 130,
+      "Address": 140736067069200
+    },
+    {
+      "Name": "NtAlpcDeleteSectionView",
+      "Hash": 2551158282,
+      "SyscallNumber": 130,
+      "Address": 140736067069200
+    },
+    {
+      "Name": "NtAlpcDeleteSecurityContext",
+      "Hash": 877171671,
+      "SyscallNumber": 131,
+      "Address": 140736067069232
+    },
+    {
+      "Name": "ZwAlpcDeleteSecurityContext",
+      "Hash": 2875049030,
+      "SyscallNumber": 131,
+      "Address": 140736067069232
+    },
+    {
+      "Name": "ZwAlpcDisconnectPort",
+      "Hash": 1590750981,
+      "SyscallNumber": 132,
+      "Address": 140736067069264
+    },
+    {
+      "Name": "NtAlpcDisconnectPort",
+      "Hash": 3127611318,
+      "SyscallNumber": 132,
+      "Address": 140736067069264
+    },
+    {
+      "Name": "ZwAlpcImpersonateClientContainerOfPort",
+      "Hash": 2295462105,
+      "SyscallNumber": 133,
+      "Address": 140736067069296
+    },
+    {
+      "Name": "NtAlpcImpersonateClientContainerOfPort",
+      "Hash": 3990178762,
+      "SyscallNumber": 133,
+      "Address": 140736067069296
+    },
+    {
+      "Name": "NtAlpcImpersonateClientOfPort",
+      "Hash": 2506750247,
+      "SyscallNumber": 134,
+      "Address": 140736067069328
+    },
+    {
+      "Name": "ZwAlpcImpersonateClientOfPort",
+      "Hash": 646775126,
+      "SyscallNumber": 134,
+      "Address": 140736067069328
+    },
+    {
+      "Name": "NtAlpcOpenSenderProcess",
+      "Hash": 1344128953,
+      "SyscallNumber": 135,
+      "Address": 140736067069360
+    },
+    {
+      "Name": "ZwAlpcOpenSenderProcess",
+      "Hash": 178657448,
+      "SyscallNumber": 135,
+      "Address": 140736067069360
+    },
+    {
+      "Name": "NtAlpcOpenSenderThread",
+      "Hash": 315673906,
+      "SyscallNumber": 136,
+      "Address": 140736067069392
+    },
+    {
+      "Name": "ZwAlpcOpenSenderThread",
+      "Hash": 1712012353,
+      "SyscallNumber": 136,
+      "Address": 140736067069392
+    },
+    {
+      "Name": "ZwAlpcQueryInformation",
+      "Hash": 976711314,
+      "SyscallNumber": 137,
+      "Address": 140736067069424
+    },
+    {
+      "Name": "NtAlpcQueryInformation",
+      "Hash": 3875340163,
+      "SyscallNumber": 137,
+      "Address": 140736067069424
+    },
+    {
+      "Name": "NtAlpcQueryInformationMessage",
+      "Hash": 4202486472,
+      "SyscallNumber": 138,
+      "Address": 140736067069456
+    },
+    {
+      "Name": "ZwAlpcQueryInformationMessage",
+      "Hash": 2342511351,
+      "SyscallNumber": 138,
+      "Address": 140736067069456
+    },
+    {
+      "Name": "NtAlpcRevokeSecurityContext",
+      "Hash": 2931468464,
+      "SyscallNumber": 139,
+      "Address": 140736067069488
+    },
+    {
+      "Name": "ZwAlpcRevokeSecurityContext",
+      "Hash": 634378527,
+      "SyscallNumber": 139,
+      "Address": 140736067069488
+    },
+    {
+      "Name": "NtAlpcSendWaitReceivePort",
+      "Hash": 791076654,
+      "SyscallNumber": 140,
+      "Address": 140736067069520
+    },
+    {
+      "Name": "ZwAlpcSendWaitReceivePort",
+      "Hash": 2902927325,
+      "SyscallNumber": 140,
+      "Address": 140736067069520
+    },
+    {
+      "Name": "NtAlpcSetInformation",
+      "Hash": 2312705241,
+      "SyscallNumber": 141,
+      "Address": 140736067069552
+    },
+    {
+      "Name": "ZwAlpcSetInformation",
+      "Hash": 775844904,
+      "SyscallNumber": 141,
+      "Address": 140736067069552
+    },
+    {
+      "Name": "ZwAreMappedFilesTheSame",
+      "Hash": 2248356447,
+      "SyscallNumber": 142,
+      "Address": 140736067069584
+    },
+    {
+      "Name": "NtAreMappedFilesTheSame",
+      "Hash": 3413827952,
+      "SyscallNumber": 142,
+      "Address": 140736067069584
+    },
+    {
+      "Name": "ZwAssignProcessToJobObject",
+      "Hash": 1288341327,
+      "SyscallNumber": 143,
+      "Address": 140736067069616
+    },
+    {
+      "Name": "NtAssignProcessToJobObject",
+      "Hash": 316745920,
+      "SyscallNumber": 143,
+      "Address": 140736067069616
+    },
+    {
+      "Name": "ZwAssociateWaitCompletionPacket",
+      "Hash": 2406229817,
+      "SyscallNumber": 144,
+      "Address": 140736067069648
+    },
+    {
+      "Name": "NtAssociateWaitCompletionPacket",
+      "Hash": 694572874,
+      "SyscallNumber": 144,
+      "Address": 140736067069648
+    },
+    {
+      "Name": "ZwCallEnclave",
+      "Hash": 399796336,
+      "SyscallNumber": 145,
+      "Address": 140736067069680
+    },
+    {
+      "Name": "NtCallEnclave",
+      "Hash": 3431325249,
+      "SyscallNumber": 145,
+      "Address": 140736067069680
+    },
+    {
+      "Name": "ZwCancelIoFileEx",
+      "Hash": 1954648433,
+      "SyscallNumber": 146,
+      "Address": 140736067069712
+    },
+    {
+      "Name": "NtCancelIoFileEx",
+      "Hash": 4163731874,
+      "SyscallNumber": 146,
+      "Address": 140736067069712
+    },
+    {
+      "Name": "ZwCancelSynchronousIoFile",
+      "Hash": 491662911,
+      "SyscallNumber": 147,
+      "Address": 140736067069744
+    },
+    {
+      "Name": "NtCancelSynchronousIoFile",
+      "Hash": 2674779536,
+      "SyscallNumber": 147,
+      "Address": 140736067069744
+    },
+    {
+      "Name": "ZwCancelTimer2",
+      "Hash": 2409225583,
+      "SyscallNumber": 148,
+      "Address": 140736067069776
+    },
+    {
+      "Name": "NtCancelTimer2",
+      "Hash": 3665431904,
+      "SyscallNumber": 148,
+      "Address": 140736067069776
+    },
+    {
+      "Name": "ZwCancelWaitCompletionPacket",
+      "Hash": 641226531,
+      "SyscallNumber": 149,
+      "Address": 140736067069808
+    },
+    {
+      "Name": "NtCancelWaitCompletionPacket",
+      "Hash": 3430750420,
+      "SyscallNumber": 149,
+      "Address": 140736067069808
+    },
+    {
+      "Name": "ZwCommitComplete",
+      "Hash": 196437688,
+      "SyscallNumber": 150,
+      "Address": 140736067069840
+    },
+    {
+      "Name": "NtCommitComplete",
+      "Hash": 2405521129,
+      "SyscallNumber": 150,
+      "Address": 140736067069840
+    },
+    {
+      "Name": "ZwCommitEnlistment",
+      "Hash": 1820911490,
+      "SyscallNumber": 151,
+      "Address": 140736067069872
+    },
+    {
+      "Name": "NtCommitEnlistment",
+      "Hash": 2331092979,
+      "SyscallNumber": 151,
+      "Address": 140736067069872
+    },
+    {
+      "Name": "NtCommitRegistryTransaction",
+      "Hash": 2082324911,
+      "SyscallNumber": 152,
+      "Address": 140736067069904
+    },
+    {
+      "Name": "ZwCommitRegistryTransaction",
+      "Hash": 4080202270,
+      "SyscallNumber": 152,
+      "Address": 140736067069904
+    },
+    {
+      "Name": "NtCommitTransaction",
+      "Hash": 951124502,
+      "SyscallNumber": 153,
+      "Address": 140736067069936
+    },
+    {
+      "Name": "ZwCommitTransaction",
+      "Hash": 1295004549,
+      "SyscallNumber": 153,
+      "Address": 140736067069936
+    },
+    {
+      "Name": "NtCompactKeys",
+      "Hash": 3728672330,
+      "SyscallNumber": 154,
+      "Address": 140736067069968
+    },
+    {
+      "Name": "ZwCompactKeys",
+      "Hash": 697143417,
+      "SyscallNumber": 154,
+      "Address": 140736067069968
+    },
+    {
+      "Name": "NtCompareObjects",
+      "Hash": 3566503000,
+      "SyscallNumber": 155,
+      "Address": 140736067070000
+    },
+    {
+      "Name": "ZwCompareObjects",
+      "Hash": 1357419559,
+      "SyscallNumber": 155,
+      "Address": 140736067070000
+    },
+    {
+      "Name": "NtCompareSigningLevels",
+      "Hash": 3847677672,
+      "SyscallNumber": 156,
+      "Address": 140736067070032
+    },
+    {
+      "Name": "ZwCompareSigningLevels",
+      "Hash": 949048823,
+      "SyscallNumber": 156,
+      "Address": 140736067070032
+    },
+    {
+      "Name": "ZwCompareTokens",
+      "Hash": 772866257,
+      "SyscallNumber": 157,
+      "Address": 140736067070064
+    },
+    {
+      "Name": "NtCompareTokens",
+      "Hash": 3572969186,
+      "SyscallNumber": 157,
+      "Address": 140736067070064
+    },
+    {
+      "Name": "NtCompleteConnectPort",
+      "Hash": 2098364943,
+      "SyscallNumber": 158,
+      "Address": 140736067070096
+    },
+    {
+      "Name": "ZwCompleteConnectPort",
+      "Hash": 2921581374,
+      "SyscallNumber": 158,
+      "Address": 140736067070096
+    },
+    {
+      "Name": "NtCompressKey",
+      "Hash": 4286169564,
+      "SyscallNumber": 159,
+      "Address": 140736067070128
+    },
+    {
+      "Name": "ZwCompressKey",
+      "Hash": 1254640651,
+      "SyscallNumber": 159,
+      "Address": 140736067070128
+    },
+    {
+      "Name": "ZwConnectPort",
+      "Hash": 4185010757,
+      "SyscallNumber": 160,
+      "Address": 140736067070160
+    },
+    {
+      "Name": "NtConnectPort",
+      "Hash": 2921572374,
+      "SyscallNumber": 160,
+      "Address": 140736067070160
+    },
+    {
+      "Name": "NtContinueEx",
+      "Hash": 4102434921,
+      "SyscallNumber": 161,
+      "Address": 140736067070192
+    },
+    {
+      "Name": "ZwContinueEx",
+      "Hash": 3489968312,
+      "SyscallNumber": 161,
+      "Address": 140736067070192
+    },
+    {
+      "Name": "NtConvertBetweenAuxiliaryCounterAndPerformanceCounter",
+      "Hash": 451162927,
+      "SyscallNumber": 162,
+      "Address": 140736067070224
+    },
+    {
+      "Name": "ZwConvertBetweenAuxiliaryCounterAndPerformanceCounter",
+      "Hash": 1612085342,
+      "SyscallNumber": 162,
+      "Address": 140736067070224
+    },
+    {
+      "Name": "NtCopyFileChunk",
+      "Hash": 2022302363,
+      "SyscallNumber": 163,
+      "Address": 140736067070256
+    },
+    {
+      "Name": "ZwCopyFileChunk",
+      "Hash": 3517166730,
+      "SyscallNumber": 163,
+      "Address": 140736067070256
+    },
+    {
+      "Name": "ZwCreateCrossVmEvent",
+      "Hash": 765324313,
+      "SyscallNumber": 164,
+      "Address": 140736067070288
+    },
+    {
+      "Name": "NtCreateCrossVmEvent",
+      "Hash": 2302184650,
+      "SyscallNumber": 164,
+      "Address": 140736067070288
+    },
+    {
+      "Name": "ZwCreateCrossVmMutant",
+      "Hash": 4093287856,
+      "SyscallNumber": 165,
+      "Address": 140736067070320
+    },
+    {
+      "Name": "NtCreateCrossVmMutant",
+      "Hash": 3270071425,
+      "SyscallNumber": 165,
+      "Address": 140736067070320
+    },
+    {
+      "Name": "ZwCreateDebugObject",
+      "Hash": 3062984,
+      "SyscallNumber": 166,
+      "Address": 140736067070352
+    },
+    {
+      "Name": "NtCreateDebugObject",
+      "Hash": 3954150233,
+      "SyscallNumber": 166,
+      "Address": 140736067070352
+    },
+    {
+      "Name": "NtCreateDirectoryObject",
+      "Hash": 1108626727,
+      "SyscallNumber": 167,
+      "Address": 140736067070384
+    },
+    {
+      "Name": "ZwCreateDirectoryObject",
+      "Hash": 4238122518,
+      "SyscallNumber": 167,
+      "Address": 140736067070384
+    },
+    {
+      "Name": "NtCreateDirectoryObjectEx",
+      "Hash": 408697892,
+      "SyscallNumber": 168,
+      "Address": 140736067070416
+    },
+    {
+      "Name": "ZwCreateDirectoryObjectEx",
+      "Hash": 2520548563,
+      "SyscallNumber": 168,
+      "Address": 140736067070416
+    },
+    {
+      "Name": "NtCreateEnclave",
+      "Hash": 2539262521,
+      "SyscallNumber": 169,
+      "Address": 140736067070448
+    },
+    {
+      "Name": "ZwCreateEnclave",
+      "Hash": 4034126888,
+      "SyscallNumber": 169,
+      "Address": 140736067070448
+    },
+    {
+      "Name": "NtCreateEnlistment",
+      "Hash": 743970430,
+      "SyscallNumber": 170,
+      "Address": 140736067070480
+    },
+    {
+      "Name": "ZwCreateEnlistment",
+      "Hash": 233788941,
+      "SyscallNumber": 170,
+      "Address": 140736067070480
+    },
+    {
+      "Name": "ZwCreateEventPair",
+      "Hash": 3741286392,
+      "SyscallNumber": 171,
+      "Address": 140736067070512
+    },
+    {
+      "Name": "NtCreateEventPair",
+      "Hash": 3626595913,
+      "SyscallNumber": 171,
+      "Address": 140736067070512
+    },
+    {
+      "Name": "NtCreateIRTimer",
+      "Hash": 3586774039,
+      "SyscallNumber": 172,
+      "Address": 140736067070544
+    },
+    {
+      "Name": "ZwCreateIRTimer",
+      "Hash": 786671110,
+      "SyscallNumber": 172,
+      "Address": 140736067070544
+    },
+    {
+      "Name": "NtCreateIoCompletion",
+      "Hash": 3265753517,
+      "SyscallNumber": 173,
+      "Address": 140736067070576
+    },
+    {
+      "Name": "ZwCreateIoCompletion",
+      "Hash": 1728893180,
+      "SyscallNumber": 173,
+      "Address": 140736067070576
+    },
+    {
+      "Name": "ZwCreateJobObject",
+      "Hash": 3384697372,
+      "SyscallNumber": 174,
+      "Address": 140736067070608
+    },
+    {
+      "Name": "NtCreateJobObject",
+      "Hash": 3270006893,
+      "SyscallNumber": 174,
+      "Address": 140736067070608
+    },
+    {
+      "Name": "NtCreateJobSet",
+      "Hash": 1314986242,
+      "SyscallNumber": 175,
+      "Address": 140736067070640
+    },
+    {
+      "Name": "ZwCreateJobSet",
+      "Hash": 58779921,
+      "SyscallNumber": 175,
+      "Address": 140736067070640
+    },
+    {
+      "Name": "NtCreateKeyTransacted",
+      "Hash": 2127750253,
+      "SyscallNumber": 176,
+      "Address": 140736067070672
+    },
+    {
+      "Name": "ZwCreateKeyTransacted",
+      "Hash": 2950966684,
+      "SyscallNumber": 176,
+      "Address": 140736067070672
+    },
+    {
+      "Name": "NtCreateKeyedEvent",
+      "Hash": 3550379791,
+      "SyscallNumber": 177,
+      "Address": 140736067070704
+    },
+    {
+      "Name": "ZwCreateKeyedEvent",
+      "Hash": 3040198302,
+      "SyscallNumber": 177,
+      "Address": 140736067070704
+    },
+    {
+      "Name": "ZwCreateLowBoxToken",
+      "Hash": 3605622502,
+      "SyscallNumber": 178,
+      "Address": 140736067070736
+    },
+    {
+      "Name": "NtCreateLowBoxToken",
+      "Hash": 3261742455,
+      "SyscallNumber": 178,
+      "Address": 140736067070736
+    },
+    {
+      "Name": "ZwCreateMailslotFile",
+      "Hash": 4164662959,
+      "SyscallNumber": 179,
+      "Address": 140736067070768
+    },
+    {
+      "Name": "NtCreateMailslotFile",
+      "Hash": 1406556000,
+      "SyscallNumber": 179,
+      "Address": 140736067070768
+    },
+    {
+      "Name": "NtCreateMutant",
+      "Hash": 1440135508,
+      "SyscallNumber": 180,
+      "Address": 140736067070800
+    },
+    {
+      "Name": "ZwCreateMutant",
+      "Hash": 183929187,
+      "SyscallNumber": 180,
+      "Address": 140736067070800
+    },
+    {
+      "Name": "NtCreateNamedPipeFile",
+      "Hash": 497026606,
+      "SyscallNumber": 181,
+      "Address": 140736067070832
+    },
+    {
+      "Name": "ZwCreateNamedPipeFile",
+      "Hash": 1320243037,
+      "SyscallNumber": 181,
+      "Address": 140736067070832
+    },
+    {
+      "Name": "ZwCreatePagingFile",
+      "Hash": 2788154720,
+      "SyscallNumber": 182,
+      "Address": 140736067070864
+    },
+    {
+      "Name": "NtCreatePagingFile",
+      "Hash": 3298336209,
+      "SyscallNumber": 182,
+      "Address": 140736067070864
+    },
+    {
+      "Name": "ZwCreatePartition",
+      "Hash": 1960916196,
+      "SyscallNumber": 183,
+      "Address": 140736067070896
+    },
+    {
+      "Name": "NtCreatePartition",
+      "Hash": 1846225717,
+      "SyscallNumber": 183,
+      "Address": 140736067070896
+    },
+    {
+      "Name": "ZwCreatePort",
+      "Hash": 1100633647,
+      "SyscallNumber": 184,
+      "Address": 140736067070928
+    },
+    {
+      "Name": "NtCreatePort",
+      "Hash": 1713100256,
+      "SyscallNumber": 184,
+      "Address": 140736067070928
+    },
+    {
+      "Name": "NtCreatePrivateNamespace",
+      "Hash": 4025608899,
+      "SyscallNumber": 185,
+      "Address": 140736067070960
+    },
+    {
+      "Name": "ZwCreatePrivateNamespace",
+      "Hash": 4219754898,
+      "SyscallNumber": 185,
+      "Address": 140736067070960
+    },
+    {
+      "Name": "ZwCreateProcess",
+      "Hash": 1230858825,
+      "SyscallNumber": 186,
+      "Address": 140736067070992
+    },
+    {
+      "Name": "NtCreateProcess",
+      "Hash": 4030961754,
+      "SyscallNumber": 186,
+      "Address": 140736067070992
+    },
+    {
+      "Name": "ZwCreateProfile",
+      "Hash": 1230970747,
+      "SyscallNumber": 187,
+      "Address": 140736067071024
+    },
+    {
+      "Name": "NtCreateProfile",
+      "Hash": 4031073676,
+      "SyscallNumber": 187,
+      "Address": 140736067071024
+    },
+    {
+      "Name": "NtCreateProfileEx",
+      "Hash": 382659017,
+      "SyscallNumber": 188,
+      "Address": 140736067071056
+    },
+    {
+      "Name": "ZwCreateProfileEx",
+      "Hash": 497349496,
+      "SyscallNumber": 188,
+      "Address": 140736067071056
+    },
+    {
+      "Name": "ZwCreateRegistryTransaction",
+      "Hash": 1131539721,
+      "SyscallNumber": 189,
+      "Address": 140736067071088
+    },
+    {
+      "Name": "NtCreateRegistryTransaction",
+      "Hash": 3428629658,
+      "SyscallNumber": 189,
+      "Address": 140736067071088
+    },
+    {
+      "Name": "NtCreateResourceManager",
+      "Hash": 2744108254,
+      "SyscallNumber": 190,
+      "Address": 140736067071120
+    },
+    {
+      "Name": "ZwCreateResourceManager",
+      "Hash": 1578636749,
+      "SyscallNumber": 190,
+      "Address": 140736067071120
+    },
+    {
+      "Name": "NtCreateSectionEx",
+      "Hash": 4191918221,
+      "SyscallNumber": 191,
+      "Address": 140736067071152
+    },
+    {
+      "Name": "ZwCreateSectionEx",
+      "Hash": 11641404,
+      "SyscallNumber": 191,
+      "Address": 140736067071152
+    },
+    {
+      "Name": "ZwCreateSemaphore",
+      "Hash": 3600865422,
+      "SyscallNumber": 192,
+      "Address": 140736067071184
+    },
+    {
+      "Name": "NtCreateSemaphore",
+      "Hash": 3486174943,
+      "SyscallNumber": 192,
+      "Address": 140736067071184
+    },
+    {
+      "Name": "ZwCreateSymbolicLinkObject",
+      "Hash": 899089201,
+      "SyscallNumber": 193,
+      "Address": 140736067071216
+    },
+    {
+      "Name": "NtCreateSymbolicLinkObject",
+      "Hash": 4222461090,
+      "SyscallNumber": 193,
+      "Address": 140736067071216
+    },
+    {
+      "Name": "ZwCreateThreadEx",
+      "Hash": 728555391,
+      "SyscallNumber": 194,
+      "Address": 140736067071248
+    },
+    {
+      "Name": "NtCreateThreadEx",
+      "Hash": 2937638832,
+      "SyscallNumber": 194,
+      "Address": 140736067071248
+    },
+    {
+      "Name": "NtCreateTimer",
+      "Hash": 702255804,
+      "SyscallNumber": 195,
+      "Address": 140736067071280
+    },
+    {
+      "Name": "ZwCreateTimer",
+      "Hash": 1965694187,
+      "SyscallNumber": 195,
+      "Address": 140736067071280
+    },
+    {
+      "Name": "ZwCreateTimer2",
+      "Hash": 443398781,
+      "SyscallNumber": 196,
+      "Address": 140736067071312
+    },
+    {
+      "Name": "NtCreateTimer2",
+      "Hash": 1699605102,
+      "SyscallNumber": 196,
+      "Address": 140736067071312
+    },
+    {
+      "Name": "ZwCreateToken",
+      "Hash": 1965907627,
+      "SyscallNumber": 197,
+      "Address": 140736067071344
+    },
+    {
+      "Name": "NtCreateToken",
+      "Hash": 702469244,
+      "SyscallNumber": 197,
+      "Address": 140736067071344
+    },
+    {
+      "Name": "ZwCreateTokenEx",
+      "Hash": 1979694760,
+      "SyscallNumber": 198,
+      "Address": 140736067071376
+    },
+    {
+      "Name": "NtCreateTokenEx",
+      "Hash": 484830393,
+      "SyscallNumber": 198,
+      "Address": 140736067071376
+    },
+    {
+      "Name": "ZwCreateTransaction",
+      "Hash": 459567984,
+      "SyscallNumber": 199,
+      "Address": 140736067071408
+    },
+    {
+      "Name": "NtCreateTransaction",
+      "Hash": 115687937,
+      "SyscallNumber": 199,
+      "Address": 140736067071408
+    },
+    {
+      "Name": "ZwCreateTransactionManager",
+      "Hash": 2531139467,
+      "SyscallNumber": 200,
+      "Address": 140736067071440
+    },
+    {
+      "Name": "NtCreateTransactionManager",
+      "Hash": 1559544060,
+      "SyscallNumber": 200,
+      "Address": 140736067071440
+    },
+    {
+      "Name": "NtCreateUserProcess",
+      "Hash": 1422811001,
+      "SyscallNumber": 201,
+      "Address": 140736067071472
+    },
+    {
+      "Name": "ZwCreateUserProcess",
+      "Hash": 1766691048,
+      "SyscallNumber": 201,
+      "Address": 140736067071472
+    },
+    {
+      "Name": "NtCreateWaitCompletionPacket",
+      "Hash": 3828856418,
+      "SyscallNumber": 202,
+      "Address": 140736067071504
+    },
+    {
+      "Name": "ZwCreateWaitCompletionPacket",
+      "Hash": 1039332529,
+      "SyscallNumber": 202,
+      "Address": 140736067071504
+    },
+    {
+      "Name": "ZwCreateWaitablePort",
+      "Hash": 3744479704,
+      "SyscallNumber": 203,
+      "Address": 140736067071536
+    },
+    {
+      "Name": "NtCreateWaitablePort",
+      "Hash": 986372745,
+      "SyscallNumber": 203,
+      "Address": 140736067071536
+    },
+    {
+      "Name": "NtCreateWnfStateName",
+      "Hash": 3463735912,
+      "SyscallNumber": 204,
+      "Address": 140736067071568
+    },
+    {
+      "Name": "ZwCreateWnfStateName",
+      "Hash": 1926875575,
+      "SyscallNumber": 204,
+      "Address": 140736067071568
+    },
+    {
+      "Name": "ZwCreateWorkerFactory",
+      "Hash": 3160296188,
+      "SyscallNumber": 205,
+      "Address": 140736067071600
+    },
+    {
+      "Name": "NtCreateWorkerFactory",
+      "Hash": 2337079757,
+      "SyscallNumber": 205,
+      "Address": 140736067071600
+    },
+    {
+      "Name": "ZwDebugActiveProcess",
+      "Hash": 2795912696,
+      "SyscallNumber": 206,
+      "Address": 140736067071632
+    },
+    {
+      "Name": "NtDebugActiveProcess",
+      "Hash": 37805737,
+      "SyscallNumber": 206,
+      "Address": 140736067071632
+    },
+    {
+      "Name": "NtDebugContinue",
+      "Hash": 1799208947,
+      "SyscallNumber": 207,
+      "Address": 140736067071664
+    },
+    {
+      "Name": "ZwDebugContinue",
+      "Hash": 3294073314,
+      "SyscallNumber": 207,
+      "Address": 140736067071664
+    },
+    {
+      "Name": "NtDeleteAtom",
+      "Hash": 696404555,
+      "SyscallNumber": 208,
+      "Address": 140736067071696
+    },
+    {
+      "Name": "ZwDeleteAtom",
+      "Hash": 83937946,
+      "SyscallNumber": 208,
+      "Address": 140736067071696
+    },
+    {
+      "Name": "ZwDeleteBootEntry",
+      "Hash": 2866655343,
+      "SyscallNumber": 209,
+      "Address": 140736067071728
+    },
+    {
+      "Name": "NtDeleteBootEntry",
+      "Hash": 2751964864,
+      "SyscallNumber": 209,
+      "Address": 140736067071728
+    },
+    {
+      "Name": "NtDeleteDriverEntry",
+      "Hash": 21065592,
+      "SyscallNumber": 210,
+      "Address": 140736067071760
+    },
+    {
+      "Name": "ZwDeleteDriverEntry",
+      "Hash": 364945639,
+      "SyscallNumber": 210,
+      "Address": 140736067071760
+    },
+    {
+      "Name": "NtDeleteFile",
+      "Hash": 696572154,
+      "SyscallNumber": 211,
+      "Address": 140736067071792
+    },
+    {
+      "Name": "ZwDeleteFile",
+      "Hash": 84105545,
+      "SyscallNumber": 211,
+      "Address": 140736067071792
+    },
+    {
+      "Name": "NtDeleteKey",
+      "Hash": 21113571,
+      "SyscallNumber": 212,
+      "Address": 140736067071824
+    },
+    {
+      "Name": "ZwDeleteKey",
+      "Hash": 1304059218,
+      "SyscallNumber": 212,
+      "Address": 140736067071824
+    },
+    {
+      "Name": "ZwDeleteObjectAuditAlarm",
+      "Hash": 2449338660,
+      "SyscallNumber": 213,
+      "Address": 140736067071856
+    },
+    {
+      "Name": "NtDeleteObjectAuditAlarm",
+      "Hash": 2255192661,
+      "SyscallNumber": 213,
+      "Address": 140736067071856
+    },
+    {
+      "Name": "NtDeletePrivateNamespace",
+      "Hash": 2641451650,
+      "SyscallNumber": 214,
+      "Address": 140736067071888
+    },
+    {
+      "Name": "ZwDeletePrivateNamespace",
+      "Hash": 2835597649,
+      "SyscallNumber": 214,
+      "Address": 140736067071888
+    },
+    {
+      "Name": "NtDeleteValueKey",
+      "Hash": 4285584512,
+      "SyscallNumber": 215,
+      "Address": 140736067071920
+    },
+    {
+      "Name": "ZwDeleteValueKey",
+      "Hash": 2076501071,
+      "SyscallNumber": 215,
+      "Address": 140736067071920
+    },
+    {
+      "Name": "NtDeleteWnfStateData",
+      "Hash": 705058752,
+      "SyscallNumber": 216,
+      "Address": 140736067071952
+    },
+    {
+      "Name": "ZwDeleteWnfStateData",
+      "Hash": 3463165711,
+      "SyscallNumber": 216,
+      "Address": 140736067071952
+    },
+    {
+      "Name": "ZwDeleteWnfStateName",
+      "Hash": 3463524854,
+      "SyscallNumber": 217,
+      "Address": 140736067071984
+    },
+    {
+      "Name": "NtDeleteWnfStateName",
+      "Hash": 705417895,
+      "SyscallNumber": 217,
+      "Address": 140736067071984
+    },
+    {
+      "Name": "ZwDirectGraphicsCall",
+      "Hash": 3708007934,
+      "SyscallNumber": 218,
+      "Address": 140736067072016
+    },
+    {
+      "Name": "NtDirectGraphicsCall",
+      "Hash": 949900975,
+      "SyscallNumber": 218,
+      "Address": 140736067072016
+    },
+    {
+      "Name": "ZwDisableLastKnownGood",
+      "Hash": 576015828,
+      "SyscallNumber": 219,
+      "Address": 140736067072048
+    },
+    {
+      "Name": "NtDisableLastKnownGood",
+      "Hash": 3474644677,
+      "SyscallNumber": 219,
+      "Address": 140736067072048
+    },
+    {
+      "Name": "ZwDisplayString",
+      "Hash": 3396848195,
+      "SyscallNumber": 220,
+      "Address": 140736067072080
+    },
+    {
+      "Name": "NtDisplayString",
+      "Hash": 1901983828,
+      "SyscallNumber": 220,
+      "Address": 140736067072080
+    },
+    {
+      "Name": "ZwDrawText",
+      "Hash": 1061696393,
+      "SyscallNumber": 221,
+      "Address": 140736067072112
+    },
+    {
+      "Name": "NtDrawText",
+      "Hash": 2975077114,
+      "SyscallNumber": 221,
+      "Address": 140736067072112
+    },
+    {
+      "Name": "ZwEnableLastKnownGood",
+      "Hash": 2456086951,
+      "SyscallNumber": 222,
+      "Address": 140736067072144
+    },
+    {
+      "Name": "NtEnableLastKnownGood",
+      "Hash": 1632870520,
+      "SyscallNumber": 222,
+      "Address": 140736067072144
+    },
+    {
+      "Name": "ZwEnumerateBootEntries",
+      "Hash": 3238120586,
+      "SyscallNumber": 223,
+      "Address": 140736067072176
+    },
+    {
+      "Name": "NtEnumerateBootEntries",
+      "Hash": 1841782139,
+      "SyscallNumber": 223,
+      "Address": 140736067072176
+    },
+    {
+      "Name": "NtEnumerateDriverEntries",
+      "Hash": 1013769459,
+      "SyscallNumber": 224,
+      "Address": 140736067072208
+    },
+    {
+      "Name": "ZwEnumerateDriverEntries",
+      "Hash": 1207915458,
+      "SyscallNumber": 224,
+      "Address": 140736067072208
+    },
+    {
+      "Name": "ZwEnumerateSystemEnvironmentValuesEx",
+      "Hash": 3686323907,
+      "SyscallNumber": 225,
+      "Address": 140736067072240
+    },
+    {
+      "Name": "NtEnumerateSystemEnvironmentValuesEx",
+      "Hash": 3778591092,
+      "SyscallNumber": 225,
+      "Address": 140736067072240
+    },
+    {
+      "Name": "ZwEnumerateTransactionObject",
+      "Hash": 1244014073,
+      "SyscallNumber": 226,
+      "Address": 140736067072272
+    },
+    {
+      "Name": "NtEnumerateTransactionObject",
+      "Hash": 4033537962,
+      "SyscallNumber": 226,
+      "Address": 140736067072272
+    },
+    {
+      "Name": "ZwExtendSection",
+      "Hash": 252180723,
+      "SyscallNumber": 227,
+      "Address": 140736067072304
+    },
+    {
+      "Name": "NtExtendSection",
+      "Hash": 3052283652,
+      "SyscallNumber": 227,
+      "Address": 140736067072304
+    },
+    {
+      "Name": "ZwFilterBootOption",
+      "Hash": 1368894281,
+      "SyscallNumber": 228,
+      "Address": 140736067072336
+    },
+    {
+      "Name": "NtFilterBootOption",
+      "Hash": 1879075770,
+      "SyscallNumber": 228,
+      "Address": 140736067072336
+    },
+    {
+      "Name": "ZwFilterToken",
+      "Hash": 886556893,
+      "SyscallNumber": 229,
+      "Address": 140736067072368
+    },
+    {
+      "Name": "NtFilterToken",
+      "Hash": 3918085806,
+      "SyscallNumber": 229,
+      "Address": 140736067072368
+    },
+    {
+      "Name": "ZwFilterTokenEx",
+      "Hash": 3387784538,
+      "SyscallNumber": 230,
+      "Address": 140736067072400
+    },
+    {
+      "Name": "NtFilterTokenEx",
+      "Hash": 1892920171,
+      "SyscallNumber": 230,
+      "Address": 140736067072400
+    },
+    {
+      "Name": "ZwFlushBuffersFileEx",
+      "Hash": 3662828322,
+      "SyscallNumber": 231,
+      "Address": 140736067072432
+    },
+    {
+      "Name": "NtFlushBuffersFileEx",
+      "Hash": 904721363,
+      "SyscallNumber": 231,
+      "Address": 140736067072432
+    },
+    {
+      "Name": "NtFlushInstallUILanguage",
+      "Hash": 3535031778,
+      "SyscallNumber": 232,
+      "Address": 140736067072464
+    },
+    {
+      "Name": "ZwFlushInstallUILanguage",
+      "Hash": 3729177777,
+      "SyscallNumber": 232,
+      "Address": 140736067072464
+    },
+    {
+      "Name": "ZwFlushInstructionCache",
+      "Hash": 485624174,
+      "SyscallNumber": 233,
+      "Address": 140736067072496
+    },
+    {
+      "Name": "NtFlushInstructionCache",
+      "Hash": 1651095679,
+      "SyscallNumber": 233,
+      "Address": 140736067072496
+    },
+    {
+      "Name": "NtFlushKey",
+      "Hash": 3931282770,
+      "SyscallNumber": 234,
+      "Address": 140736067072528
+    },
+    {
+      "Name": "ZwFlushKey",
+      "Hash": 2017902049,
+      "SyscallNumber": 234,
+      "Address": 140736067072528
+    },
+    {
+      "Name": "ZwFlushProcessWriteBuffers",
+      "Hash": 841980239,
+      "SyscallNumber": 235,
+      "Address": 140736067072560
+    },
+    {
+      "Name": "NtFlushProcessWriteBuffers",
+      "Hash": 4165352128,
+      "SyscallNumber": 235,
+      "Address": 140736067072560
+    },
+    {
+      "Name": "NtFlushVirtualMemory",
+      "Hash": 595228425,
+      "SyscallNumber": 236,
+      "Address": 140736067072592
+    },
+    {
+      "Name": "ZwFlushVirtualMemory",
+      "Hash": 3353335384,
+      "SyscallNumber": 236,
+      "Address": 140736067072592
+    },
+    {
+      "Name": "NtFlushWriteBuffer",
+      "Hash": 3485534382,
+      "SyscallNumber": 237,
+      "Address": 140736067072624
+    },
+    {
+      "Name": "ZwFlushWriteBuffer",
+      "Hash": 2975352893,
+      "SyscallNumber": 237,
+      "Address": 140736067072624
+    },
+    {
+      "Name": "NtFreeUserPhysicalPages",
+      "Hash": 2040879797,
+      "SyscallNumber": 238,
+      "Address": 140736067072656
+    },
+    {
+      "Name": "ZwFreeUserPhysicalPages",
+      "Hash": 875408292,
+      "SyscallNumber": 238,
+      "Address": 140736067072656
+    },
+    {
+      "Name": "NtFreezeRegistry",
+      "Hash": 3049463809,
+      "SyscallNumber": 239,
+      "Address": 140736067072688
+    },
+    {
+      "Name": "ZwFreezeRegistry",
+      "Hash": 840380368,
+      "SyscallNumber": 239,
+      "Address": 140736067072688
+    },
+    {
+      "Name": "NtFreezeTransactions",
+      "Hash": 2658072993,
+      "SyscallNumber": 240,
+      "Address": 140736067072720
+    },
+    {
+      "Name": "ZwFreezeTransactions",
+      "Hash": 1121212656,
+      "SyscallNumber": 240,
+      "Address": 140736067072720
+    },
+    {
+      "Name": "ZwGetCachedSigningLevel",
+      "Hash": 3683473013,
+      "SyscallNumber": 241,
+      "Address": 140736067072752
+    },
+    {
+      "Name": "NtGetCachedSigningLevel",
+      "Hash": 553977222,
+      "SyscallNumber": 241,
+      "Address": 140736067072752
+    },
+    {
+      "Name": "ZwGetCompleteWnfStateSubscription",
+      "Hash": 1854466816,
+      "SyscallNumber": 242,
+      "Address": 140736067072784
+    },
+    {
+      "Name": "NtGetCompleteWnfStateSubscription",
+      "Hash": 1875862353,
+      "SyscallNumber": 242,
+      "Address": 140736067072784
+    },
+    {
+      "Name": "ZwGetContextThread",
+      "Hash": 1320826899,
+      "SyscallNumber": 243,
+      "Address": 140736067072816
+    },
+    {
+      "Name": "NtGetContextThread",
+      "Hash": 1831008388,
+      "SyscallNumber": 243,
+      "Address": 140736067072816
+    },
+    {
+      "Name": "NtGetCurrentProcessorNumber",
+      "Hash": 1954707091,
+      "SyscallNumber": 244,
+      "Address": 140736067072848
+    },
+    {
+      "Name": "ZwGetCurrentProcessorNumber",
+      "Hash": 3952584450,
+      "SyscallNumber": 244,
+      "Address": 140736067072848
+    },
+    {
+      "Name": "ZwGetCurrentProcessorNumberEx",
+      "Hash": 807237823,
+      "SyscallNumber": 245,
+      "Address": 140736067072880
+    },
+    {
+      "Name": "NtGetCurrentProcessorNumberEx",
+      "Hash": 2667212944,
+      "SyscallNumber": 245,
+      "Address": 140736067072880
+    },
+    {
+      "Name": "ZwGetDevicePowerState",
+      "Hash": 939085364,
+      "SyscallNumber": 246,
+      "Address": 140736067072912
+    },
+    {
+      "Name": "NtGetDevicePowerState",
+      "Hash": 115868933,
+      "SyscallNumber": 246,
+      "Address": 140736067072912
+    },
+    {
+      "Name": "ZwGetMUIRegistryInfo",
+      "Hash": 646793414,
+      "SyscallNumber": 247,
+      "Address": 140736067072944
+    },
+    {
+      "Name": "NtGetMUIRegistryInfo",
+      "Hash": 2183653751,
+      "SyscallNumber": 247,
+      "Address": 140736067072944
+    },
+    {
+      "Name": "ZwGetNextProcess",
+      "Hash": 2243416948,
+      "SyscallNumber": 248,
+      "Address": 140736067072976
+    },
+    {
+      "Name": "NtGetNextProcess",
+      "Hash": 157533093,
+      "SyscallNumber": 248,
+      "Address": 140736067072976
+    },
+    {
+      "Name": "NtGetNextThread",
+      "Hash": 2752576414,
+      "SyscallNumber": 249,
+      "Address": 140736067073008
+    },
+    {
+      "Name": "ZwGetNextThread",
+      "Hash": 4247440781,
+      "SyscallNumber": 249,
+      "Address": 140736067073008
+    },
+    {
+      "Name": "NtGetNlsSectionPtr",
+      "Hash": 1603319807,
+      "SyscallNumber": 250,
+      "Address": 140736067073040
+    },
+    {
+      "Name": "ZwGetNlsSectionPtr",
+      "Hash": 1093138318,
+      "SyscallNumber": 250,
+      "Address": 140736067073040
+    },
+    {
+      "Name": "NtGetNotificationResourceManager",
+      "Hash": 733143409,
+      "SyscallNumber": 251,
+      "Address": 140736067073072
+    },
+    {
+      "Name": "ZwGetNotificationResourceManager",
+      "Hash": 1383247680,
+      "SyscallNumber": 251,
+      "Address": 140736067073072
+    },
+    {
+      "Name": "NtGetWriteWatch",
+      "Hash": 3102692713,
+      "SyscallNumber": 252,
+      "Address": 140736067073104
+    },
+    {
+      "Name": "ZwGetWriteWatch",
+      "Hash": 302589784,
+      "SyscallNumber": 252,
+      "Address": 140736067073104
+    },
+    {
+      "Name": "ZwImpersonateAnonymousToken",
+      "Hash": 948991879,
+      "SyscallNumber": 253,
+      "Address": 140736067073136
+    },
+    {
+      "Name": "NtImpersonateAnonymousToken",
+      "Hash": 3246081816,
+      "SyscallNumber": 253,
+      "Address": 140736067073136
+    },
+    {
+      "Name": "NtImpersonateThread",
+      "Hash": 271033734,
+      "SyscallNumber": 254,
+      "Address": 140736067073168
+    },
+    {
+      "Name": "ZwImpersonateThread",
+      "Hash": 614913781,
+      "SyscallNumber": 254,
+      "Address": 140736067073168
+    },
+    {
+      "Name": "ZwInitializeEnclave",
+      "Hash": 3436923462,
+      "SyscallNumber": 255,
+      "Address": 140736067073200
+    },
+    {
+      "Name": "NtInitializeEnclave",
+      "Hash": 3093043415,
+      "SyscallNumber": 255,
+      "Address": 140736067073200
+    },
+    {
+      "Name": "ZwInitializeNlsFiles",
+      "Hash": 1099613512,
+      "SyscallNumber": 256,
+      "Address": 140736067073232
+    },
+    {
+      "Name": "NtInitializeNlsFiles",
+      "Hash": 2636473849,
+      "SyscallNumber": 256,
+      "Address": 140736067073232
+    },
+    {
+      "Name": "ZwInitializeRegistry",
+      "Hash": 3153621249,
+      "SyscallNumber": 257,
+      "Address": 140736067073264
+    },
+    {
+      "Name": "NtInitializeRegistry",
+      "Hash": 395514290,
+      "SyscallNumber": 257,
+      "Address": 140736067073264
+    },
+    {
+      "Name": "ZwInitiatePowerAction",
+      "Hash": 1717558104,
+      "SyscallNumber": 258,
+      "Address": 140736067073296
+    },
+    {
+      "Name": "NtInitiatePowerAction",
+      "Hash": 894341673,
+      "SyscallNumber": 258,
+      "Address": 140736067073296
+    },
+    {
+      "Name": "ZwIsSystemResumeAutomatic",
+      "Hash": 1308620079,
+      "SyscallNumber": 259,
+      "Address": 140736067073328
+    },
+    {
+      "Name": "NtIsSystemResumeAutomatic",
+      "Hash": 3491736704,
+      "SyscallNumber": 259,
+      "Address": 140736067073328
+    },
+    {
+      "Name": "NtIsUILanguageComitted",
+      "Hash": 1784298206,
+      "SyscallNumber": 260,
+      "Address": 140736067073360
+    },
+    {
+      "Name": "ZwIsUILanguageComitted",
+      "Hash": 3180636653,
+      "SyscallNumber": 260,
+      "Address": 140736067073360
+    },
+    {
+      "Name": "NtListenPort",
+      "Hash": 4058814651,
+      "SyscallNumber": 261,
+      "Address": 140736067073392
+    },
+    {
+      "Name": "ZwListenPort",
+      "Hash": 3446348042,
+      "SyscallNumber": 261,
+      "Address": 140736067073392
+    },
+    {
+      "Name": "NtLoadDriver",
+      "Hash": 1048705459,
+      "SyscallNumber": 262,
+      "Address": 140736067073424
+    },
+    {
+      "Name": "ZwLoadDriver",
+      "Hash": 436238850,
+      "SyscallNumber": 262,
+      "Address": 140736067073424
+    },
+    {
+      "Name": "NtLoadEnclaveData",
+      "Hash": 1197027103,
+      "SyscallNumber": 263,
+      "Address": 140736067073456
+    },
+    {
+      "Name": "ZwLoadEnclaveData",
+      "Hash": 1311717582,
+      "SyscallNumber": 263,
+      "Address": 140736067073456
+    },
+    {
+      "Name": "NtLoadKey",
+      "Hash": 2364616848,
+      "SyscallNumber": 264,
+      "Address": 140736067073488
+    },
+    {
+      "Name": "ZwLoadKey",
+      "Hash": 3347839807,
+      "SyscallNumber": 264,
+      "Address": 140736067073488
+    },
+    {
+      "Name": "ZwLoadKey2",
+      "Hash": 3104531281,
+      "SyscallNumber": 265,
+      "Address": 140736067073520
+    },
+    {
+      "Name": "NtLoadKey2",
+      "Hash": 722944706,
+      "SyscallNumber": 265,
+      "Address": 140736067073520
+    },
+    {
+      "Name": "NtLoadKeyEx",
+      "Hash": 2382339533,
+      "SyscallNumber": 266,
+      "Address": 140736067073552
+    },
+    {
+      "Name": "ZwLoadKeyEx",
+      "Hash": 3665285180,
+      "SyscallNumber": 266,
+      "Address": 140736067073552
+    },
+    {
+      "Name": "NtLockFile",
+      "Hash": 809341200,
+      "SyscallNumber": 267,
+      "Address": 140736067073584
+    },
+    {
+      "Name": "ZwLockFile",
+      "Hash": 3190927775,
+      "SyscallNumber": 267,
+      "Address": 140736067073584
+    },
+    {
+      "Name": "ZwLockProductActivationKeys",
+      "Hash": 1178458638,
+      "SyscallNumber": 268,
+      "Address": 140736067073616
+    },
+    {
+      "Name": "NtLockProductActivationKeys",
+      "Hash": 3475548575,
+      "SyscallNumber": 268,
+      "Address": 140736067073616
+    },
+    {
+      "Name": "NtLockRegistryKey",
+      "Hash": 1361448658,
+      "SyscallNumber": 269,
+      "Address": 140736067073648
+    },
+    {
+      "Name": "ZwLockRegistryKey",
+      "Hash": 1476139137,
+      "SyscallNumber": 269,
+      "Address": 140736067073648
+    },
+    {
+      "Name": "NtLockVirtualMemory",
+      "Hash": 2440109744,
+      "SyscallNumber": 270,
+      "Address": 140736067073680
+    },
+    {
+      "Name": "ZwLockVirtualMemory",
+      "Hash": 2783989791,
+      "SyscallNumber": 270,
+      "Address": 140736067073680
+    },
+    {
+      "Name": "NtMakePermanentObject",
+      "Hash": 2694651782,
+      "SyscallNumber": 271,
+      "Address": 140736067073712
+    },
+    {
+      "Name": "ZwMakePermanentObject",
+      "Hash": 3517868213,
+      "SyscallNumber": 271,
+      "Address": 140736067073712
+    },
+    {
+      "Name": "ZwMakeTemporaryObject",
+      "Hash": 536868270,
+      "SyscallNumber": 272,
+      "Address": 140736067073744
+    },
+    {
+      "Name": "NtMakeTemporaryObject",
+      "Hash": 4008619135,
+      "SyscallNumber": 272,
+      "Address": 140736067073744
+    },
+    {
+      "Name": "ZwManageHotPatch",
+      "Hash": 3352803642,
+      "SyscallNumber": 273,
+      "Address": 140736067073776
+    },
+    {
+      "Name": "NtManageHotPatch",
+      "Hash": 1266919787,
+      "SyscallNumber": 273,
+      "Address": 140736067073776
+    },
+    {
+      "Name": "ZwManagePartition",
+      "Hash": 3943287801,
+      "SyscallNumber": 274,
+      "Address": 140736067073808
+    },
+    {
+      "Name": "NtManagePartition",
+      "Hash": 3828597322,
+      "SyscallNumber": 274,
+      "Address": 140736067073808
+    },
+    {
+      "Name": "ZwMapCMFModule",
+      "Hash": 91597456,
+      "SyscallNumber": 275,
+      "Address": 140736067073840
+    },
+    {
+      "Name": "NtMapCMFModule",
+      "Hash": 1347803777,
+      "SyscallNumber": 275,
+      "Address": 140736067073840
+    },
+    {
+      "Name": "ZwMapUserPhysicalPages",
+      "Hash": 599620640,
+      "SyscallNumber": 276,
+      "Address": 140736067073872
+    },
+    {
+      "Name": "NtMapUserPhysicalPages",
+      "Hash": 3498249489,
+      "SyscallNumber": 276,
+      "Address": 140736067073872
+    },
+    {
+      "Name": "ZwMapViewOfSectionEx",
+      "Hash": 2791317206,
+      "SyscallNumber": 277,
+      "Address": 140736067073904
+    },
+    {
+      "Name": "NtMapViewOfSectionEx",
+      "Hash": 33210247,
+      "SyscallNumber": 277,
+      "Address": 140736067073904
+    },
+    {
+      "Name": "ZwModifyBootEntry",
+      "Hash": 125395716,
+      "SyscallNumber": 278,
+      "Address": 140736067073936
+    },
+    {
+      "Name": "NtModifyBootEntry",
+      "Hash": 10705237,
+      "SyscallNumber": 278,
+      "Address": 140736067073936
+    },
+    {
+      "Name": "NtModifyDriverEntry",
+      "Hash": 4086569805,
+      "SyscallNumber": 279,
+      "Address": 140736067073968
+    },
+    {
+      "Name": "ZwModifyDriverEntry",
+      "Hash": 135482556,
+      "SyscallNumber": 279,
+      "Address": 140736067073968
+    },
+    {
+      "Name": "ZwNotifyChangeDirectoryFile",
+      "Hash": 3959940298,
+      "SyscallNumber": 280,
+      "Address": 140736067074000
+    },
+    {
+      "Name": "NtNotifyChangeDirectoryFile",
+      "Hash": 1962062939,
+      "SyscallNumber": 280,
+      "Address": 140736067074000
+    },
+    {
+      "Name": "ZwNotifyChangeDirectoryFileEx",
+      "Hash": 227821703,
+      "SyscallNumber": 281,
+      "Address": 140736067074032
+    },
+    {
+      "Name": "NtNotifyChangeDirectoryFileEx",
+      "Hash": 2087796824,
+      "SyscallNumber": 281,
+      "Address": 140736067074032
+    },
+    {
+      "Name": "ZwNotifyChangeKey",
+      "Hash": 1540479742,
+      "SyscallNumber": 282,
+      "Address": 140736067074064
+    },
+    {
+      "Name": "NtNotifyChangeKey",
+      "Hash": 1425789263,
+      "SyscallNumber": 282,
+      "Address": 140736067074064
+    },
+    {
+      "Name": "NtNotifyChangeMultipleKeys",
+      "Hash": 3731041134,
+      "SyscallNumber": 283,
+      "Address": 140736067074096
+    },
+    {
+      "Name": "ZwNotifyChangeMultipleKeys",
+      "Hash": 407669245,
+      "SyscallNumber": 283,
+      "Address": 140736067074096
+    },
+    {
+      "Name": "NtNotifyChangeSession",
+      "Hash": 2376464458,
+      "SyscallNumber": 284,
+      "Address": 140736067074128
+    },
+    {
+      "Name": "ZwNotifyChangeSession",
+      "Hash": 3199680889,
+      "SyscallNumber": 284,
+      "Address": 140736067074128
+    },
+    {
+      "Name": "NtOpenEnlistment",
+      "Hash": 1730864252,
+      "SyscallNumber": 285,
+      "Address": 140736067074160
+    },
+    {
+      "Name": "ZwOpenEnlistment",
+      "Hash": 3816748107,
+      "SyscallNumber": 285,
+      "Address": 140736067074160
+    },
+    {
+      "Name": "ZwOpenEventPair",
+      "Hash": 1507151478,
+      "SyscallNumber": 286,
+      "Address": 140736067074192
+    },
+    {
+      "Name": "NtOpenEventPair",
+      "Hash": 12287111,
+      "SyscallNumber": 286,
+      "Address": 140736067074192
+    },
+    {
+      "Name": "ZwOpenIoCompletion",
+      "Hash": 3741120186,
+      "SyscallNumber": 287,
+      "Address": 140736067074224
+    },
+    {
+      "Name": "NtOpenIoCompletion",
+      "Hash": 4251301675,
+      "SyscallNumber": 287,
+      "Address": 140736067074224
+    },
+    {
+      "Name": "NtOpenJobObject",
+      "Hash": 3950665387,
+      "SyscallNumber": 288,
+      "Address": 140736067074256
+    },
+    {
+      "Name": "ZwOpenJobObject",
+      "Hash": 1150562458,
+      "SyscallNumber": 288,
+      "Address": 140736067074256
+    },
+    {
+      "Name": "NtOpenKeyEx",
+      "Hash": 586370815,
+      "SyscallNumber": 289,
+      "Address": 140736067074288
+    },
+    {
+      "Name": "ZwOpenKeyEx",
+      "Hash": 1869316462,
+      "SyscallNumber": 289,
+      "Address": 140736067074288
+    },
+    {
+      "Name": "NtOpenKeyTransacted",
+      "Hash": 291101099,
+      "SyscallNumber": 290,
+      "Address": 140736067074320
+    },
+    {
+      "Name": "ZwOpenKeyTransacted",
+      "Hash": 634981146,
+      "SyscallNumber": 290,
+      "Address": 140736067074320
+    },
+    {
+      "Name": "NtOpenKeyTransactedEx",
+      "Hash": 3476486568,
+      "SyscallNumber": 291,
+      "Address": 140736067074352
+    },
+    {
+      "Name": "ZwOpenKeyTransactedEx",
+      "Hash": 4735703,
+      "SyscallNumber": 291,
+      "Address": 140736067074352
+    },
+    {
+      "Name": "ZwOpenKeyedEvent",
+      "Hash": 2328190172,
+      "SyscallNumber": 292,
+      "Address": 140736067074384
+    },
+    {
+      "Name": "NtOpenKeyedEvent",
+      "Hash": 242306317,
+      "SyscallNumber": 292,
+      "Address": 140736067074384
+    },
+    {
+      "Name": "NtOpenMutant",
+      "Hash": 2267428946,
+      "SyscallNumber": 293,
+      "Address": 140736067074416
+    },
+    {
+      "Name": "ZwOpenMutant",
+      "Hash": 1654962337,
+      "SyscallNumber": 293,
+      "Address": 140736067074416
+    },
+    {
+      "Name": "ZwOpenObjectAuditAlarm",
+      "Hash": 2137478691,
+      "SyscallNumber": 294,
+      "Address": 140736067074448
+    },
+    {
+      "Name": "NtOpenObjectAuditAlarm",
+      "Hash": 741140244,
+      "SyscallNumber": 294,
+      "Address": 140736067074448
+    },
+    {
+      "Name": "NtOpenPartition",
+      "Hash": 2526884211,
+      "SyscallNumber": 295,
+      "Address": 140736067074480
+    },
+    {
+      "Name": "ZwOpenPartition",
+      "Hash": 4021748578,
+      "SyscallNumber": 295,
+      "Address": 140736067074480
+    },
+    {
+      "Name": "ZwOpenPrivateNamespace",
+      "Hash": 2523737680,
+      "SyscallNumber": 296,
+      "Address": 140736067074512
+    },
+    {
+      "Name": "NtOpenPrivateNamespace",
+      "Hash": 1127399233,
+      "SyscallNumber": 296,
+      "Address": 140736067074512
+    },
+    {
+      "Name": "NtOpenProcessToken",
+      "Hash": 890096281,
+      "SyscallNumber": 297,
+      "Address": 140736067074544
+    },
+    {
+      "Name": "ZwOpenProcessToken",
+      "Hash": 379914792,
+      "SyscallNumber": 297,
+      "Address": 140736067074544
+    },
+    {
+      "Name": "NtOpenRegistryTransaction",
+      "Hash": 3424790616,
+      "SyscallNumber": 298,
+      "Address": 140736067074576
+    },
+    {
+      "Name": "ZwOpenRegistryTransaction",
+      "Hash": 1241673991,
+      "SyscallNumber": 298,
+      "Address": 140736067074576
+    },
+    {
+      "Name": "NtOpenResourceManager",
+      "Hash": 4087939484,
+      "SyscallNumber": 299,
+      "Address": 140736067074608
+    },
+    {
+      "Name": "ZwOpenResourceManager",
+      "Hash": 616188619,
+      "SyscallNumber": 299,
+      "Address": 140736067074608
+    },
+    {
+      "Name": "NtOpenSemaphore",
+      "Hash": 4166833437,
+      "SyscallNumber": 300,
+      "Address": 140736067074640
+    },
+    {
+      "Name": "ZwOpenSemaphore",
+      "Hash": 1366730508,
+      "SyscallNumber": 300,
+      "Address": 140736067074640
+    },
+    {
+      "Name": "NtOpenSession",
+      "Hash": 342873533,
+      "SyscallNumber": 301,
+      "Address": 140736067074672
+    },
+    {
+      "Name": "ZwOpenSession",
+      "Hash": 1606311916,
+      "SyscallNumber": 301,
+      "Address": 140736067074672
+    },
+    {
+      "Name": "NtOpenSymbolicLinkObject",
+      "Hash": 578130080,
+      "SyscallNumber": 302,
+      "Address": 140736067074704
+    },
+    {
+      "Name": "ZwOpenSymbolicLinkObject",
+      "Hash": 772276079,
+      "SyscallNumber": 302,
+      "Address": 140736067074704
+    },
+    {
+      "Name": "NtOpenThread",
+      "Hash": 2525891761,
+      "SyscallNumber": 303,
+      "Address": 140736067074736
+    },
+    {
+      "Name": "ZwOpenThread",
+      "Hash": 1913425152,
+      "SyscallNumber": 303,
+      "Address": 140736067074736
+    },
+    {
+      "Name": "ZwOpenTimer",
+      "Hash": 1880120425,
+      "SyscallNumber": 304,
+      "Address": 140736067074768
+    },
+    {
+      "Name": "NtOpenTimer",
+      "Hash": 597174778,
+      "SyscallNumber": 304,
+      "Address": 140736067074768
+    },
+    {
+      "Name": "ZwOpenTransaction",
+      "Hash": 2733103470,
+      "SyscallNumber": 305,
+      "Address": 140736067074800
+    },
+    {
+      "Name": "NtOpenTransaction",
+      "Hash": 2618412991,
+      "SyscallNumber": 305,
+      "Address": 140736067074800
+    },
+    {
+      "Name": "NtOpenTransactionManager",
+      "Hash": 2210180346,
+      "SyscallNumber": 306,
+      "Address": 140736067074832
+    },
+    {
+      "Name": "ZwOpenTransactionManager",
+      "Hash": 2404326345,
+      "SyscallNumber": 306,
+      "Address": 140736067074832
+    },
+    {
+      "Name": "ZwPlugPlayControl",
+      "Hash": 1130689925,
+      "SyscallNumber": 307,
+      "Address": 140736067074864
+    },
+    {
+      "Name": "NtPlugPlayControl",
+      "Hash": 1015999446,
+      "SyscallNumber": 307,
+      "Address": 140736067074864
+    },
+    {
+      "Name": "ZwPrePrepareComplete",
+      "Hash": 3485366245,
+      "SyscallNumber": 308,
+      "Address": 140736067074896
+    },
+    {
+      "Name": "NtPrePrepareComplete",
+      "Hash": 727259286,
+      "SyscallNumber": 308,
+      "Address": 140736067074896
+    },
+    {
+      "Name": "NtPrePrepareEnlistment",
+      "Hash": 65046752,
+      "SyscallNumber": 309,
+      "Address": 140736067074928
+    },
+    {
+      "Name": "ZwPrePrepareEnlistment",
+      "Hash": 1461385199,
+      "SyscallNumber": 309,
+      "Address": 140736067074928
+    },
+    {
+      "Name": "NtPrepareComplete",
+      "Hash": 3321386415,
+      "SyscallNumber": 310,
+      "Address": 140736067074960
+    },
+    {
+      "Name": "ZwPrepareComplete",
+      "Hash": 3436076894,
+      "SyscallNumber": 310,
+      "Address": 140736067074960
+    },
+    {
+      "Name": "ZwPrepareEnlistment",
+      "Hash": 3619856808,
+      "SyscallNumber": 311,
+      "Address": 140736067074992
+    },
+    {
+      "Name": "NtPrepareEnlistment",
+      "Hash": 3275976761,
+      "SyscallNumber": 311,
+      "Address": 140736067074992
+    },
+    {
+      "Name": "ZwPrivilegeCheck",
+      "Hash": 2713837211,
+      "SyscallNumber": 312,
+      "Address": 140736067075024
+    },
+    {
+      "Name": "NtPrivilegeCheck",
+      "Hash": 627953356,
+      "SyscallNumber": 312,
+      "Address": 140736067075024
+    },
+    {
+      "Name": "ZwPrivilegeObjectAuditAlarm",
+      "Hash": 128070776,
+      "SyscallNumber": 313,
+      "Address": 140736067075056
+    },
+    {
+      "Name": "NtPrivilegeObjectAuditAlarm",
+      "Hash": 2425160713,
+      "SyscallNumber": 313,
+      "Address": 140736067075056
+    },
+    {
+      "Name": "NtPrivilegedServiceAuditAlarm",
+      "Hash": 2748568231,
+      "SyscallNumber": 314,
+      "Address": 140736067075088
+    },
+    {
+      "Name": "ZwPrivilegedServiceAuditAlarm",
+      "Hash": 888593110,
+      "SyscallNumber": 314,
+      "Address": 140736067075088
+    },
+    {
+      "Name": "NtPropagationComplete",
+      "Hash": 3874140068,
+      "SyscallNumber": 315,
+      "Address": 140736067075120
+    },
+    {
+      "Name": "ZwPropagationComplete",
+      "Hash": 402389203,
+      "SyscallNumber": 315,
+      "Address": 140736067075120
+    },
+    {
+      "Name": "ZwPropagationFailed",
+      "Hash": 617682591,
+      "SyscallNumber": 316,
+      "Address": 140736067075152
+    },
+    {
+      "Name": "NtPropagationFailed",
+      "Hash": 273802544,
+      "SyscallNumber": 316,
+      "Address": 140736067075152
+    },
+    {
+      "Name": "NtPssCaptureVaSpaceBulk",
+      "Hash": 2396902594,
+      "SyscallNumber": 317,
+      "Address": 140736067075184
+    },
+    {
+      "Name": "ZwPssCaptureVaSpaceBulk",
+      "Hash": 1231431089,
+      "SyscallNumber": 317,
+      "Address": 140736067075184
+    },
+    {
+      "Name": "ZwPulseEvent",
+      "Hash": 2416172385,
+      "SyscallNumber": 318,
+      "Address": 140736067075216
+    },
+    {
+      "Name": "NtPulseEvent",
+      "Hash": 3028638994,
+      "SyscallNumber": 318,
+      "Address": 140736067075216
+    },
+    {
+      "Name": "ZwQueryAuxiliaryCounterFrequency",
+      "Hash": 3653461686,
+      "SyscallNumber": 319,
+      "Address": 140736067075248
+    },
+    {
+      "Name": "NtQueryAuxiliaryCounterFrequency",
+      "Hash": 3003357415,
+      "SyscallNumber": 319,
+      "Address": 140736067075248
+    },
+    {
+      "Name": "ZwQueryBootEntryOrder",
+      "Hash": 3182568494,
+      "SyscallNumber": 320,
+      "Address": 140736067075280
+    },
+    {
+      "Name": "NtQueryBootEntryOrder",
+      "Hash": 2359352063,
+      "SyscallNumber": 320,
+      "Address": 140736067075280
+    },
+    {
+      "Name": "NtQueryBootOptions",
+      "Hash": 820082109,
+      "SyscallNumber": 321,
+      "Address": 140736067075312
+    },
+    {
+      "Name": "ZwQueryBootOptions",
+      "Hash": 309900620,
+      "SyscallNumber": 321,
+      "Address": 140736067075312
+    },
+    {
+      "Name": "NtQueryDebugFilterState",
+      "Hash": 4004104107,
+      "SyscallNumber": 322,
+      "Address": 140736067075344
+    },
+    {
+      "Name": "ZwQueryDebugFilterState",
+      "Hash": 2838632602,
+      "SyscallNumber": 322,
+      "Address": 140736067075344
+    },
+    {
+      "Name": "ZwQueryDirectoryFileEx",
+      "Hash": 408530494,
+      "SyscallNumber": 323,
+      "Address": 140736067075376
+    },
+    {
+      "Name": "NtQueryDirectoryFileEx",
+      "Hash": 3307159343,
+      "SyscallNumber": 323,
+      "Address": 140736067075376
+    },
+    {
+      "Name": "NtQueryDirectoryObject",
+      "Hash": 3651004489,
+      "SyscallNumber": 324,
+      "Address": 140736067075408
+    },
+    {
+      "Name": "ZwQueryDirectoryObject",
+      "Hash": 752375640,
+      "SyscallNumber": 324,
+      "Address": 140736067075408
+    },
+    {
+      "Name": "NtQueryDriverEntryOrder",
+      "Hash": 3614120823,
+      "SyscallNumber": 325,
+      "Address": 140736067075440
+    },
+    {
+      "Name": "ZwQueryDriverEntryOrder",
+      "Hash": 2448649318,
+      "SyscallNumber": 325,
+      "Address": 140736067075440
+    },
+    {
+      "Name": "NtQueryEaFile",
+      "Hash": 2968910723,
+      "SyscallNumber": 326,
+      "Address": 140736067075472
+    },
+    {
+      "Name": "ZwQueryEaFile",
+      "Hash": 4232349106,
+      "SyscallNumber": 326,
+      "Address": 140736067075472
+    },
+    {
+      "Name": "NtQueryFullAttributesFile",
+      "Hash": 2600386839,
+      "SyscallNumber": 327,
+      "Address": 140736067075504
+    },
+    {
+      "Name": "ZwQueryFullAttributesFile",
+      "Hash": 417270214,
+      "SyscallNumber": 327,
+      "Address": 140736067075504
+    },
+    {
+      "Name": "NtQueryInformationAtom",
+      "Hash": 3260821364,
+      "SyscallNumber": 328,
+      "Address": 140736067075536
+    },
+    {
+      "Name": "ZwQueryInformationAtom",
+      "Hash": 362192515,
+      "SyscallNumber": 328,
+      "Address": 140736067075536
+    },
+    {
+      "Name": "NtQueryInformationByName",
+      "Hash": 3436497503,
+      "SyscallNumber": 329,
+      "Address": 140736067075568
+    },
+    {
+      "Name": "ZwQueryInformationByName",
+      "Hash": 3630643502,
+      "SyscallNumber": 329,
+      "Address": 140736067075568
+    },
+    {
+      "Name": "NtQueryInformationEnlistment",
+      "Hash": 238011110,
+      "SyscallNumber": 330,
+      "Address": 140736067075600
+    },
+    {
+      "Name": "ZwQueryInformationEnlistment",
+      "Hash": 1743454517,
+      "SyscallNumber": 330,
+      "Address": 140736067075600
+    },
+    {
+      "Name": "NtQueryInformationJobObject",
+      "Hash": 3905427413,
+      "SyscallNumber": 331,
+      "Address": 140736067075632
+    },
+    {
+      "Name": "ZwQueryInformationJobObject",
+      "Hash": 1608337476,
+      "SyscallNumber": 331,
+      "Address": 140736067075632
+    },
+    {
+      "Name": "ZwQueryInformationPort",
+      "Hash": 362726231,
+      "SyscallNumber": 332,
+      "Address": 140736067075664
+    },
+    {
+      "Name": "NtQueryInformationPort",
+      "Hash": 3261355080,
+      "SyscallNumber": 332,
+      "Address": 140736067075664
+    },
+    {
+      "Name": "NtQueryInformationResourceManager",
+      "Hash": 1839952454,
+      "SyscallNumber": 333,
+      "Address": 140736067075696
+    },
+    {
+      "Name": "ZwQueryInformationResourceManager",
+      "Hash": 1818556917,
+      "SyscallNumber": 333,
+      "Address": 140736067075696
+    },
+    {
+      "Name": "NtQueryInformationTransaction",
+      "Hash": 598899561,
+      "SyscallNumber": 334,
+      "Address": 140736067075728
+    },
+    {
+      "Name": "ZwQueryInformationTransaction",
+      "Hash": 3033891736,
+      "SyscallNumber": 334,
+      "Address": 140736067075728
+    },
+    {
+      "Name": "NtQueryInformationTransactionManager",
+      "Hash": 340153700,
+      "SyscallNumber": 335,
+      "Address": 140736067075760
+    },
+    {
+      "Name": "ZwQueryInformationTransactionManager",
+      "Hash": 247886515,
+      "SyscallNumber": 335,
+      "Address": 140736067075760
+    },
+    {
+      "Name": "NtQueryInformationWorkerFactory",
+      "Hash": 273560885,
+      "SyscallNumber": 336,
+      "Address": 140736067075792
+    },
+    {
+      "Name": "ZwQueryInformationWorkerFactory",
+      "Hash": 1985217828,
+      "SyscallNumber": 336,
+      "Address": 140736067075792
+    },
+    {
+      "Name": "ZwQueryInstallUILanguage",
+      "Hash": 21870597,
+      "SyscallNumber": 337,
+      "Address": 140736067075824
+    },
+    {
+      "Name": "NtQueryInstallUILanguage",
+      "Hash": 4122691894,
+      "SyscallNumber": 337,
+      "Address": 140736067075824
+    },
+    {
+      "Name": "ZwQueryIntervalProfile",
+      "Hash": 1736686402,
+      "SyscallNumber": 338,
+      "Address": 140736067075856
+    },
+    {
+      "Name": "NtQueryIntervalProfile",
+      "Hash": 340347955,
+      "SyscallNumber": 338,
+      "Address": 140736067075856
+    },
+    {
+      "Name": "ZwQueryIoCompletion",
+      "Hash": 1440170366,
+      "SyscallNumber": 339,
+      "Address": 140736067075888
+    },
+    {
+      "Name": "NtQueryIoCompletion",
+      "Hash": 1096290319,
+      "SyscallNumber": 339,
+      "Address": 140736067075888
+    },
+    {
+      "Name": "NtQueryLicenseValue",
+      "Hash": 3945738301,
+      "SyscallNumber": 340,
+      "Address": 140736067075920
+    },
+    {
+      "Name": "ZwQueryLicenseValue",
+      "Hash": 4289618348,
+      "SyscallNumber": 340,
+      "Address": 140736067075920
+    },
+    {
+      "Name": "ZwQueryMultipleValueKey",
+      "Hash": 1470156542,
+      "SyscallNumber": 341,
+      "Address": 140736067075952
+    },
+    {
+      "Name": "NtQueryMultipleValueKey",
+      "Hash": 2635628047,
+      "SyscallNumber": 341,
+      "Address": 140736067075952
+    },
+    {
+      "Name": "NtQueryMutant",
+      "Hash": 3306206774,
+      "SyscallNumber": 342,
+      "Address": 140736067075984
+    },
+    {
+      "Name": "ZwQueryMutant",
+      "Hash": 274677861,
+      "SyscallNumber": 342,
+      "Address": 140736067075984
+    },
+    {
+      "Name": "NtQueryOpenSubKeys",
+      "Hash": 579324053,
+      "SyscallNumber": 343,
+      "Address": 140736067076016
+    },
+    {
+      "Name": "ZwQueryOpenSubKeys",
+      "Hash": 69142564,
+      "SyscallNumber": 343,
+      "Address": 140736067076016
+    },
+    {
+      "Name": "NtQueryOpenSubKeysEx",
+      "Hash": 3818670866,
+      "SyscallNumber": 344,
+      "Address": 140736067076048
+    },
+    {
+      "Name": "ZwQueryOpenSubKeysEx",
+      "Hash": 2281810529,
+      "SyscallNumber": 344,
+      "Address": 140736067076048
+    },
+    {
+      "Name": "ZwQueryPortInformationProcess",
+      "Hash": 3851027702,
+      "SyscallNumber": 345,
+      "Address": 140736067076080
+    },
+    {
+      "Name": "NtQueryPortInformationProcess",
+      "Hash": 1416035527,
+      "SyscallNumber": 345,
+      "Address": 140736067076080
+    },
+    {
+      "Name": "NtQueryQuotaInformationFile",
+      "Hash": 4257595181,
+      "SyscallNumber": 346,
+      "Address": 140736067076112
+    },
+    {
+      "Name": "ZwQueryQuotaInformationFile",
+      "Hash": 1960505244,
+      "SyscallNumber": 346,
+      "Address": 140736067076112
+    },
+    {
+      "Name": "NtQuerySecurityAttributesToken",
+      "Hash": 4122321341,
+      "SyscallNumber": 347,
+      "Address": 140736067076144
+    },
+    {
+      "Name": "ZwQuerySecurityAttributesToken",
+      "Hash": 2872684492,
+      "SyscallNumber": 347,
+      "Address": 140736067076144
+    },
+    {
+      "Name": "NtQuerySecurityObject",
+      "Hash": 2362590060,
+      "SyscallNumber": 348,
+      "Address": 140736067076176
+    },
+    {
+      "Name": "ZwQuerySecurityObject",
+      "Hash": 3185806491,
+      "SyscallNumber": 348,
+      "Address": 140736067076176
+    },
+    {
+      "Name": "ZwQuerySecurityPolicy",
+      "Hash": 3240435092,
+      "SyscallNumber": 349,
+      "Address": 140736067076208
+    },
+    {
+      "Name": "NtQuerySecurityPolicy",
+      "Hash": 2417218661,
+      "SyscallNumber": 349,
+      "Address": 140736067076208
+    },
+    {
+      "Name": "ZwQuerySemaphore",
+      "Hash": 660818000,
+      "SyscallNumber": 350,
+      "Address": 140736067076240
+    },
+    {
+      "Name": "NtQuerySemaphore",
+      "Hash": 2869901441,
+      "SyscallNumber": 350,
+      "Address": 140736067076240
+    },
+    {
+      "Name": "ZwQuerySymbolicLinkObject",
+      "Hash": 629689651,
+      "SyscallNumber": 351,
+      "Address": 140736067076272
+    },
+    {
+      "Name": "NtQuerySymbolicLinkObject",
+      "Hash": 2812806276,
+      "SyscallNumber": 351,
+      "Address": 140736067076272
+    },
+    {
+      "Name": "ZwQuerySystemEnvironmentValue",
+      "Hash": 3599124483,
+      "SyscallNumber": 352,
+      "Address": 140736067076304
+    },
+    {
+      "Name": "NtQuerySystemEnvironmentValue",
+      "Hash": 1164132308,
+      "SyscallNumber": 352,
+      "Address": 140736067076304
+    },
+    {
+      "Name": "ZwQuerySystemEnvironmentValueEx",
+      "Hash": 2436390400,
+      "SyscallNumber": 353,
+      "Address": 140736067076336
+    },
+    {
+      "Name": "NtQuerySystemEnvironmentValueEx",
+      "Hash": 724733457,
+      "SyscallNumber": 353,
+      "Address": 140736067076336
+    },
+    {
+      "Name": "ZwQuerySystemInformationEx",
+      "Hash": 2938014452,
+      "SyscallNumber": 354,
+      "Address": 140736067076368
+    },
+    {
+      "Name": "NtQuerySystemInformationEx",
+      "Hash": 1966419045,
+      "SyscallNumber": 354,
+      "Address": 140736067076368
+    },
+    {
+      "Name": "ZwQueryTimerResolution",
+      "Hash": 4106908097,
+      "SyscallNumber": 355,
+      "Address": 140736067076400
+    },
+    {
+      "Name": "NtQueryTimerResolution",
+      "Hash": 2710569650,
+      "SyscallNumber": 355,
+      "Address": 140736067076400
+    },
+    {
+      "Name": "NtQueryWnfStateData",
+      "Hash": 1293913571,
+      "SyscallNumber": 356,
+      "Address": 140736067076432
+    },
+    {
+      "Name": "ZwQueryWnfStateData",
+      "Hash": 1637793618,
+      "SyscallNumber": 356,
+      "Address": 140736067076432
+    },
+    {
+      "Name": "NtQueryWnfStateNameInformation",
+      "Hash": 1283681712,
+      "SyscallNumber": 357,
+      "Address": 140736067076464
+    },
+    {
+      "Name": "ZwQueryWnfStateNameInformation",
+      "Hash": 34044863,
+      "SyscallNumber": 357,
+      "Address": 140736067076464
+    },
+    {
+      "Name": "NtQueueApcThreadEx",
+      "Hash": 1033010165,
+      "SyscallNumber": 358,
+      "Address": 140736067076496
+    },
+    {
+      "Name": "ZwQueueApcThreadEx",
+      "Hash": 522828676,
+      "SyscallNumber": 358,
+      "Address": 140736067076496
+    },
+    {
+      "Name": "NtQueueApcThreadEx2",
+      "Hash": 4024564423,
+      "SyscallNumber": 359,
+      "Address": 140736067076528
+    },
+    {
+      "Name": "ZwQueueApcThreadEx2",
+      "Hash": 73477174,
+      "SyscallNumber": 359,
+      "Address": 140736067076528
+    },
+    {
+      "Name": "NtRaiseException",
+      "Hash": 3705857162,
+      "SyscallNumber": 360,
+      "Address": 140736067076560
+    },
+    {
+      "Name": "ZwRaiseException",
+      "Hash": 1496773721,
+      "SyscallNumber": 360,
+      "Address": 140736067076560
+    },
+    {
+      "Name": "NtRaiseHardError",
+      "Hash": 2147122692,
+      "SyscallNumber": 361,
+      "Address": 140736067076592
+    },
+    {
+      "Name": "ZwRaiseHardError",
+      "Hash": 4233006547,
+      "SyscallNumber": 361,
+      "Address": 140736067076592
+    },
+    {
+      "Name": "NtReadOnlyEnlistment",
+      "Hash": 38986408,
+      "SyscallNumber": 362,
+      "Address": 140736067076624
+    },
+    {
+      "Name": "ZwReadOnlyEnlistment",
+      "Hash": 2797093367,
+      "SyscallNumber": 362,
+      "Address": 140736067076624
+    },
+    {
+      "Name": "NtRecoverEnlistment",
+      "Hash": 2493149344,
+      "SyscallNumber": 363,
+      "Address": 140736067076656
+    },
+    {
+      "Name": "ZwRecoverEnlistment",
+      "Hash": 2837029391,
+      "SyscallNumber": 363,
+      "Address": 140736067076656
+    },
+    {
+      "Name": "NtRecoverResourceManager",
+      "Hash": 3299460160,
+      "SyscallNumber": 364,
+      "Address": 140736067076688
+    },
+    {
+      "Name": "ZwRecoverResourceManager",
+      "Hash": 3493606159,
+      "SyscallNumber": 364,
+      "Address": 140736067076688
+    },
+    {
+      "Name": "NtRecoverTransactionManager",
+      "Hash": 527965470,
+      "SyscallNumber": 365,
+      "Address": 140736067076720
+    },
+    {
+      "Name": "ZwRecoverTransactionManager",
+      "Hash": 2525842829,
+      "SyscallNumber": 365,
+      "Address": 140736067076720
+    },
+    {
+      "Name": "NtRegisterProtocolAddressInformation",
+      "Hash": 231984458,
+      "SyscallNumber": 366,
+      "Address": 140736067076752
+    },
+    {
+      "Name": "ZwRegisterProtocolAddressInformation",
+      "Hash": 139717273,
+      "SyscallNumber": 366,
+      "Address": 140736067076752
+    },
+    {
+      "Name": "NtRegisterThreadTerminatePort",
+      "Hash": 1468997618,
+      "SyscallNumber": 367,
+      "Address": 140736067076784
+    },
+    {
+      "Name": "ZwRegisterThreadTerminatePort",
+      "Hash": 3903989793,
+      "SyscallNumber": 367,
+      "Address": 140736067076784
+    },
+    {
+      "Name": "ZwReleaseKeyedEvent",
+      "Hash": 573490571,
+      "SyscallNumber": 368,
+      "Address": 140736067076816
+    },
+    {
+      "Name": "NtReleaseKeyedEvent",
+      "Hash": 229610524,
+      "SyscallNumber": 368,
+      "Address": 140736067076816
+    },
+    {
+      "Name": "NtReleaseWorkerFactoryWorker",
+      "Hash": 2952993044,
+      "SyscallNumber": 369,
+      "Address": 140736067076848
+    },
+    {
+      "Name": "ZwReleaseWorkerFactoryWorker",
+      "Hash": 163469155,
+      "SyscallNumber": 369,
+      "Address": 140736067076848
+    },
+    {
+      "Name": "NtRemoveIoCompletionEx",
+      "Hash": 2525288804,
+      "SyscallNumber": 370,
+      "Address": 140736067076880
+    },
+    {
+      "Name": "ZwRemoveIoCompletionEx",
+      "Hash": 3921627251,
+      "SyscallNumber": 370,
+      "Address": 140736067076880
+    },
+    {
+      "Name": "NtRemoveProcessDebug",
+      "Hash": 1031112123,
+      "SyscallNumber": 371,
+      "Address": 140736067076912
+    },
+    {
+      "Name": "ZwRemoveProcessDebug",
+      "Hash": 3789219082,
+      "SyscallNumber": 371,
+      "Address": 140736067076912
+    },
+    {
+      "Name": "NtRenameKey",
+      "Hash": 4029777000,
+      "SyscallNumber": 372,
+      "Address": 140736067076944
+    },
+    {
+      "Name": "ZwRenameKey",
+      "Hash": 1017755351,
+      "SyscallNumber": 372,
+      "Address": 140736067076944
+    },
+    {
+      "Name": "NtRenameTransactionManager",
+      "Hash": 3303408480,
+      "SyscallNumber": 373,
+      "Address": 140736067076976
+    },
+    {
+      "Name": "ZwRenameTransactionManager",
+      "Hash": 4275003887,
+      "SyscallNumber": 373,
+      "Address": 140736067076976
+    },
+    {
+      "Name": "NtReplaceKey",
+      "Hash": 25234412,
+      "SyscallNumber": 374,
+      "Address": 140736067077008
+    },
+    {
+      "Name": "ZwReplaceKey",
+      "Hash": 3707735099,
+      "SyscallNumber": 374,
+      "Address": 140736067077008
+    },
+    {
+      "Name": "NtReplacePartitionUnit",
+      "Hash": 1768595421,
+      "SyscallNumber": 375,
+      "Address": 140736067077040
+    },
+    {
+      "Name": "ZwReplacePartitionUnit",
+      "Hash": 3164933868,
+      "SyscallNumber": 375,
+      "Address": 140736067077040
+    },
+    {
+      "Name": "ZwReplyWaitReplyPort",
+      "Hash": 3326964008,
+      "SyscallNumber": 376,
+      "Address": 140736067077072
+    },
+    {
+      "Name": "NtReplyWaitReplyPort",
+      "Hash": 568857049,
+      "SyscallNumber": 376,
+      "Address": 140736067077072
+    },
+    {
+      "Name": "ZwRequestPort",
+      "Hash": 2584466692,
+      "SyscallNumber": 377,
+      "Address": 140736067077104
+    },
+    {
+      "Name": "NtRequestPort",
+      "Hash": 1321028309,
+      "SyscallNumber": 377,
+      "Address": 140736067077104
+    },
+    {
+      "Name": "ZwResetEvent",
+      "Hash": 3010252955,
+      "SyscallNumber": 378,
+      "Address": 140736067077136
+    },
+    {
+      "Name": "NtResetEvent",
+      "Hash": 3622719564,
+      "SyscallNumber": 378,
+      "Address": 140736067077136
+    },
+    {
+      "Name": "NtResetWriteWatch",
+      "Hash": 598185324,
+      "SyscallNumber": 379,
+      "Address": 140736067077168
+    },
+    {
+      "Name": "ZwResetWriteWatch",
+      "Hash": 712875803,
+      "SyscallNumber": 379,
+      "Address": 140736067077168
+    },
+    {
+      "Name": "NtRestoreKey",
+      "Hash": 1339037940,
+      "SyscallNumber": 380,
+      "Address": 140736067077200
+    },
+    {
+      "Name": "ZwRestoreKey",
+      "Hash": 726571331,
+      "SyscallNumber": 380,
+      "Address": 140736067077200
+    },
+    {
+      "Name": "NtResumeProcess",
+      "Hash": 2264371735,
+      "SyscallNumber": 381,
+      "Address": 140736067077232
+    },
+    {
+      "Name": "ZwResumeProcess",
+      "Hash": 3759236102,
+      "SyscallNumber": 381,
+      "Address": 140736067077232
+    },
+    {
+      "Name": "NtRevertContainerImpersonation",
+      "Hash": 1203012810,
+      "SyscallNumber": 382,
+      "Address": 140736067077264
+    },
+    {
+      "Name": "ZwRevertContainerImpersonation",
+      "Hash": 4248343257,
+      "SyscallNumber": 382,
+      "Address": 140736067077264
+    },
+    {
+      "Name": "NtRollbackComplete",
+      "Hash": 2258711914,
+      "SyscallNumber": 383,
+      "Address": 140736067077296
+    },
+    {
+      "Name": "ZwRollbackComplete",
+      "Hash": 1748530425,
+      "SyscallNumber": 383,
+      "Address": 140736067077296
+    },
+    {
+      "Name": "ZwRollbackEnlistment",
+      "Hash": 4127754755,
+      "SyscallNumber": 384,
+      "Address": 140736067077328
+    },
+    {
+      "Name": "NtRollbackEnlistment",
+      "Hash": 1369647796,
+      "SyscallNumber": 384,
+      "Address": 140736067077328
+    },
+    {
+      "Name": "NtRollbackRegistryTransaction",
+      "Hash": 3281579408,
+      "SyscallNumber": 385,
+      "Address": 140736067077360
+    },
+    {
+      "Name": "ZwRollbackRegistryTransaction",
+      "Hash": 1421604287,
+      "SyscallNumber": 385,
+      "Address": 140736067077360
+    },
+    {
+      "Name": "ZwRollbackTransaction",
+      "Hash": 111420966,
+      "SyscallNumber": 386,
+      "Address": 140736067077392
+    },
+    {
+      "Name": "NtRollbackTransaction",
+      "Hash": 3583171831,
+      "SyscallNumber": 386,
+      "Address": 140736067077392
+    },
+    {
+      "Name": "NtRollforwardTransactionManager",
+      "Hash": 4119590358,
+      "SyscallNumber": 387,
+      "Address": 140736067077424
+    },
+    {
+      "Name": "ZwRollforwardTransactionManager",
+      "Hash": 1536280005,
+      "SyscallNumber": 387,
+      "Address": 140736067077424
+    },
+    {
+      "Name": "NtSaveKey",
+      "Hash": 2292002815,
+      "SyscallNumber": 388,
+      "Address": 140736067077456
+    },
+    {
+      "Name": "ZwSaveKey",
+      "Hash": 3275225774,
+      "SyscallNumber": 388,
+      "Address": 140736067077456
+    },
+    {
+      "Name": "NtSaveKeyEx",
+      "Hash": 615068924,
+      "SyscallNumber": 389,
+      "Address": 140736067077488
+    },
+    {
+      "Name": "ZwSaveKeyEx",
+      "Hash": 1898014571,
+      "SyscallNumber": 389,
+      "Address": 140736067077488
+    },
+    {
+      "Name": "NtSaveMergedKeys",
+      "Hash": 323046438,
+      "SyscallNumber": 390,
+      "Address": 140736067077520
+    },
+    {
+      "Name": "ZwSaveMergedKeys",
+      "Hash": 2408930293,
+      "SyscallNumber": 390,
+      "Address": 140736067077520
+    },
+    {
+      "Name": "NtSecureConnectPort",
+      "Hash": 616468413,
+      "SyscallNumber": 391,
+      "Address": 140736067077552
+    },
+    {
+      "Name": "ZwSecureConnectPort",
+      "Hash": 960348460,
+      "SyscallNumber": 391,
+      "Address": 140736067077552
+    },
+    {
+      "Name": "NtSerializeBoot",
+      "Hash": 395240259,
+      "SyscallNumber": 392,
+      "Address": 140736067077584
+    },
+    {
+      "Name": "ZwSerializeBoot",
+      "Hash": 1890104626,
+      "SyscallNumber": 392,
+      "Address": 140736067077584
+    },
+    {
+      "Name": "NtSetBootEntryOrder",
+      "Hash": 3927144597,
+      "SyscallNumber": 393,
+      "Address": 140736067077616
+    },
+    {
+      "Name": "ZwSetBootEntryOrder",
+      "Hash": 4271024644,
+      "SyscallNumber": 393,
+      "Address": 140736067077616
+    },
+    {
+      "Name": "NtSetBootOptions",
+      "Hash": 1322322707,
+      "SyscallNumber": 394,
+      "Address": 140736067077648
+    },
+    {
+      "Name": "ZwSetBootOptions",
+      "Hash": 3408206562,
+      "SyscallNumber": 394,
+      "Address": 140736067077648
+    },
+    {
+      "Name": "NtSetCachedSigningLevel",
+      "Hash": 3986736018,
+      "SyscallNumber": 395,
+      "Address": 140736067077680
+    },
+    {
+      "Name": "ZwSetCachedSigningLevel",
+      "Hash": 2821264513,
+      "SyscallNumber": 395,
+      "Address": 140736067077680
+    },
+    {
+      "Name": "NtSetCachedSigningLevel2",
+      "Hash": 2713269764,
+      "SyscallNumber": 396,
+      "Address": 140736067077712
+    },
+    {
+      "Name": "ZwSetCachedSigningLevel2",
+      "Hash": 2907415763,
+      "SyscallNumber": 396,
+      "Address": 140736067077712
+    },
+    {
+      "Name": "NtSetContextThread",
+      "Hash": 4288724752,
+      "SyscallNumber": 397,
+      "Address": 140736067077744
+    },
+    {
+      "Name": "ZwSetContextThread",
+      "Hash": 3778543263,
+      "SyscallNumber": 397,
+      "Address": 140736067077744
+    },
+    {
+      "Name": "NtSetDebugFilterState",
+      "Hash": 1933189825,
+      "SyscallNumber": 398,
+      "Address": 140736067077776
+    },
+    {
+      "Name": "ZwSetDebugFilterState",
+      "Hash": 2756406256,
+      "SyscallNumber": 398,
+      "Address": 140736067077776
+    },
+    {
+      "Name": "ZwSetDefaultHardErrorPort",
+      "Hash": 1157230869,
+      "SyscallNumber": 399,
+      "Address": 140736067077808
+    },
+    {
+      "Name": "NtSetDefaultHardErrorPort",
+      "Hash": 3340347494,
+      "SyscallNumber": 399,
+      "Address": 140736067077808
+    },
+    {
+      "Name": "NtSetDefaultLocale",
+      "Hash": 273540616,
+      "SyscallNumber": 400,
+      "Address": 140736067077840
+    },
+    {
+      "Name": "ZwSetDefaultLocale",
+      "Hash": 4058326423,
+      "SyscallNumber": 400,
+      "Address": 140736067077840
+    },
+    {
+      "Name": "ZwSetDefaultUILanguage",
+      "Hash": 3244246409,
+      "SyscallNumber": 401,
+      "Address": 140736067077872
+    },
+    {
+      "Name": "NtSetDefaultUILanguage",
+      "Hash": 1847907962,
+      "SyscallNumber": 401,
+      "Address": 140736067077872
+    },
+    {
+      "Name": "NtSetDriverEntryOrder",
+      "Hash": 1543206541,
+      "SyscallNumber": 402,
+      "Address": 140736067077904
+    },
+    {
+      "Name": "ZwSetDriverEntryOrder",
+      "Hash": 2366422972,
+      "SyscallNumber": 402,
+      "Address": 140736067077904
+    },
+    {
+      "Name": "NtSetEaFile",
+      "Hash": 990339865,
+      "SyscallNumber": 403,
+      "Address": 140736067077936
+    },
+    {
+      "Name": "ZwSetEaFile",
+      "Hash": 2273285512,
+      "SyscallNumber": 403,
+      "Address": 140736067077936
+    },
+    {
+      "Name": "NtSetHighEventPair",
+      "Hash": 678153345,
+      "SyscallNumber": 404,
+      "Address": 140736067077968
+    },
+    {
+      "Name": "ZwSetHighEventPair",
+      "Hash": 167971856,
+      "SyscallNumber": 404,
+      "Address": 140736067077968
+    },
+    {
+      "Name": "ZwSetHighWaitLowEventPair",
+      "Hash": 157209239,
+      "SyscallNumber": 405,
+      "Address": 140736067078000
+    },
+    {
+      "Name": "NtSetHighWaitLowEventPair",
+      "Hash": 2340325864,
+      "SyscallNumber": 405,
+      "Address": 140736067078000
+    },
+    {
+      "Name": "NtSetIRTimer",
+      "Hash": 4169254799,
+      "SyscallNumber": 406,
+      "Address": 140736067078032
+    },
+    {
+      "Name": "ZwSetIRTimer",
+      "Hash": 3556788190,
+      "SyscallNumber": 406,
+      "Address": 140736067078032
+    },
+    {
+      "Name": "ZwSetInformationDebugObject",
+      "Hash": 3241920710,
+      "SyscallNumber": 407,
+      "Address": 140736067078064
+    },
+    {
+      "Name": "NtSetInformationDebugObject",
+      "Hash": 1244043351,
+      "SyscallNumber": 407,
+      "Address": 140736067078064
+    },
+    {
+      "Name": "ZwSetInformationEnlistment",
+      "Hash": 2674645579,
+      "SyscallNumber": 408,
+      "Address": 140736067078096
+    },
+    {
+      "Name": "NtSetInformationEnlistment",
+      "Hash": 1703050172,
+      "SyscallNumber": 408,
+      "Address": 140736067078096
+    },
+    {
+      "Name": "NtSetInformationJobObject",
+      "Hash": 2778467819,
+      "SyscallNumber": 409,
+      "Address": 140736067078128
+    },
+    {
+      "Name": "ZwSetInformationJobObject",
+      "Hash": 595351194,
+      "SyscallNumber": 409,
+      "Address": 140736067078128
+    },
+    {
+      "Name": "NtSetInformationKey",
+      "Hash": 2447518850,
+      "SyscallNumber": 410,
+      "Address": 140736067078160
+    },
+    {
+      "Name": "ZwSetInformationKey",
+      "Hash": 2791398897,
+      "SyscallNumber": 410,
+      "Address": 140736067078160
+    },
+    {
+      "Name": "NtSetInformationResourceManager",
+      "Hash": 1352736988,
+      "SyscallNumber": 411,
+      "Address": 140736067078192
+    },
+    {
+      "Name": "ZwSetInformationResourceManager",
+      "Hash": 3064393931,
+      "SyscallNumber": 411,
+      "Address": 140736067078192
+    },
+    {
+      "Name": "NtSetInformationSymbolicLink",
+      "Hash": 3937103785,
+      "SyscallNumber": 412,
+      "Address": 140736067078224
+    },
+    {
+      "Name": "ZwSetInformationSymbolicLink",
+      "Hash": 1147579896,
+      "SyscallNumber": 412,
+      "Address": 140736067078224
+    },
+    {
+      "Name": "ZwSetInformationToken",
+      "Hash": 3302540329,
+      "SyscallNumber": 413,
+      "Address": 140736067078256
+    },
+    {
+      "Name": "NtSetInformationToken",
+      "Hash": 2479323898,
+      "SyscallNumber": 413,
+      "Address": 140736067078256
+    },
+    {
+      "Name": "NtSetInformationTransaction",
+      "Hash": 1700548351,
+      "SyscallNumber": 414,
+      "Address": 140736067078288
+    },
+    {
+      "Name": "ZwSetInformationTransaction",
+      "Hash": 3698425710,
+      "SyscallNumber": 414,
+      "Address": 140736067078288
+    },
+    {
+      "Name": "ZwSetInformationTransactionManager",
+      "Hash": 1153565129,
+      "SyscallNumber": 415,
+      "Address": 140736067078320
+    },
+    {
+      "Name": "NtSetInformationTransactionManager",
+      "Hash": 1859617850,
+      "SyscallNumber": 415,
+      "Address": 140736067078320
+    },
+    {
+      "Name": "NtSetInformationVirtualMemory",
+      "Hash": 2490024505,
+      "SyscallNumber": 416,
+      "Address": 140736067078352
+    },
+    {
+      "Name": "ZwSetInformationVirtualMemory",
+      "Hash": 630049384,
+      "SyscallNumber": 416,
+      "Address": 140736067078352
+    },
+    {
+      "Name": "ZwSetInformationWorkerFactory",
+      "Hash": 4108209786,
+      "SyscallNumber": 417,
+      "Address": 140736067078384
+    },
+    {
+      "Name": "NtSetInformationWorkerFactory",
+      "Hash": 1673217611,
+      "SyscallNumber": 417,
+      "Address": 140736067078384
+    },
+    {
+      "Name": "ZwSetIntervalProfile",
+      "Hash": 3296000984,
+      "SyscallNumber": 418,
+      "Address": 140736067078416
+    },
+    {
+      "Name": "NtSetIntervalProfile",
+      "Hash": 537894025,
+      "SyscallNumber": 418,
+      "Address": 140736067078416
+    },
+    {
+      "Name": "NtSetIoCompletion",
+      "Hash": 490360869,
+      "SyscallNumber": 419,
+      "Address": 140736067078448
+    },
+    {
+      "Name": "ZwSetIoCompletion",
+      "Hash": 605051348,
+      "SyscallNumber": 419,
+      "Address": 140736067078448
+    },
+    {
+      "Name": "NtSetIoCompletionEx",
+      "Hash": 1427044002,
+      "SyscallNumber": 420,
+      "Address": 140736067078480
+    },
+    {
+      "Name": "ZwSetIoCompletionEx",
+      "Hash": 1770924049,
+      "SyscallNumber": 420,
+      "Address": 140736067078480
+    },
+    {
+      "Name": "NtSetLdtEntries",
+      "Hash": 2669493105,
+      "SyscallNumber": 421,
+      "Address": 140736067078512
+    },
+    {
+      "Name": "ZwSetLdtEntries",
+      "Hash": 4164357472,
+      "SyscallNumber": 421,
+      "Address": 140736067078512
+    },
+    {
+      "Name": "NtSetLowEventPair",
+      "Hash": 2035458291,
+      "SyscallNumber": 422,
+      "Address": 140736067078544
+    },
+    {
+      "Name": "ZwSetLowEventPair",
+      "Hash": 2150148770,
+      "SyscallNumber": 422,
+      "Address": 140736067078544
+    },
+    {
+      "Name": "NtSetLowWaitHighEventPair",
+      "Hash": 1140456072,
+      "SyscallNumber": 423,
+      "Address": 140736067078576
+    },
+    {
+      "Name": "ZwSetLowWaitHighEventPair",
+      "Hash": 3252306743,
+      "SyscallNumber": 423,
+      "Address": 140736067078576
+    },
+    {
+      "Name": "NtSetQuotaInformationFile",
+      "Hash": 3130635587,
+      "SyscallNumber": 424,
+      "Address": 140736067078608
+    },
+    {
+      "Name": "ZwSetQuotaInformationFile",
+      "Hash": 947518962,
+      "SyscallNumber": 424,
+      "Address": 140736067078608
+    },
+    {
+      "Name": "NtSetSecurityObject",
+      "Hash": 3930382594,
+      "SyscallNumber": 425,
+      "Address": 140736067078640
+    },
+    {
+      "Name": "ZwSetSecurityObject",
+      "Hash": 4274262641,
+      "SyscallNumber": 425,
+      "Address": 140736067078640
+    },
+    {
+      "Name": "NtSetSystemEnvironmentValue",
+      "Hash": 2265781098,
+      "SyscallNumber": 426,
+      "Address": 140736067078672
+    },
+    {
+      "Name": "ZwSetSystemEnvironmentValue",
+      "Hash": 4263658457,
+      "SyscallNumber": 426,
+      "Address": 140736067078672
+    },
+    {
+      "Name": "NtSetSystemEnvironmentValueEx",
+      "Hash": 2124390183,
+      "SyscallNumber": 427,
+      "Address": 140736067078704
+    },
+    {
+      "Name": "ZwSetSystemEnvironmentValueEx",
+      "Hash": 264415062,
+      "SyscallNumber": 427,
+      "Address": 140736067078704
+    },
+    {
+      "Name": "ZwSetSystemInformation",
+      "Hash": 3851970061,
+      "SyscallNumber": 428,
+      "Address": 140736067078736
+    },
+    {
+      "Name": "NtSetSystemInformation",
+      "Hash": 2455631614,
+      "SyscallNumber": 428,
+      "Address": 140736067078736
+    },
+    {
+      "Name": "NtSetSystemPowerState",
+      "Hash": 234339270,
+      "SyscallNumber": 429,
+      "Address": 140736067078768
+    },
+    {
+      "Name": "ZwSetSystemPowerState",
+      "Hash": 1057555701,
+      "SyscallNumber": 429,
+      "Address": 140736067078768
+    },
+    {
+      "Name": "NtSetSystemTime",
+      "Hash": 3397923687,
+      "SyscallNumber": 430,
+      "Address": 140736067078800
+    },
+    {
+      "Name": "ZwSetSystemTime",
+      "Hash": 597820758,
+      "SyscallNumber": 430,
+      "Address": 140736067078800
+    },
+    {
+      "Name": "ZwSetThreadExecutionState",
+      "Hash": 3507801167,
+      "SyscallNumber": 431,
+      "Address": 140736067078832
+    },
+    {
+      "Name": "NtSetThreadExecutionState",
+      "Hash": 1395950496,
+      "SyscallNumber": 431,
+      "Address": 140736067078832
+    },
+    {
+      "Name": "ZwSetTimer2",
+      "Hash": 2870051157,
+      "SyscallNumber": 432,
+      "Address": 140736067078864
+    },
+    {
+      "Name": "NtSetTimer2",
+      "Hash": 1587105510,
+      "SyscallNumber": 432,
+      "Address": 140736067078864
+    },
+    {
+      "Name": "ZwSetTimerEx",
+      "Hash": 222408384,
+      "SyscallNumber": 433,
+      "Address": 140736067078896
+    },
+    {
+      "Name": "NtSetTimerEx",
+      "Hash": 834874993,
+      "SyscallNumber": 433,
+      "Address": 140736067078896
+    },
+    {
+      "Name": "ZwSetTimerResolution",
+      "Hash": 1371255383,
+      "SyscallNumber": 434,
+      "Address": 140736067078928
+    },
+    {
+      "Name": "NtSetTimerResolution",
+      "Hash": 2908115720,
+      "SyscallNumber": 434,
+      "Address": 140736067078928
+    },
+    {
+      "Name": "ZwSetUuidSeed",
+      "Hash": 873333722,
+      "SyscallNumber": 435,
+      "Address": 140736067078960
+    },
+    {
+      "Name": "NtSetUuidSeed",
+      "Hash": 3904862635,
+      "SyscallNumber": 435,
+      "Address": 140736067078960
+    },
+    {
+      "Name": "ZwSetVolumeInformationFile",
+      "Hash": 1867554496,
+      "SyscallNumber": 436,
+      "Address": 140736067078992
+    },
+    {
+      "Name": "NtSetVolumeInformationFile",
+      "Hash": 895959089,
+      "SyscallNumber": 436,
+      "Address": 140736067078992
+    },
+    {
+      "Name": "ZwSetWnfProcessNotificationEvent",
+      "Hash": 589471509,
+      "SyscallNumber": 437,
+      "Address": 140736067079024
+    },
+    {
+      "Name": "NtSetWnfProcessNotificationEvent",
+      "Hash": 4234334534,
+      "SyscallNumber": 437,
+      "Address": 140736067079024
+    },
+    {
+      "Name": "ZwShutdownSystem",
+      "Hash": 2641419543,
+      "SyscallNumber": 438,
+      "Address": 140736067079056
+    },
+    {
+      "Name": "NtShutdownSystem",
+      "Hash": 555535688,
+      "SyscallNumber": 438,
+      "Address": 140736067079056
+    },
+    {
+      "Name": "NtShutdownWorkerFactory",
+      "Hash": 1679271861,
+      "SyscallNumber": 439,
+      "Address": 140736067079088
+    },
+    {
+      "Name": "ZwShutdownWorkerFactory",
+      "Hash": 513800356,
+      "SyscallNumber": 439,
+      "Address": 140736067079088
+    },
+    {
+      "Name": "ZwSignalAndWaitForSingleObject",
+      "Hash": 773605628,
+      "SyscallNumber": 440,
+      "Address": 140736067079120
+    },
+    {
+      "Name": "NtSignalAndWaitForSingleObject",
+      "Hash": 2023242477,
+      "SyscallNumber": 440,
+      "Address": 140736067079120
+    },
+    {
+      "Name": "ZwSinglePhaseReject",
+      "Hash": 3535000326,
+      "SyscallNumber": 441,
+      "Address": 140736067079152
+    },
+    {
+      "Name": "NtSinglePhaseReject",
+      "Hash": 3191120279,
+      "SyscallNumber": 441,
+      "Address": 140736067079152
+    },
+    {
+      "Name": "NtStartProfile",
+      "Hash": 1976926022,
+      "SyscallNumber": 442,
+      "Address": 140736067079184
+    },
+    {
+      "Name": "ZwStartProfile",
+      "Hash": 720719701,
+      "SyscallNumber": 442,
+      "Address": 140736067079184
+    },
+    {
+      "Name": "ZwStopProfile",
+      "Hash": 567305165,
+      "SyscallNumber": 443,
+      "Address": 140736067079216
+    },
+    {
+      "Name": "NtStopProfile",
+      "Hash": 3598834078,
+      "SyscallNumber": 443,
+      "Address": 140736067079216
+    },
+    {
+      "Name": "ZwSubscribeWnfStateChange",
+      "Hash": 4232181482,
+      "SyscallNumber": 444,
+      "Address": 140736067079248
+    },
+    {
+      "Name": "NtSubscribeWnfStateChange",
+      "Hash": 2120330811,
+      "SyscallNumber": 444,
+      "Address": 140736067079248
+    },
+    {
+      "Name": "NtSuspendProcess",
+      "Hash": 1327719496,
+      "SyscallNumber": 445,
+      "Address": 140736067079280
+    },
+    {
+      "Name": "ZwSuspendProcess",
+      "Hash": 3413603351,
+      "SyscallNumber": 445,
+      "Address": 140736067079280
+    },
+    {
+      "Name": "ZwSuspendThread",
+      "Hash": 1029137872,
+      "SyscallNumber": 446,
+      "Address": 140736067079312
+    },
+    {
+      "Name": "NtSuspendThread",
+      "Hash": 3829240801,
+      "SyscallNumber": 446,
+      "Address": 140736067079312
+    },
+    {
+      "Name": "ZwSystemDebugControl",
+      "Hash": 967891811,
+      "SyscallNumber": 447,
+      "Address": 140736067079344
+    },
+    {
+      "Name": "NtSystemDebugControl",
+      "Hash": 2504752148,
+      "SyscallNumber": 447,
+      "Address": 140736067079344
+    },
+    {
+      "Name": "ZwTerminateEnclave",
+      "Hash": 3615987389,
+      "SyscallNumber": 448,
+      "Address": 140736067079376
+    },
+    {
+      "Name": "NtTerminateEnclave",
+      "Hash": 4126168878,
+      "SyscallNumber": 448,
+      "Address": 140736067079376
+    },
+    {
+      "Name": "NtTerminateJobObject",
+      "Hash": 539209378,
+      "SyscallNumber": 449,
+      "Address": 140736067079408
+    },
+    {
+      "Name": "ZwTerminateJobObject",
+      "Hash": 3297316337,
+      "SyscallNumber": 449,
+      "Address": 140736067079408
+    },
+    {
+      "Name": "NtTestAlert",
+      "Hash": 2240426719,
+      "SyscallNumber": 450,
+      "Address": 140736067079440
+    },
+    {
+      "Name": "ZwTestAlert",
+      "Hash": 3523372366,
+      "SyscallNumber": 450,
+      "Address": 140736067079440
+    },
+    {
+      "Name": "NtThawRegistry",
+      "Hash": 1804356404,
+      "SyscallNumber": 451,
+      "Address": 140736067079472
+    },
+    {
+      "Name": "ZwThawRegistry",
+      "Hash": 548150083,
+      "SyscallNumber": 451,
+      "Address": 140736067079472
+    },
+    {
+      "Name": "ZwThawTransactions",
+      "Hash": 509411,
+      "SyscallNumber": 452,
+      "Address": 140736067079504
+    },
+    {
+      "Name": "NtThawTransactions",
+      "Hash": 510690900,
+      "SyscallNumber": 452,
+      "Address": 140736067079504
+    },
+    {
+      "Name": "ZwTraceControl",
+      "Hash": 3058324934,
+      "SyscallNumber": 453,
+      "Address": 140736067079536
+    },
+    {
+      "Name": "NtTraceControl",
+      "Hash": 19563959,
+      "SyscallNumber": 453,
+      "Address": 140736067079536
+    },
+    {
+      "Name": "NtTranslateFilePath",
+      "Hash": 3991275330,
+      "SyscallNumber": 454,
+      "Address": 140736067079568
+    },
+    {
+      "Name": "ZwTranslateFilePath",
+      "Hash": 40188081,
+      "SyscallNumber": 454,
+      "Address": 140736067079568
+    },
+    {
+      "Name": "NtUmsThreadYield",
+      "Hash": 2279088907,
+      "SyscallNumber": 455,
+      "Address": 140736067079600
+    },
+    {
+      "Name": "ZwUmsThreadYield",
+      "Hash": 70005466,
+      "SyscallNumber": 455,
+      "Address": 140736067079600
+    },
+    {
+      "Name": "NtUnloadDriver",
+      "Hash": 1098984054,
+      "SyscallNumber": 456,
+      "Address": 140736067079632
+    },
+    {
+      "Name": "ZwUnloadDriver",
+      "Hash": 4137745029,
+      "SyscallNumber": 456,
+      "Address": 140736067079632
+    },
+    {
+      "Name": "ZwUnloadKey",
+      "Hash": 1850315426,
+      "SyscallNumber": 457,
+      "Address": 140736067079664
+    },
+    {
+      "Name": "NtUnloadKey",
+      "Hash": 567369779,
+      "SyscallNumber": 457,
+      "Address": 140736067079664
+    },
+    {
+      "Name": "ZwUnloadKey2",
+      "Hash": 930866964,
+      "SyscallNumber": 458,
+      "Address": 140736067079696
+    },
+    {
+      "Name": "NtUnloadKey2",
+      "Hash": 1543333573,
+      "SyscallNumber": 458,
+      "Address": 140736067079696
+    },
+    {
+      "Name": "NtUnloadKeyEx",
+      "Hash": 3685368368,
+      "SyscallNumber": 459,
+      "Address": 140736067079728
+    },
+    {
+      "Name": "ZwUnloadKeyEx",
+      "Hash": 653839455,
+      "SyscallNumber": 459,
+      "Address": 140736067079728
+    },
+    {
+      "Name": "NtUnlockFile",
+      "Hash": 1629730067,
+      "SyscallNumber": 460,
+      "Address": 140736067079760
+    },
+    {
+      "Name": "ZwUnlockFile",
+      "Hash": 1017263458,
+      "SyscallNumber": 460,
+      "Address": 140736067079760
+    },
+    {
+      "Name": "NtUnlockVirtualMemory",
+      "Hash": 2912908819,
+      "SyscallNumber": 461,
+      "Address": 140736067079792
+    },
+    {
+      "Name": "ZwUnlockVirtualMemory",
+      "Hash": 3736125250,
+      "SyscallNumber": 461,
+      "Address": 140736067079792
+    },
+    {
+      "Name": "NtUnmapViewOfSectionEx",
+      "Hash": 2750677834,
+      "SyscallNumber": 462,
+      "Address": 140736067079824
+    },
+    {
+      "Name": "ZwUnmapViewOfSectionEx",
+      "Hash": 4147016281,
+      "SyscallNumber": 462,
+      "Address": 140736067079824
+    },
+    {
+      "Name": "ZwUnsubscribeWnfStateChange",
+      "Hash": 3415209037,
+      "SyscallNumber": 463,
+      "Address": 140736067079856
+    },
+    {
+      "Name": "NtUnsubscribeWnfStateChange",
+      "Hash": 1417331678,
+      "SyscallNumber": 463,
+      "Address": 140736067079856
+    },
+    {
+      "Name": "NtUpdateWnfStateData",
+      "Hash": 1511287792,
+      "SyscallNumber": 464,
+      "Address": 140736067079888
+    },
+    {
+      "Name": "ZwUpdateWnfStateData",
+      "Hash": 4269394751,
+      "SyscallNumber": 464,
+      "Address": 140736067079888
+    },
+    {
+      "Name": "ZwVdmControl",
+      "Hash": 546528606,
+      "SyscallNumber": 465,
+      "Address": 140736067079920
+    },
+    {
+      "Name": "NtVdmControl",
+      "Hash": 1158995215,
+      "SyscallNumber": 465,
+      "Address": 140736067079920
+    },
+    {
+      "Name": "ZwWaitForAlertByThreadId",
+      "Hash": 2668192874,
+      "SyscallNumber": 466,
+      "Address": 140736067079952
+    },
+    {
+      "Name": "NtWaitForAlertByThreadId",
+      "Hash": 2474046875,
+      "SyscallNumber": 466,
+      "Address": 140736067079952
+    },
+    {
+      "Name": "ZwWaitForDebugEvent",
+      "Hash": 1840958299,
+      "SyscallNumber": 467,
+      "Address": 140736067079984
+    },
+    {
+      "Name": "NtWaitForDebugEvent",
+      "Hash": 1497078252,
+      "SyscallNumber": 467,
+      "Address": 140736067079984
+    },
+    {
+      "Name": "NtWaitForKeyedEvent",
+      "Hash": 3637275671,
+      "SyscallNumber": 468,
+      "Address": 140736067080016
+    },
+    {
+      "Name": "ZwWaitForKeyedEvent",
+      "Hash": 3981155718,
+      "SyscallNumber": 468,
+      "Address": 140736067080016
+    },
+    {
+      "Name": "ZwWaitForWorkViaWorkerFactory",
+      "Hash": 2345170439,
+      "SyscallNumber": 469,
+      "Address": 140736067080048
+    },
+    {
+      "Name": "NtWaitForWorkViaWorkerFactory",
+      "Hash": 4205145560,
+      "SyscallNumber": 469,
+      "Address": 140736067080048
+    },
+    {
+      "Name": "NtWaitHighEventPair",
+      "Hash": 3730111722,
+      "SyscallNumber": 470,
+      "Address": 140736067080080
+    },
+    {
+      "Name": "ZwWaitHighEventPair",
+      "Hash": 4073991769,
+      "SyscallNumber": 470,
+      "Address": 140736067080080
+    },
+    {
+      "Name": "ZwLoadKey3",
+      "Hash": 3104531282,
+      "SyscallNumber": 471,
+      "Address": 140736067080112
+    },
+    {
+      "Name": "NtLoadKey3",
+      "Hash": 722944707,
+      "SyscallNumber": 471,
+      "Address": 140736067080112
+    },
+    {
+      "Name": "ZwWaitLowEventPair",
+      "Hash": 3570018251,
+      "SyscallNumber": 472,
+      "Address": 140736067080144
+    },
+    {
+      "Name": "NtWaitLowEventPair",
+      "Hash": 4080199740,
+      "SyscallNumber": 472,
+      "Address": 140736067080144
+    }
+  ],
+  "total_count": 942
+}
