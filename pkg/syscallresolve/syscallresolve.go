@@ -3,6 +3,7 @@ package syscallresolve
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -919,9 +920,15 @@ func LoadFreshNtdllCopy() (uintptr, error) {
 	var err error
 	
 	freshNtdllOnce.Do(func() {
-		// Use NT path format for ntdll.dll to ensure it works regardless of working directory
-		// The \??\ prefix is a special NT namespace prefix that allows access to system files
-		systemDir := `\??\C:\Windows\System32\ntdll.dll`
+		// Use the absolute system path to ntdll.dll to ensure it works regardless of working directory
+		// %SystemRoot%\System32\ntdll.dll is the standard location
+		systemRoot := os.Getenv("SystemRoot")
+		if systemRoot == "" {
+			systemRoot = "C:\\Windows" // Fallback if SystemRoot env var is not available
+		}
+		
+		systemDir := systemRoot + "\\System32\\ntdll.dll"
+		debug.Printfln("SYSCALLRESOLVE", "Using ntdll.dll from: %s\n", systemDir)
 		
 		// Initialize the syscall numbers we need
 		ntCreateFileHash := obf.GetHash("NtCreateFile")
