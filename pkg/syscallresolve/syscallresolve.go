@@ -389,6 +389,12 @@ func GetSyscallNumberLegacy(functionHash uint32) uint16 {
 		return 0
 	}
 
+	// Validate that this is actually a syscall function before extracting the number
+	if !hasSyscallStubPattern(funcAddr) {
+		debug.Printfln("SYSCALLRESOLVE", "Function with hash 0x%X does not have syscall stub pattern, skipping\n", functionHash)
+		return 0
+	}
+
 	// Enhanced syscall stub validation and extraction
 	syscallNumber := extractSyscallNumberWithValidation(funcAddr, functionHash)
 	
@@ -693,6 +699,12 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 		return cached
 	}
 	
+	// Add validation to ensure this is likely a syscall function
+	if !isLikelySyscallHash(functionHash) {
+		debug.Printfln("SYSCALLRESOLVE", "Hash 0x%X does not appear to be for a syscall function, skipping\n", functionHash)
+		return 0
+	}
+	
 	// Always prefer fresh ntdll copy
 	syscallNum := GetSyscallNumberFromFreshNtdll(functionHash)
 	if syscallNum != 0 {
@@ -702,6 +714,80 @@ func GetSyscallNumber(functionHash uint32) uint16 {
 	// Fall back to the original method using PEB only if fresh ntdll failed
 	debug.Printfln("SYSCALLRESOLVE", "Fresh ntdll method failed, falling back to PEB method for hash: 0x%X\n", functionHash)
 	return GetSyscallNumberLegacy(functionHash)
+}
+
+// isLikelySyscallHash performs basic validation to check if a hash likely represents a syscall function
+func isLikelySyscallHash(functionHash uint32) bool {
+	// Quick check: try to find the function in ntdll first
+	// If it doesn't exist in ntdll at all, it's definitely not a syscall
+	ntdllHash := obf.GetHash("ntdll.dll")
+	ntdllBase := GetModuleBase(ntdllHash)
+	if ntdllBase == 0 {
+		return false
+	}
+	
+	// Check if the function exists in ntdll
+	funcAddr := GetFunctionAddress(ntdllBase, functionHash)
+	if funcAddr == 0 {
+		// Also try the fresh ntdll copy
+		funcAddr = GetFunctionAddressFromFreshNtdll(functionHash)
+		if funcAddr == 0 {
+			debug.Printfln("SYSCALLRESOLVE", "Function with hash 0x%X not found in ntdll.dll\n", functionHash)
+			return false
+		}
+	}
+	
+	// Check if it has syscall stub pattern (basic validation)
+	return hasSyscallStubPattern(funcAddr)
+}
+
+// hasSyscallStubPattern checks if a function has the expected syscall stub pattern
+func hasSyscallStubPattern(funcAddr uintptr) bool {
+	if funcAddr == 0 {
+		return false
+	}
+	
+	// Read the first 16 bytes to check for syscall patterns
+	funcBytes := make([]byte, 16)
+	for i := 0; i < 16; i++ {
+		funcBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+	}
+	
+	// Check for common syscall stub patterns
+	// Pattern 1: Standard x64 syscall stub
+	// 0: 4c 8b d1             mov r10, rcx
+	// 3: b8 XX XX 00 00       mov eax, XXXX (syscall number)
+	if len(funcBytes) >= 8 &&
+		funcBytes[0] == 0x4c && funcBytes[1] == 0x8b && funcBytes[2] == 0xd1 &&
+		funcBytes[3] == 0xb8 {
+		return true
+	}
+	
+	// Pattern 2: Alternative syscall stub
+	// 0: b8 XX XX 00 00       mov eax, XXXX
+	// 5: 4c 8b d1             mov r10, rcx
+	if len(funcBytes) >= 8 &&
+		funcBytes[0] == 0xb8 &&
+		funcBytes[5] == 0x4c && funcBytes[6] == 0x8b && funcBytes[7] == 0xd1 {
+		return true
+	}
+	
+	// If we find a JMP at the beginning, it's likely hooked or not a syscall
+	if funcBytes[0] == 0xe9 || funcBytes[0] == 0xeb || funcBytes[0] == 0xff {
+		debug.Printfln("SYSCALLRESOLVE", "Function at 0x%X appears to be hooked or not a syscall (starts with JMP/CALL)\n", funcAddr)
+		return false
+	}
+	
+	// Check for other non-syscall patterns (e.g., regular function prologue)
+	// Many regular functions start with: push rbp; mov rbp, rsp
+	if funcBytes[0] == 0x55 && funcBytes[1] == 0x48 && funcBytes[2] == 0x89 && funcBytes[3] == 0xe5 {
+		debug.Printfln("SYSCALLRESOLVE", "Function at 0x%X appears to be a regular function (standard prologue)\n", funcAddr)
+		return false
+	}
+	
+	// If none of the syscall patterns match, it's probably not a syscall
+	debug.Printfln("SYSCALLRESOLVE", "Function at 0x%X does not match expected syscall patterns\n", funcAddr)
+	return false
 }
 
 // PrewarmFreshNtdll loads the fresh ntdll copy on startup
@@ -837,6 +923,9 @@ func ExternalSyscall(syscallNumber uint16, args ...uintptr) (uintptr, error) {
 // This simplifies API calls by automatically resolving the syscall number
 func HashSyscall(functionHash uint32, args ...uintptr) (uintptr, error) {
 	syscallNum := GetSyscallNumber(functionHash)
+	if syscallNum == 0 {
+		return 0, fmt.Errorf("failed to resolve syscall number for hash 0x%X (not a valid syscall function)", functionHash)
+	}
 	return ExternalSyscall(syscallNum, args...)
 }
 
@@ -1186,6 +1275,12 @@ func GetSyscallNumberFromFreshNtdll(functionHash uint32) uint16 {
 	funcAddr := GetFunctionAddressFromFreshNtdll(functionHash)
 	if funcAddr == 0 {
 		debug.Printfln("SYSCALLRESOLVE", "Failed to find function in fresh ntdll for hash: 0x%X\n", functionHash)
+		return 0
+	}
+	
+	// Validate that this is actually a syscall function before extracting the number
+	if !hasSyscallStubPattern(funcAddr) {
+		debug.Printfln("SYSCALLRESOLVE", "Function with hash 0x%X in fresh ntdll does not have syscall stub pattern, skipping\n", functionHash)
 		return 0
 	}
 	
