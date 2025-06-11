@@ -919,8 +919,9 @@ func LoadFreshNtdllCopy() (uintptr, error) {
 	var err error
 	
 	freshNtdllOnce.Do(func() {
-		// Get the system directory path
-		systemDir := `C:\Windows\System32\ntdll.dll`
+		// Use NT path format for ntdll.dll to ensure it works regardless of working directory
+		// The \??\ prefix is a special NT namespace prefix that allows access to system files
+		systemDir := `\??\C:\Windows\System32\ntdll.dll`
 		
 		// Initialize the syscall numbers we need
 		ntCreateFileHash := obf.GetHash("NtCreateFile")
