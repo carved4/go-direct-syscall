@@ -1087,7 +1087,7 @@ Windows NT Kernel
 ### Direct Syscall Flow
 
 1. **Function Name** → **Hash** (DBJ2 algorithm)
-2. **PEB Walking** → Find NTDLL base address (no LoadLibrary)
+2. **Map Fresh ntdll** → Locate system copy of ntdll from disk for unhooked syscall resolution
 3. **PE Parsing** → Find function address (no GetProcAddress)
 4. **Memory Reading** → Extract syscall number from function stub
 5. **Assembly Call** → Execute raw `syscall` instruction
