@@ -1218,6 +1218,125 @@ func (r *memoryReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, err
 }
 
+// LoadLibraryA loads a library using the ANSI version
+// Returns the module handle or 0 on failure
+func LoadLibraryA(libraryName string) (uintptr, error) {
+	// Get kernel32.dll base address
+	kernel32Hash := obf.GetHash("kernel32.dll")
+	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
+	if kernel32Base == 0 {
+		return 0, fmt.Errorf("failed to get kernel32.dll base address")
+	}
+	
+	// Get LoadLibraryA function address
+	loadLibraryHash := obf.GetHash("LoadLibraryA")
+	loadLibraryAddr := syscallresolve.GetFunctionAddress(kernel32Base, loadLibraryHash)
+	if loadLibraryAddr == 0 {
+		return 0, fmt.Errorf("failed to get LoadLibraryA address")
+	}
+	
+	debug.Printfln("WINAPI", "LoadLibraryA address: 0x%X\n", loadLibraryAddr)
+	
+	// Convert Go string to null-terminated C string
+	cstr := append([]byte(libraryName), 0)
+	
+	// Call LoadLibraryA directly
+	result, err := DirectCall(loadLibraryAddr, uintptr(unsafe.Pointer(&cstr[0])))
+	if err != nil {
+		return 0, fmt.Errorf("LoadLibraryA call failed: %v", err)
+	}
+	
+	debug.Printfln("WINAPI", "LoadLibraryA(%s) returned: 0x%X\n", libraryName, result)
+	return result, nil
+}
+
+// LoadLibraryW loads a library using the Unicode version
+// Returns the module handle or 0 on failure
+func LoadLibraryW(libraryName string) (uintptr, error) {
+	// Get kernel32.dll base address
+	kernel32Hash := obf.GetHash("kernel32.dll")
+	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
+	if kernel32Base == 0 {
+		return 0, fmt.Errorf("failed to get kernel32.dll base address")
+	}
+	
+	// Get LoadLibraryW function address
+	loadLibraryHash := obf.GetHash("LoadLibraryW")
+	loadLibraryAddr := syscallresolve.GetFunctionAddress(kernel32Base, loadLibraryHash)
+	if loadLibraryAddr == 0 {
+		return 0, fmt.Errorf("failed to get LoadLibraryW address")
+	}
+	
+	debug.Printfln("WINAPI", "LoadLibraryW address: 0x%X\n", loadLibraryAddr)
+	
+	// Convert Go string to UTF-16 
+	utf16Ptr := StringToUTF16(libraryName)
+	
+	// Call LoadLibraryW directly
+	result, err := DirectCall(loadLibraryAddr, uintptr(unsafe.Pointer(utf16Ptr)))
+	if err != nil {
+		return 0, fmt.Errorf("LoadLibraryW call failed: %v", err)
+	}
+	
+	debug.Printfln("WINAPI", "LoadLibraryW(%s) returned: 0x%X\n", libraryName, result)
+	return result, nil
+}
+
+// GetProcAddress gets the address of a function from a loaded module
+// moduleHandle: Handle to the DLL module (from LoadLibrary)
+// procName: Name of the function to get address for
+// Returns the function address or 0 on failure
+func GetProcAddress(moduleHandle uintptr, procName string) (uintptr, error) {
+	if moduleHandle == 0 {
+		return 0, fmt.Errorf("invalid module handle")
+	}
+	
+	// Get kernel32.dll base address
+	kernel32Hash := obf.GetHash("kernel32.dll")
+	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
+	if kernel32Base == 0 {
+		return 0, fmt.Errorf("failed to get kernel32.dll base address")
+	}
+	
+	// Get GetProcAddress function address
+	getProcAddressHash := obf.GetHash("GetProcAddress")
+	getProcAddressAddr := syscallresolve.GetFunctionAddress(kernel32Base, getProcAddressHash)
+	if getProcAddressAddr == 0 {
+		return 0, fmt.Errorf("failed to get GetProcAddress address")
+	}
+	
+	debug.Printfln("WINAPI", "GetProcAddress address: 0x%X\n", getProcAddressAddr)
+	
+	// Convert Go string to null-terminated C string
+	cstr := append([]byte(procName), 0)
+	
+	// Call GetProcAddress directly
+	result, err := DirectCall(getProcAddressAddr, 
+		moduleHandle, 
+		uintptr(unsafe.Pointer(&cstr[0])))
+	if err != nil {
+		return 0, fmt.Errorf("GetProcAddress call failed: %v", err)
+	}
+	
+	debug.Printfln("WINAPI", "GetProcAddress(%s) returned: 0x%X\n", procName, result)
+	return result, nil
+}
+
+// LoadLibrary is a convenience wrapper that tries LoadLibraryW first, then LoadLibraryA
+// Returns the module handle or 0 on failure
+func LoadLibrary(libraryName string) (uintptr, error) {
+	// Try Unicode version first (preferred on modern Windows)
+	result, err := LoadLibraryW(libraryName)
+	if err == nil && result != 0 {
+		return result, nil
+	}
+	
+	debug.Printfln("WINAPI", "LoadLibraryW failed, trying LoadLibraryA: %v\n", err)
+	
+	// Fallback to ANSI version
+	return LoadLibraryA(libraryName)
+}
+
 /*
 PROBLEM:
 Go's garbage collector allocates byte slices in virtual memory regions that
