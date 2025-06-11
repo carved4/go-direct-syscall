@@ -6,8 +6,6 @@ import (
 	"os"
 	"time"
 	"unsafe"
-	"runtime"
-	"strings"
 	
 	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-direct-syscall/pkg/debug"
@@ -49,46 +47,6 @@ func GetCurrentProcessId() uintptr {
 // This is different from DirectSyscall - it calls regular API functions, not syscalls
 func DirectCall(functionAddr uintptr, args ...uintptr) (uintptr, error) {
 	return syscall.DirectCall(functionAddr, args...)
-}
-
-// DirectCallWithStack executes a direct call with proper x64 calling convention handling
-func DirectCallWithStack(functionAddr uintptr, args ...uintptr) (uintptr, error) {
-	// Ensure we're locked to one thread
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	
-	// Print args for debugging before modification
-	debug.Printfln("WINAPI", "DirectCallWithStack: Original args=%v\n", args)
-	
-	// Allocate shadow space and ensure it stays alive
-	type CallFrame struct {
-		shadow [32]byte // Shadow space for first 4 parameters
-		extra  []byte   // Extra space for additional parameters
-	}
-	frame := new(CallFrame)
-	
-	// Calculate extra space needed
-	if len(args) > 4 {
-		frame.extra = make([]byte, ((len(args)-4)*8+15)&^15)
-	}
-	
-	// Debug print the actual call we're about to make
-	debug.Printfln("WINAPI", "Making direct call to 0x%X with %d args\n", functionAddr, len(args))
-	for i, arg := range args {
-		debug.Printfln("WINAPI", "  Arg[%d] = 0x%X\n", i, arg)
-	}
-	
-	// Keep frame alive during call
-	runtime.KeepAlive(frame)
-	
-	// Make the actual call
-	result, err := syscall.DirectCall(functionAddr, args...)
-	
-	// Keep frame alive after call
-	runtime.KeepAlive(frame)
-	
-	debug.Printfln("WINAPI", "DirectCall result: 0x%X err=%v\n", result, err)
-	return result, err
 }
 
 // GetSyscallNumber returns the syscall number for a given function name
@@ -263,7 +221,6 @@ func tryDeleteWithPath(pathToTry string) bool {
 	debug.Printfln("SELFDEL", "File marked for deletion\n")
 	return true
 }
-
 // StringToUTF16 converts a Go string to a UTF16 string pointer
 // This replaces syscall.UTF16PtrFromString to avoid standard library dependencies
 func StringToUTF16(s string) *uint16 {
@@ -1001,6 +958,15 @@ type SyscallInfo struct {
 	Address       uintptr
 }
 
+// FunctionInfo holds information about any exported function from ntdll
+type FunctionInfo struct {
+	Name      string
+	Hash      uint32
+	Address   uintptr
+	IsSyscall bool
+	SyscallNumber uint16 // Only valid if IsSyscall is true
+}
+
 // DumpAllSyscalls enumerates all syscall functions from ntdll.dll and returns their information
 // This function uses the same logic as the existing pkg modules to discover and resolve syscalls
 func DumpAllSyscalls() ([]SyscallInfo, error) {
@@ -1120,6 +1086,245 @@ func DumpAllSyscalls() ([]SyscallInfo, error) {
 	debug.Printfln("WINAPI", "Found %d syscall functions\n", len(syscalls))
 	
 	return syscalls, nil
+}
+
+// DumpAllNtdllFunctions enumerates ALL exported functions from ntdll.dll (both syscalls and regular functions)
+// This includes functions like LdrLoadLibrary, LdrGetProcedureAddress, RtlXxx functions, etc.
+func DumpAllNtdllFunctions() ([]FunctionInfo, error) {
+	debug.Printfln("WINAPI", "Starting ntdll function enumeration...\n")
+	
+	// Get the base address of ntdll.dll using the same logic as GetSyscallNumber
+	ntdllHash := obf.GetHash("ntdll.dll")
+	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
+	if ntdllBase == 0 {
+		return nil, fmt.Errorf("failed to get ntdll.dll base address")
+	}
+	
+	debug.Printfln("WINAPI", "Found ntdll.dll at: 0x%X\n", ntdllBase)
+	
+	// Parse the PE file to get all exports
+	dosHeader := (*[64]byte)(unsafe.Pointer(ntdllBase))
+	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
+		return nil, fmt.Errorf("invalid DOS signature")
+	}
+	
+	// Get the offset to the PE header
+	peOffset := *(*uint32)(unsafe.Pointer(ntdllBase + 60))
+	if peOffset >= 1024 {
+		return nil, fmt.Errorf("PE offset too large: %d", peOffset)
+	}
+	
+	// Read the PE header to get the SizeOfImage
+	peHeader := (*[1024]byte)(unsafe.Pointer(ntdllBase + uintptr(peOffset)))
+	if peHeader[0] != 'P' || peHeader[1] != 'E' {
+		return nil, fmt.Errorf("invalid PE signature")
+	}
+	
+	sizeOfImage := *(*uint32)(unsafe.Pointer(ntdllBase + uintptr(peOffset) + 24 + 56))
+	debug.Printfln("WINAPI", "PE SizeOfImage: %d bytes\n", sizeOfImage)
+	
+	// Create a memory reader for the PE file
+	dataSlice := unsafe.Slice((*byte)(unsafe.Pointer(ntdllBase)), sizeOfImage)
+	memReader := &memoryReaderAt{data: dataSlice}
+	
+	// Parse the PE file
+	file, err := pe.NewFileFromMemory(memReader)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse PE file: %v", err)
+	}
+	defer file.Close()
+	
+	// Get all exports
+	exports, err := file.Exports()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get exports: %v", err)
+	}
+	
+	debug.Printfln("WINAPI", "Found %d total exports in ntdll.dll\n", len(exports))
+	
+	var functions []FunctionInfo
+	
+	// Process all exports
+	for _, export := range exports {
+		if export.Name == "" {
+			continue
+		}
+		
+		// Get function address
+		funcAddr := ntdllBase + uintptr(export.VirtualAddress)
+		
+		// Calculate hash using the same obfuscation logic
+		funcHash := obf.GetHash(export.Name)
+		
+		// Check if this is a syscall function (starts with Nt or Zw)
+		isSyscall := len(export.Name) > 2 && (export.Name[:2] == "Nt" || export.Name[:2] == "Zw")
+		var syscallNumber uint16
+		
+		if isSyscall && funcAddr != 0 {
+			// Try to extract syscall number for syscall functions
+			firstBytes := make([]byte, 16)
+			for i := 0; i < 16; i++ {
+				firstBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+			}
+			
+			// Check for typical syscall stub pattern: 4c 8b d1 b8 (mov r10,rcx; mov eax,XXXX)
+			if len(firstBytes) >= 8 && firstBytes[0] == 0x4c && firstBytes[1] == 0x8b && 
+			   firstBytes[2] == 0xd1 && firstBytes[3] == 0xb8 {
+				// Extract syscall number (little endian uint16 at offset 4)
+				syscallNumber = *(*uint16)(unsafe.Pointer(funcAddr + 4))
+			}
+			
+			// If we can't find a valid syscall number, treat it as a regular function
+			if syscallNumber == 0 {
+				isSyscall = false
+			}
+		}
+		
+		functionInfo := FunctionInfo{
+			Name:          export.Name,
+			Hash:          funcHash,
+			Address:       funcAddr,
+			IsSyscall:     isSyscall,
+			SyscallNumber: syscallNumber,
+		}
+		functions = append(functions, functionInfo)
+	}
+	
+	debug.Printfln("WINAPI", "Found %d total functions (%d syscalls, %d regular functions)\n", 
+		len(functions), 
+		countSyscalls(functions),
+		len(functions)-countSyscalls(functions))
+	
+	return functions, nil
+}
+
+// Helper function to count syscalls in FunctionInfo slice
+func countSyscalls(functions []FunctionInfo) int {
+	count := 0
+	for _, f := range functions {
+		if f.IsSyscall {
+			count++
+		}
+	}
+	return count
+}
+
+// FindNtdllFunction searches for a specific function in ntdll by name
+// Returns the function information including address for direct calling
+func FindNtdllFunction(functionName string) (*FunctionInfo, error) {
+	functions, err := DumpAllNtdllFunctions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to enumerate ntdll functions: %v", err)
+	}
+	
+	for _, function := range functions {
+		if function.Name == functionName {
+			debug.Printfln("WINAPI", "Found function %s at address 0x%X\n", functionName, function.Address)
+			return &function, nil
+		}
+	}
+	
+	return nil, fmt.Errorf("function %s not found in ntdll", functionName)
+}
+
+// CallNtdllFunction calls any ntdll function by name using DirectCall
+// For syscalls, use DirectSyscall instead for better evasion
+func CallNtdllFunction(functionName string, args ...uintptr) (uintptr, error) {
+	funcInfo, err := FindNtdllFunction(functionName)
+	if err != nil {
+		return 0, err
+	}
+	
+	if funcInfo.IsSyscall {
+		debug.Printfln("WINAPI", "Warning: %s is a syscall, consider using DirectSyscall for better evasion\n", functionName)
+	}
+	
+	debug.Printfln("WINAPI", "Calling %s at 0x%X with %d arguments\n", functionName, funcInfo.Address, len(args))
+	return DirectCall(funcInfo.Address, args...)
+}
+
+// GetNtdllFunctionAddress returns the address of a function in ntdll
+// Useful when you want to call the function multiple times without lookup overhead
+func GetNtdllFunctionAddress(functionName string) (uintptr, error) {
+	funcInfo, err := FindNtdllFunction(functionName)
+	if err != nil {
+		return 0, err
+	}
+	return funcInfo.Address, nil
+}
+
+// LdrLoadDll loads a DLL using the ntdll LdrLoadDll function  
+// This is a direct call to ntdll without going through kernel32
+func LdrLoadDll(dllPath string) (uintptr, error) {
+	// Convert string to UNICODE_STRING for LdrLoadDll
+	utfPath := StringToUTF16(dllPath)
+	
+	// Count the actual UTF-16 length (excluding null terminator)
+	pathLen := uint16(0)
+	ptr := utfPath
+	for *ptr != 0 {
+		pathLen += 2 // Each UTF-16 character is 2 bytes
+		ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2))
+	}
+
+	unicodeString := UNICODE_STRING{
+		Length:        pathLen,
+		MaximumLength: pathLen + 2,
+		Buffer:        utfPath,
+	}
+	
+	var moduleHandle uintptr
+	
+	// Call LdrLoadDll: NTSTATUS LdrLoadDll(PWCHAR DllPath, PULONG DllCharacteristics, PUNICODE_STRING DllName, PVOID *DllHandle)
+	result, err := CallNtdllFunction("LdrLoadDll",
+		0, // DllPath (NULL for search in standard locations)
+		0, // DllCharacteristics (NULL)
+		uintptr(unsafe.Pointer(&unicodeString)), // DllName
+		uintptr(unsafe.Pointer(&moduleHandle)))  // DllHandle
+	
+	if err != nil {
+		return 0, fmt.Errorf("LdrLoadDll call failed: %v", err)
+	}
+	
+	if result != STATUS_SUCCESS {
+		return 0, fmt.Errorf("LdrLoadDll failed with status: %s", FormatNTStatus(result))
+	}
+	
+	debug.Printfln("WINAPI", "LdrLoadDll loaded %s at handle 0x%X\n", dllPath, moduleHandle)
+	return moduleHandle, nil
+}
+
+// LdrGetProcedureAddress gets the address of a function in a loaded module
+// This is a direct call to ntdll without going through kernel32
+func LdrGetProcedureAddress(moduleHandle uintptr, functionName string) (uintptr, error) {
+	// Convert function name to ANSI_STRING for LdrGetProcedureAddress
+	nameBytes := []byte(functionName)
+	
+	ansiString := ANSI_STRING{
+		Length:        uint16(len(nameBytes)),
+		MaximumLength: uint16(len(nameBytes)),
+		Buffer:        &nameBytes[0],
+	}
+	
+	var functionAddress uintptr
+	
+	// Call LdrGetProcedureAddress: NTSTATUS LdrGetProcedureAddress(HMODULE ModuleHandle, PANSI_STRING FunctionName, WORD Ordinal, PVOID *FunctionAddress)
+	result, err := CallNtdllFunction("LdrGetProcedureAddress",
+		moduleHandle,
+		uintptr(unsafe.Pointer(&ansiString)),
+		0, // Ordinal (0 means use name)
+		uintptr(unsafe.Pointer(&functionAddress)))
+	
+	if err != nil {
+		return 0, fmt.Errorf("LdrGetProcedureAddress call failed: %v", err)
+	}
+	
+	if result != STATUS_SUCCESS {
+		return 0, fmt.Errorf("LdrGetProcedureAddress failed with status: %s", FormatNTStatus(result))
+	}
+	
+	debug.Printfln("WINAPI", "LdrGetProcedureAddress found %s at address 0x%X\n", functionName, functionAddress)
+	return functionAddress, nil
 }
 
 // DumpAllSyscallsWithFiles enumerates all syscall functions and exports to both JSON and Go files
@@ -1462,7 +1667,6 @@ func OriginalNtInjectSelfShellcode(payload []byte) error {
 	}
 	return nil
 }
-
 // NtInjectRemote injects shellcode into a remote process using direct syscalls ONLY
 // This function follows the proven pattern: allocate RW -> copy -> change to RX -> create thread
 // processHandle: Handle to the target process (must have PROCESS_ALL_ACCESS or appropriate rights)
@@ -1607,249 +1811,5 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 
 	return nil
 }
-
-// Additional structures needed for LdrLoadDll and LdrGetProcedureAddress
-
-type ANSI_STRING struct {
-	Length        uint16
-	MaximumLength uint16
-	Buffer        *byte
-}
-
-// LdrLoadDll loads a DLL into the current process
-// This is the NT equivalent of LoadLibrary
-func LdrLoadDll(pathToFile *uint16, flags uintptr, moduleName *UNICODE_STRING, moduleHandle *uintptr) (uintptr, error) {
-	// Get function address from ntdll
-	ntdllHash := obf.GetHash("ntdll.dll")
-	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
-	if ntdllBase == 0 {
-		return 0, fmt.Errorf("failed to get ntdll.dll base")
-	}
-	debug.Printfln("WINAPI", "Found ntdll.dll at 0x%X\n", ntdllBase)
-	
-	funcHash := obf.GetHash("LdrLoadDll")
-	funcAddr := syscallresolve.GetFunctionAddress(ntdllBase, funcHash)
-	if funcAddr == 0 {
-		return 0, fmt.Errorf("failed to get LdrLoadDll address")
-	}
-	debug.Printfln("WINAPI", "Found LdrLoadDll at 0x%X\n", funcAddr)
-	
-	// Call with proper stack handling
-	return DirectCallWithStack(funcAddr,
-		uintptr(unsafe.Pointer(pathToFile)),
-		flags,
-		uintptr(unsafe.Pointer(moduleName)),
-		uintptr(unsafe.Pointer(moduleHandle)))
-}
-
-
-
-// LoadDllInternal is the internal implementation of LoadDll
-func LoadDllInternal(dllPath string, basicLoad bool) (uintptr, error) {
-	// Lock thread early
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-
-	// Extract just the DLL name for system DLLs
-	dllName := dllPath
-	if strings.Contains(dllPath, "\\") {
-		parts := strings.Split(dllPath, "\\")
-		dllName = parts[len(parts)-1]
-	}
-	debug.Printfln("WINAPI", "Loading DLL: %s (basic=%v)\n", dllName, basicLoad)
-
-	// Allocate all memory upfront to prevent GC movement
-	type CallContext struct {
-		nameBuffer []uint16
-		us        UNICODE_STRING
-		handle    uintptr
-		flags     uint32        // Actual flags value
-		args      [4]uintptr    // Arguments for the call
-	}
-	
-	// Allocate context on heap to prevent stack movement
-	ctx := new(CallContext)
-	
-	// Allocate aligned buffer for DLL name
-	bufSize := (len(dllName) + 1) * 2 // UTF-16 + null terminator
-	alignedSize := (bufSize + 15) &^ 15 // Round up to nearest 16
-	ctx.nameBuffer = make([]uint16, alignedSize/2)
-
-	// Convert to UTF-16 with proper null termination
-	for i := 0; i < len(dllName); i++ {
-		ctx.nameBuffer[i] = uint16(dllName[i])
-	}
-	ctx.nameBuffer[len(dllName)] = 0
-	
-	// Calculate actual UTF-16 length in bytes
-	nameLen := uint16(len(dllName) * 2)
-	
-	// Set up UNICODE_STRING
-	ctx.us = UNICODE_STRING{
-		Length:        nameLen,
-		MaximumLength: nameLen + 2,
-		Buffer:        &ctx.nameBuffer[0],
-	}
-	
-	// Debug print the structures
-	debug.Printfln("WINAPI", "UNICODE_STRING: len=%d maxlen=%d buf=%X\n",
-		ctx.us.Length, ctx.us.MaximumLength, uintptr(unsafe.Pointer(ctx.us.Buffer)))
-	
-	// Get ntdll base and function
-	ntdllHash := obf.GetHash("ntdll.dll")
-	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
-	if ntdllBase == 0 {
-		return 0, fmt.Errorf("failed to get ntdll.dll base")
-	}
-	
-	funcHash := obf.GetHash("LdrLoadDll")
-	funcAddr := syscallresolve.GetFunctionAddress(ntdllBase, funcHash)
-	if funcAddr == 0 {
-		return 0, fmt.Errorf("failed to get LdrLoadDll address")
-	}
-	
-	// Set up flags - now as a value in the context
-	if basicLoad {
-		ctx.flags = 0x00000008 // DONT_RESOLVE_DLL_REFERENCES
-	}
-	
-	// Prepare arguments - note flags is now a pointer
-	ctx.args[0] = 0 // PathToFile (NULL)
-	ctx.args[1] = uintptr(unsafe.Pointer(&ctx.flags)) // Flags as pointer
-	ctx.args[2] = uintptr(unsafe.Pointer(&ctx.us))    // ModuleFileName
-	ctx.args[3] = uintptr(unsafe.Pointer(&ctx.handle)) // BaseAddress
-	
-	// Debug print arguments
-	debug.Printfln("WINAPI", "Calling LdrLoadDll with:\n")
-	debug.Printfln("WINAPI", "  PathToFile: NULL\n")
-	debug.Printfln("WINAPI", "  Flags: ptr=%X value=%X\n", 
-		ctx.args[1], ctx.flags)
-	debug.Printfln("WINAPI", "  ModuleFileName: ptr=%X\n", ctx.args[2])
-	debug.Printfln("WINAPI", "  BaseAddress: ptr=%X\n", ctx.args[3])
-	
-	// Keep everything alive
-	runtime.KeepAlive(ctx)
-	
-	// Make the call
-	status, err := DirectCallWithStack(funcAddr, ctx.args[:]...)
-	
-	// Keep alive after call
-	runtime.KeepAlive(ctx)
-	
-	if err != nil {
-		return 0, fmt.Errorf("LdrLoadDll failed with error: %v", err)
-	}
-	
-	if status != STATUS_SUCCESS {
-		return 0, fmt.Errorf("LdrLoadDll failed with status: %s", FormatNTStatus(status))
-	}
-	
-	debug.Printfln("WINAPI", "Successfully loaded DLL, handle: 0x%X\n", ctx.handle)
-	return ctx.handle, nil
-}
-
-// LdrGetProcedureAddress gets the address of an exported function from a loaded module
-// This is the NT equivalent of GetProcAddress
-func LdrGetProcedureAddress(moduleHandle uintptr, functionName *ANSI_STRING, ordinal uint16, functionAddress *uintptr) (uintptr, error) {
-	// Get function address from ntdll
-	ntdllHash := obf.GetHash("ntdll.dll")
-	ntdllBase := syscallresolve.GetModuleBase(ntdllHash)
-	if ntdllBase == 0 {
-		return 0, fmt.Errorf("failed to get ntdll.dll base")
-	}
-	debug.Printfln("WINAPI", "Found ntdll.dll at 0x%X\n", ntdllBase)
-	
-	funcHash := obf.GetHash("LdrGetProcedureAddress")
-	funcAddr := syscallresolve.GetFunctionAddress(ntdllBase, funcHash)
-	if funcAddr == 0 {
-		return 0, fmt.Errorf("failed to get LdrGetProcedureAddress address")
-	}
-	debug.Printfln("WINAPI", "Found LdrGetProcedureAddress at 0x%X\n", funcAddr)
-	
-	// Print parameters for debugging
-	debug.Printfln("WINAPI", "ModuleHandle: 0x%X\n", moduleHandle)
-	if functionName != nil {
-		debug.Printfln("WINAPI", "FunctionName: len=%d maxlen=%d buf=%X\n",
-			functionName.Length, functionName.MaximumLength, uintptr(unsafe.Pointer(functionName.Buffer)))
-	}
-	debug.Printfln("WINAPI", "Ordinal: %d\n", ordinal)
-	debug.Printfln("WINAPI", "FunctionAddress ptr: %X\n", uintptr(unsafe.Pointer(functionAddress)))
-	
-	// Ensure proper stack alignment and shadow space for x64 calling convention
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	
-	result, err := DirectCall(funcAddr,
-		moduleHandle,
-		uintptr(unsafe.Pointer(functionName)),
-		uintptr(ordinal),
-		uintptr(unsafe.Pointer(functionAddress)))
-	
-	debug.Printfln("WINAPI", "LdrGetProcedureAddress result: status=%X err=%v\n", result, err)
-	return result, err
-}
-
-// Helper function to create an ANSI_STRING from a Go string
-func NewAnsiString(s string) *ANSI_STRING {
-	if s == "" {
-		return &ANSI_STRING{}
-	}
-	
-	// Allocate buffer for ANSI string (including null terminator)
-	buffer := make([]byte, len(s)+1)
-	
-	// Copy string bytes
-	copy(buffer, s)
-	
-	// Add null terminator
-	buffer[len(s)] = 0
-	
-	return &ANSI_STRING{
-		Length:        uint16(len(s)),
-		MaximumLength: uint16(len(s) + 1),
-		Buffer:        &buffer[0],
-	}
-}
-
-// GetProcAddress is a high-level wrapper around LdrGetProcedureAddress that handles string conversion
-func GetProcAddress(moduleHandle uintptr, functionName string) (uintptr, error) {
-	debug.Printfln("WINAPI", "Getting procedure address for %s from module 0x%X\n", functionName, moduleHandle)
-	
-	// Convert function name to ANSI_STRING and ensure it stays in memory
-	ansiBytes := []byte(functionName + "\x00")
-	ansiName := ANSI_STRING{
-		Length:        uint16(len(functionName)),
-		MaximumLength: uint16(len(functionName) + 1),
-		Buffer:        &ansiBytes[0],
-	}
-	
-	debug.Printfln("WINAPI", "Created ANSI_STRING: len=%d maxlen=%d buf=%X content=%v\n",
-		ansiName.Length, ansiName.MaximumLength, uintptr(unsafe.Pointer(ansiName.Buffer)), ansiBytes)
-	
-	// Keep the buffer alive until LdrGetProcedureAddress completes
-	runtime.LockOSThread()
-	defer runtime.UnlockOSThread()
-	
-	var functionAddress uintptr
-	status, err := LdrGetProcedureAddress(
-		moduleHandle,
-		&ansiName,
-		0,              // Ordinal (0 when using function name)
-		&functionAddress,
-	)
-	
-	if err != nil {
-		return 0, fmt.Errorf("LdrGetProcedureAddress failed with error: %v", err)
-	}
-	
-	if status != STATUS_SUCCESS {
-		return 0, fmt.Errorf("LdrGetProcedureAddress failed with status: %s", FormatNTStatus(status))
-	}
-	
-	debug.Printfln("WINAPI", "Successfully resolved %s to 0x%X\n", functionName, functionAddress)
-	return functionAddress, nil
-}
-
-
 
 

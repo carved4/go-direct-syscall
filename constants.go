@@ -296,6 +296,13 @@ type UNICODE_STRING struct {
 	Buffer        *uint16
 }
 
+// ANSI_STRING represents an ANSI string in Windows
+type ANSI_STRING struct {
+	Length        uint16
+	MaximumLength uint16
+	Buffer        *byte
+}
+
 // CLIENT_ID represents a process and thread identifier pair
 type CLIENT_ID struct {
 	UniqueProcess uintptr

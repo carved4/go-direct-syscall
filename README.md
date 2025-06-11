@@ -77,6 +77,9 @@
 - **Automated Vulnerability Scanning**: Identifies binary planting and service exploitation opportunities
 - **Structured Exploitation**: Clean library functions for integrating privilege escalation into C2 frameworks
 - **Syscall Table Generation**: Automatic Go source file generation with pre-computed syscall numbers
+- **Complete ntdll Function Discovery**: Enumerate and call ANY exported function from ntdll.dll (2,400+ functions)
+- **Direct ntdll Function Calling**: Call Ldr*, Rtl*, and other ntdll functions without GetProcAddress
+- **Dynamic Library Loading**: LdrLoadDll and LdrGetProcedureAddress implementation for stealth DLL operations
 - **LOTS of Constants**: All common Windows constants included
 - **Type Safety**: Strongly typed function signatures for common APIs
 
@@ -209,6 +212,24 @@ Enumerate and dump all available syscalls from ntdll.dll with their syscall numb
 #### `DumpAllSyscallsWithFiles() ([]SyscallInfo, error)`
 Enhanced version that enumerates syscalls and exports to both JSON and Go files. Generates a Go syscall table file for developers.
 
+#### `DumpAllNtdllFunctions() ([]FunctionInfo, error)`
+Enumerate ALL exported functions from ntdll.dll (both syscalls and regular functions). This includes Ldr*, Rtl*, Nt*, Zw*, and other ntdll functions - over 2,400 total functions.
+
+#### `FindNtdllFunction(functionName string) (*FunctionInfo, error)`
+Search for a specific function in ntdll by name and return its information including address for direct calling.
+
+#### `CallNtdllFunction(functionName string, args ...uintptr) (uintptr, error)`
+Call any ntdll function by name using DirectCall. Automatically resolves function address and executes.
+
+#### `GetNtdllFunctionAddress(functionName string) (uintptr, error)`
+Get the address of a function in ntdll for repeated calls without lookup overhead.
+
+#### `LdrLoadDll(dllPath string) (uintptr, error)`
+Load a DLL using the ntdll LdrLoadDll function - direct call to ntdll without going through kernel32.
+
+#### `LdrGetProcedureAddress(moduleHandle uintptr, functionName string) (uintptr, error)`
+Get the address of a function in a loaded module using ntdll - direct call without GetProcAddress.
+
 ### NT Status Code Helpers
 
 The library includes NT status code formatting and validation functions that are used by default throughout the codebase.
@@ -272,6 +293,216 @@ The FormatNTStatus function recognizes over 30 common NTSTATUS codes including:
 - `STATUS_NO_MEMORY` (0xC0000017)
 - `STATUS_PRIVILEGE_NOT_HELD` (0xC0000061)
 - And many more...
+
+## Complete ntdll Function Discovery & Direct Calling
+
+### Overview
+
+The library provides comprehensive access to ALL exported functions from ntdll.dll, not just syscalls. This includes over 2,400 functions across multiple categories:
+
+- **Ldr Functions** (81 functions): LdrLoadDll, LdrGetProcedureAddress, LdrUnloadDll, etc.
+- **Rtl Functions** (1000+ functions): RtlGetVersion, RtlCreateHeap, RtlAllocateHeap, etc. 
+- **Nt/Zw Syscalls** (942 functions): All direct syscall functions
+- **Other ntdll Functions**: Debugging, tracing, and internal Windows functions
+
+### Key Capabilities
+
+#### **Universal Function Discovery**
+```go
+// Enumerate ALL ntdll functions (syscalls + regular functions)
+functions, err := winapi.DumpAllNtdllFunctions()
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Found %d total functions in ntdll\n", len(functions))
+
+// Filter by function type
+for _, function := range functions {
+    if function.IsSyscall {
+        fmt.Printf("Syscall: %s (SSN: %d)\n", function.Name, function.SyscallNumber)
+    } else if strings.HasPrefix(function.Name, "Ldr") {
+        fmt.Printf("Loader function: %s at 0x%X\n", function.Name, function.Address)
+    } else if strings.HasPrefix(function.Name, "Rtl") {
+        fmt.Printf("Runtime function: %s at 0x%X\n", function.Name, function.Address)
+    }
+}
+```
+
+#### **Direct Function Calling**
+```go
+// Call any ntdll function by name - automatic address resolution
+result, err := winapi.CallNtdllFunction("RtlGetVersion", 
+    uintptr(unsafe.Pointer(&versionInfo)))
+
+// Get function address for repeated calls (performance optimization)
+rtlGetVersionAddr, err := winapi.GetNtdllFunctionAddress("RtlGetVersion")
+result, err := winapi.DirectCall(rtlGetVersionAddr, 
+    uintptr(unsafe.Pointer(&versionInfo)))
+```
+
+#### **Stealth DLL Loading**
+```go
+// Load DLLs without LoadLibrary (bypasses hooks)
+moduleHandle, err := winapi.LdrLoadDll("user32.dll")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Get function addresses without GetProcAddress
+funcAddr, err := winapi.LdrGetProcedureAddress(moduleHandle, "MessageBoxW")
+if err != nil {
+    log.Fatal(err)
+}
+
+// Call the function directly
+result, err := winapi.DirectCall(funcAddr, hwnd, text, caption, type)
+```
+
+#### **Complete Workflow Example**
+```go
+package main
+
+import (
+    "fmt"
+    "unsafe"
+    winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+    // 1. Load a DLL using ntdll (no kernel32 dependency)
+    moduleHandle, err := winapi.LdrLoadDll("kernel32.dll")
+    if err != nil {
+        panic(err)
+    }
+    
+    // 2. Get function address using ntdll (no GetProcAddress)
+    funcAddr, err := winapi.LdrGetProcedureAddress(moduleHandle, "GetCurrentProcessId")
+    if err != nil {
+        panic(err)
+    }
+    
+    // 3. Call the function directly
+    pid, err := winapi.DirectCall(funcAddr)
+    if err != nil {
+        panic(err)
+    }
+    
+    fmt.Printf("Current PID: %d\n", pid)
+    
+    // 4. Also demonstrate calling ntdll functions directly
+    type RTL_OSVERSIONINFOW struct {
+        dwOSVersionInfoSize uint32
+        dwMajorVersion      uint32
+        dwMinorVersion      uint32
+        dwBuildNumber       uint32
+        dwPlatformId        uint32
+        szCSDVersion        [128]uint16
+    }
+    
+    versionInfo := RTL_OSVERSIONINFOW{
+        dwOSVersionInfoSize: 312,
+    }
+    
+    // Call RtlGetVersion directly from ntdll
+    result, err := winapi.CallNtdllFunction("RtlGetVersion", 
+        uintptr(unsafe.Pointer(&versionInfo)))
+    
+    if err == nil && result == 0 {
+        fmt.Printf("Windows Version: %d.%d.%d\n", 
+            versionInfo.dwMajorVersion,
+            versionInfo.dwMinorVersion, 
+            versionInfo.dwBuildNumber)
+    }
+}
+```
+
+### FunctionInfo Structure
+
+The `FunctionInfo` struct provides complete metadata about ntdll functions:
+
+```go
+type FunctionInfo struct {
+    Name          string  // Function name (e.g., "LdrLoadDll")
+    Hash          uint32  // Obfuscated hash of the name
+    Address       uintptr // Memory address of the function
+    IsSyscall     bool    // True if this is a syscall function
+    SyscallNumber uint16  // Syscall number (only valid if IsSyscall is true)
+}
+```
+
+### Performance Optimizations
+
+#### **Function Address Caching**
+```go
+// Cache function addresses for repeated calls
+var (
+    ldrLoadDllAddr    uintptr
+    ldrGetProcAddr    uintptr
+    rtlGetVersionAddr uintptr
+)
+
+func init() {
+    // Resolve addresses once at startup
+    ldrLoadDllAddr, _ = winapi.GetNtdllFunctionAddress("LdrLoadDll")
+    ldrGetProcAddr, _ = winapi.GetNtdllFunctionAddress("LdrGetProcedureAddress")
+    rtlGetVersionAddr, _ = winapi.GetNtdllFunctionAddress("RtlGetVersion")
+}
+
+func FastCall() {
+    // Use cached addresses for maximum performance
+    winapi.DirectCall(rtlGetVersionAddr, args...)
+}
+```
+
+#### **Batch Function Discovery**
+```go
+// Get multiple functions at once
+functions, err := winapi.DumpAllNtdllFunctions()
+functionMap := make(map[string]uintptr)
+
+for _, function := range functions {
+    functionMap[function.Name] = function.Address
+}
+
+// Now all function addresses are available instantly
+addr := functionMap["LdrLoadDll"]
+winapi.DirectCall(addr, args...)
+```
+
+### Security & Evasion Benefits
+
+#### **API Hook Bypass**
+- **No LoadLibrary**: Uses LdrLoadDll directly from ntdll
+- **No GetProcAddress**: Uses LdrGetProcedureAddress directly from ntdll  
+- **Direct Calls**: Bypasses common API hooks in kernel32.dll
+- **Function Obfuscation**: Uses hashed function names for stealth
+
+#### **Detection Evasion**
+- **Low-Level Access**: Operates at the ntdll level, below most monitoring
+- **No Import Dependencies**: Doesn't import hooked functions
+- **Runtime Resolution**: Function addresses resolved at runtime, not in import table
+- **Diverse Function Access**: Can call any of 2,400+ ntdll functions
+
+### Use Cases
+
+#### **Malware Development**
+- Load additional DLLs without detection
+- Access Windows internals through Rtl functions
+- Bypass API monitoring and sandboxes
+- Implement custom loaders and injectors
+
+#### **Security Research** 
+- Explore the complete Windows API surface
+- Test hook bypasses and evasion techniques
+- Analyze Windows internal functions
+- Reverse engineer Windows components
+
+#### **System Administration**
+- Access low-level Windows functionality
+- Implement efficient system monitoring
+- Create custom diagnostic tools
+- Build performance-optimized applications
 
 ## Syscall Discovery & Analysis
 
@@ -1977,6 +2208,8 @@ bash build.sh
 # Scan for privilege escalation vectors (no files created)
 ./go-direct-syscall.exe -privesc
 
+
+
 # Self-injection with embedded calc shellcode (default for -example)
 ./go-direct-syscall.exe -example 
 
@@ -1991,6 +2224,8 @@ bash build.sh
 
 # The embedded shellcode is a simple calc.exe payload - replace GetEmbeddedShellcode() 
 # function with your own shellcode generated via donut, msfvenom, etc.
+
+
 ```
 ## Detection
 
