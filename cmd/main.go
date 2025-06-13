@@ -448,6 +448,20 @@ func main() {
 			os.Exit(1)
 		}
 		
+		// Prewarm the ntdll function cache and display statistics
+		debug.Printfln("MAIN", "Prewarming ntdll function cache...\n")
+		err = winapi.PrewarmNtdllCache()
+		if err != nil {
+			debug.Printfln("MAIN", "Failed to prewarm ntdll cache: %v\n", err)
+		} else {
+			stats := winapi.GetNtdllCacheStats()
+			debug.Printfln("MAIN", "✓ Ntdll cache initialized successfully\n")
+			debug.Printfln("MAIN", "  - Total functions cached: %d\n", stats["cache_size"])
+			debug.Printfln("MAIN", "  - Syscall functions: %d\n", stats["syscall_count"])
+			debug.Printfln("MAIN", "  - Regular functions: %d\n", stats["regular_func_count"])
+			debug.Printfln("MAIN", "  - Cache enabled: %v\n", stats["cache_enabled"])
+		}
+		
 		// Sort syscalls by syscall number for better readability
 		sort.Slice(syscalls, func(i, j int) bool {
 			return syscalls[i].SyscallNumber < syscalls[j].SyscallNumber

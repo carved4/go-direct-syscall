@@ -4,6 +4,7 @@ package winapi
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 	"unsafe"
 	
@@ -12,6 +13,13 @@ import (
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 	"github.com/carved4/go-direct-syscall/pkg/syscall"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
+)
+
+// Global cache for ntdll functions to avoid re-parsing PE on every call
+var (
+	ntdllFunctionCache map[string]*FunctionInfo
+	ntdllCacheMutex    sync.RWMutex
+	ntdllCacheInit     bool
 )
 
 // DirectSyscall executes a direct syscall by function name
@@ -1209,19 +1217,63 @@ func countSyscalls(functions []FunctionInfo) int {
 	return count
 }
 
-// FindNtdllFunction searches for a specific function in ntdll by name
-// Returns the function information including address for direct calling
-func FindNtdllFunction(functionName string) (*FunctionInfo, error) {
-	functions, err := DumpAllNtdllFunctions()
-	if err != nil {
-		return nil, fmt.Errorf("failed to enumerate ntdll functions: %v", err)
+// initNtdllCache initializes the ntdll function cache if not already done
+func initNtdllCache() error {
+	ntdllCacheMutex.Lock()
+	defer ntdllCacheMutex.Unlock()
+	
+	// Double-check locking pattern
+	if ntdllCacheInit {
+		return nil
 	}
 	
-	for _, function := range functions {
-		if function.Name == functionName {
-			debug.Printfln("WINAPI", "Found function %s at address 0x%X\n", functionName, function.Address)
-			return &function, nil
+	debug.Printfln("WINAPI", "Initializing ntdll function cache...\n")
+	
+	functions, err := DumpAllNtdllFunctions()
+	if err != nil {
+		return fmt.Errorf("failed to enumerate ntdll functions: %v", err)
+	}
+	
+	// Build the cache map
+	ntdllFunctionCache = make(map[string]*FunctionInfo, len(functions))
+	for i := range functions {
+		ntdllFunctionCache[functions[i].Name] = &functions[i]
+	}
+	
+	ntdllCacheInit = true
+	debug.Printfln("WINAPI", "Cached %d ntdll functions\n", len(ntdllFunctionCache))
+	
+	return nil
+}
+
+// FindNtdllFunction searches for a specific function in ntdll by name using cache
+// Returns the function information including address for direct calling
+func FindNtdllFunction(functionName string) (*FunctionInfo, error) {
+	// Try read lock first for cache lookup
+	ntdllCacheMutex.RLock()
+	if ntdllCacheInit {
+		if funcInfo, exists := ntdllFunctionCache[functionName]; exists {
+			ntdllCacheMutex.RUnlock()
+			debug.Printfln("WINAPI", "Found cached function %s at address 0x%X\n", functionName, funcInfo.Address)
+			return funcInfo, nil
 		}
+		ntdllCacheMutex.RUnlock()
+		return nil, fmt.Errorf("function %s not found in ntdll", functionName)
+	}
+	ntdllCacheMutex.RUnlock()
+	
+	// Cache not initialized, initialize it
+	if err := initNtdllCache(); err != nil {
+		return nil, err
+	}
+	
+	// Try lookup again after initialization
+	ntdllCacheMutex.RLock()
+	defer ntdllCacheMutex.RUnlock()
+	
+	if funcInfo, exists := ntdllFunctionCache[functionName]; exists {
+		debug.Printfln("WINAPI", "Found function %s at address 0x%X\n", functionName, funcInfo.Address)
+		return funcInfo, nil
 	}
 	
 	return nil, fmt.Errorf("function %s not found in ntdll", functionName)
@@ -1251,6 +1303,61 @@ func GetNtdllFunctionAddress(functionName string) (uintptr, error) {
 		return 0, err
 	}
 	return funcInfo.Address, nil
+}
+
+// PrewarmNtdllCache preloads all ntdll function information for better performance
+// This should be called early in your application to improve function resolution speed
+func PrewarmNtdllCache() error {
+	return initNtdllCache()
+}
+
+// GetNtdllCacheSize returns the number of cached ntdll functions
+func GetNtdllCacheSize() int {
+	ntdllCacheMutex.RLock()
+	defer ntdllCacheMutex.RUnlock()
+	
+	if !ntdllCacheInit {
+		return 0
+	}
+	return len(ntdllFunctionCache)
+}
+
+// GetNtdllCacheStats returns detailed cache statistics
+func GetNtdllCacheStats() map[string]interface{} {
+	ntdllCacheMutex.RLock()
+	defer ntdllCacheMutex.RUnlock()
+	
+	stats := map[string]interface{}{
+		"cache_enabled": ntdllCacheInit,
+		"cache_size":    0,
+		"syscall_count": 0,
+		"regular_func_count": 0,
+	}
+	
+	if ntdllCacheInit {
+		syscallCount := 0
+		for _, funcInfo := range ntdllFunctionCache {
+			if funcInfo.IsSyscall {
+				syscallCount++
+			}
+		}
+		
+		stats["cache_size"] = len(ntdllFunctionCache)
+		stats["syscall_count"] = syscallCount
+		stats["regular_func_count"] = len(ntdllFunctionCache) - syscallCount
+	}
+	
+	return stats
+}
+
+// ClearNtdllCache clears the function cache (useful for testing or memory cleanup)
+func ClearNtdllCache() {
+	ntdllCacheMutex.Lock()
+	defer ntdllCacheMutex.Unlock()
+	
+	ntdllFunctionCache = nil
+	ntdllCacheInit = false
+	debug.Printfln("WINAPI", "Ntdll function cache cleared\n")
 }
 
 // LdrLoadDll loads a DLL using the ntdll LdrLoadDll function  
