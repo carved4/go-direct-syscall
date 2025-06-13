@@ -274,6 +274,16 @@ const (
 // Wait constants
 const (
 	INFINITE = 0xFFFFFFFF
+	
+	// Wait result constants
+	WAIT_OBJECT_0  = 0x00000000
+	WAIT_ABANDONED = 0x00000080
+	WAIT_TIMEOUT   = 0x00000102
+	WAIT_FAILED    = 0xFFFFFFFF
+	
+	// Timeout values (in 100ns units)
+	// Negative values indicate relative timeouts
+	TIMEOUT_10_SECONDS = uint64(0xFFFFFFFF9502F900) // -100,000,000 as uint64 (10 seconds relative)
 )
 
 // Thread creation flags
