@@ -2,6 +2,7 @@
 package winapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"sync"
@@ -13,6 +14,7 @@ import (
 	"github.com/carved4/go-direct-syscall/pkg/obf"
 	"github.com/carved4/go-direct-syscall/pkg/syscall"
 	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
+	"github.com/carved4/go-direct-syscall/pkg/unhook"
 )
 
 // Global cache for ntdll functions to avoid re-parsing PE on every call
@@ -22,6 +24,10 @@ var (
 	ntdllCacheInit     bool
 )
 
+
+func UnhookNtdll() error {
+	return unhook.UnhookNtdll()
+}
 // DirectSyscall executes a direct syscall by function name
 // This is the main function library users should use
 func DirectSyscall(functionName string, args ...uintptr) (uintptr, error) {
@@ -1449,6 +1455,12 @@ func DumpAllSyscallsWithFiles() ([]SyscallInfo, error) {
 		fmt.Printf("Warning: Failed to generate Go syscall table: %v\n", err)
 	}
 
+	// Generate JSON file with regular (non-syscall) ntdll functions
+	err = generateNtdllFunctionsJSON()
+	if err != nil {
+		fmt.Printf("Warning: Failed to generate ntdll functions JSON: %v\n", err)
+	}
+
 	return syscalls, nil
 }
 
@@ -1555,6 +1567,111 @@ func GetSyscallCount() int {
 // writeFileContent writes content to a file (helper function)
 func writeFileContent(filename string, content []byte) error {
 	return os.WriteFile(filename, content, 0644)
+}
+
+// NtdllFunctionExport represents a non-syscall function export from ntdll for JSON serialization
+type NtdllFunctionExport struct {
+	Name           string `json:"name"`
+	Hash           string `json:"hash"`           // Hex string for readability
+	Address        string `json:"address"`        // Hex string for readability
+	IsSyscall      bool   `json:"is_syscall"`     // Always false for this export
+}
+
+// NtdllDumpResult represents the complete dump result for JSON serialization
+type NtdllDumpResult struct {
+	Timestamp    string                `json:"timestamp"`
+	SystemInfo   NtdllSystemInfo       `json:"system_info"`
+	Functions    []NtdllFunctionExport `json:"functions"`
+	TotalCount   int                   `json:"total_count"`
+	SyscallCount int                   `json:"syscall_count"`
+	RegularCount int                   `json:"regular_function_count"`
+}
+
+// NtdllSystemInfo represents system information for the dump
+type NtdllSystemInfo struct {
+	OS           string `json:"os"`
+	Architecture string `json:"architecture"`
+	NtdllBase    string `json:"ntdll_base"`
+}
+
+// generateNtdllFunctionsJSON creates a JSON file with all non-syscall ntdll functions
+func generateNtdllFunctionsJSON() error {
+	debug.Printfln("WINAPI", "Generating ntdll regular functions JSON (excluding syscalls)...\n")
+	
+	// Get all ntdll functions (both syscalls and regular functions)
+	functions, err := DumpAllNtdllFunctions()
+	if err != nil {
+		return fmt.Errorf("failed to enumerate ntdll functions: %v", err)
+	}
+	
+	// Convert to export format for JSON - exclude syscalls (they have their own JSON file)
+	var exports []NtdllFunctionExport
+	syscallCount := 0
+	
+	for _, function := range functions {
+		// Skip syscalls - they are saved in the separate syscall_dump_*.json file
+		if function.IsSyscall {
+			syscallCount++
+			continue
+		}
+		
+		export := NtdllFunctionExport{
+			Name:      function.Name,
+			Hash:      fmt.Sprintf("0x%08X", function.Hash),
+			Address:   fmt.Sprintf("0x%016X", function.Address),
+			IsSyscall: false, // All functions in this file are non-syscalls
+		}
+		
+		exports = append(exports, export)
+	}
+	
+	// Calculate ntdll base address from the first function
+	ntdllBase := "0x0"
+	if len(functions) > 0 {
+		firstAddr := functions[0].Address
+		// Round down to nearest 64KB boundary (typical DLL alignment)
+		baseAddr := firstAddr &^ 0xFFFF
+		ntdllBase = fmt.Sprintf("0x%016X", baseAddr)
+	}
+	
+	// Create the dump result
+	dumpResult := NtdllDumpResult{
+		Timestamp: time.Now().Format("2006-01-02T15:04:05Z07:00"),
+		SystemInfo: NtdllSystemInfo{
+			OS:           "Windows",
+			Architecture: "x64",
+			NtdllBase:    ntdllBase,
+		},
+		Functions:    exports,
+		TotalCount:   len(exports),
+		SyscallCount: syscallCount,
+		RegularCount: len(exports) - syscallCount,
+	}
+	
+	// Generate filename with timestamp
+	now := time.Now()
+	timestamp := fmt.Sprintf("%d%02d%02d_%02d%02d%02d", 
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), now.Second())
+	filename := fmt.Sprintf("ntdll_functions_%s.json", timestamp)
+	
+	// Marshal to JSON with proper indentation
+	jsonData, err := json.MarshalIndent(dumpResult, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed to marshal JSON: %v", err)
+	}
+	
+	// Write to file
+	err = writeFileContent(filename, jsonData)
+	if err != nil {
+		return fmt.Errorf("failed to write JSON file: %v", err)
+	}
+	
+	debug.Printfln("WINAPI", "✓ Ntdll regular functions JSON saved to: %s\n", filename)
+	debug.Printfln("WINAPI", "✓ Regular functions exported: %d (Syscalls excluded: %d)\n", 
+		len(exports), syscallCount)
+	debug.Printfln("WINAPI", "✓ File size: %.2f KB\n", float64(len(jsonData))/1024)
+	
+	return nil
 }
 
 // memoryReaderAt implements io.ReaderAt for in-memory data (copied from syscallresolve logic)
@@ -2006,5 +2123,4 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 
 	return nil
 }
-
 

@@ -112,6 +112,7 @@ import (
 
 func main() {
 	// Prewarm syscall cache
+    winapi.UnhookNtdll()
 	winapi.PrewarmSyscallCache()
 
 	// Declare shellcode
@@ -188,6 +189,7 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtInjectRemote` - Complete remote process injection using direct syscalls
 - `SelfDel` - Self-deletion of current executable using NT path format
 - `DirectCall` - Call any Windows API function by address
+- `UnhookNtdll` - Get a fresh copy of NTDLL from //KnownDlls
 
 **Security Bypass Functions:**
 - `PatchAMSI` - Disable Anti-Malware Scan Interface

