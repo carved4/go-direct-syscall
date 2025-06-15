@@ -197,14 +197,23 @@ func getSyscallNumbers() (map[string]uintptr, error) {
 
 	for _, fname := range funcs {
 		hash := obf.GetHash(fname)
+		
+		// First try GuessSyscallNumber (handles hooked functions better)
 		num := syscallresolve.GuessSyscallNumber(hash)
-		if num == 0 {
-			// Fallback to GetSyscallAndAddress if guessing fails
-			num, _, err := syscallresolve.GetSyscallAndAddress(hash)
-			if err != nil || num == 0 {
-				return nil, fmt.Errorf("failed to get syscall number for %s: %v", fname, err)
-			}
+		if num != 0 {
+			debug.Printfln("UNHOOK", "Got syscall number %d for %s via GuessSyscallNumber\n", num, fname)
+			numbers[fname] = uintptr(num)
+			continue
 		}
+		
+		// Fallback to GetSyscallAndAddress if guessing fails
+		debug.Printfln("UNHOOK", "GuessSyscallNumber failed for %s, trying GetSyscallAndAddress...\n", fname)
+		num, _ = syscallresolve.GetSyscallAndAddress(hash)
+		if num == 0 {
+			return nil, fmt.Errorf("failed to get syscall number for %s using both methods", fname)
+		}
+		
+		debug.Printfln("UNHOOK", "Got syscall number %d for %s via GetSyscallAndAddress\n", num, fname)
 		numbers[fname] = uintptr(num)
 	}
 
