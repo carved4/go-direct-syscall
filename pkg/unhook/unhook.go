@@ -197,9 +197,13 @@ func getSyscallNumbers() (map[string]uintptr, error) {
 
 	for _, fname := range funcs {
 		hash := obf.GetHash(fname)
-		num, _ := syscallresolve.GetSyscallAndAddress(hash)
+		num := syscallresolve.GuessSyscallNumber(hash)
 		if num == 0 {
-			return nil, fmt.Errorf("failed to get syscall number for %s", fname)
+			// Fallback to GetSyscallAndAddress if guessing fails
+			num, _, err := syscallresolve.GetSyscallAndAddress(hash)
+			if err != nil || num == 0 {
+				return nil, fmt.Errorf("failed to get syscall number for %s: %v", fname, err)
+			}
 		}
 		numbers[fname] = uintptr(num)
 	}

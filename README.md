@@ -189,7 +189,7 @@ The library provides strongly-typed wrappers for common Windows APIs:
 - `NtInjectRemote` - Complete remote process injection using direct syscalls
 - `SelfDel` - Self-deletion of current executable using NT path format
 - `DirectCall` - Call any Windows API function by address
-- `UnhookNtdll` - Get a fresh copy of NTDLL from //KnownDlls
+- `UnhookNtdll` - Get a fresh copy of NTDLL from //KnownDlls to restore hooked functions
 
 **Security Bypass Functions:**
 - `PatchAMSI` - Disable Anti-Malware Scan Interface
@@ -207,6 +207,22 @@ Get the syscall number for debugging purposes.
 
 #### `GetFunctionHash(functionName string) uint32`
 Get the hash of a function name for obfuscation.
+
+#### `GuessSyscallNumber(functionName string) uint16`
+Attempts to infer a syscall number for a hooked function by finding clean left and right neighbors and interpolating the missing number. This function is particularly useful when functions are hooked and normal syscall resolution fails.
+
+```go
+// Example: Guess syscall number for a potentially hooked function
+syscallNum := winapi.GuessSyscallNumber("NtAllocateVirtualMemory")
+if syscallNum != 0 {
+    fmt.Printf("Guessed syscall number: %d\n", syscallNum)
+}
+
+// Can also be called directly from syscallresolve package with hash
+import "github.com/carved4/go-direct-syscall/pkg/syscallresolve"
+hash := winapi.GetFunctionHash("NtAllocateVirtualMemory")
+syscallNum := syscallresolve.GuessSyscallNumber(hash)
+```
 
 #### `DumpAllSyscalls() ([]SyscallInfo, error)`
 Enumerate and dump all available syscalls from ntdll.dll with their syscall numbers, hashes, and addresses.
@@ -231,6 +247,30 @@ Load a DLL using the ntdll LdrLoadDll function - direct call to ntdll without go
 
 #### `LdrGetProcedureAddress(moduleHandle uintptr, functionName string) (uintptr, error)`
 Get the address of a function in a loaded module using ntdll - direct call without GetProcAddress.
+
+#### `UnhookNtdll() error`
+Restores a fresh copy of ntdll.dll from the `\\KnownDlls` section to bypass hooks installed by EDRs or other security products. This function maps a clean copy of ntdll directly from the Windows system cache, effectively removing any user-mode hooks.
+
+```go
+// Restore clean ntdll before performing sensitive operations
+err := winapi.UnhookNtdll()
+if err != nil {
+    fmt.Printf("Failed to unhook ntdll: %v\n", err)
+} else {
+    fmt.Println("Successfully restored clean ntdll")
+}
+
+// Now perform operations with unhooked ntdll
+winapi.PrewarmSyscallCache()
+err = winapi.NtInjectSelfShellcode(shellcode)
+```
+
+**How it works:**
+1. Opens `\\KnownDlls\\ntdll.dll` section object (Windows system cache)
+2. Maps the clean ntdll into current process memory
+3. Copies the clean `.text` section over the hooked version
+4. Restores original memory protection
+5. All subsequent syscalls use the clean, unhooked functions
 
 ### NT Status Code Helpers
 

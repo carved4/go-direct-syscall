@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 	"unsafe"
-	
+	"sort"
 	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-direct-syscall/pkg/debug"
 	"github.com/carved4/go-direct-syscall/pkg/obf"
@@ -658,6 +658,167 @@ func GetSyscallWithValidation(functionHash uint32) (uint16, bool, error) {
 	
 	return syscallNum, isValid, nil
 }
+
+// GuessSyscallNumber attempts to infer a syscall number for a hooked function
+// by finding clean left and right neighbors and interpolating the missing number.
+func GuessSyscallNumber(targetHash uint32) uint16 {
+	ntdllBase := GetModuleBase(obf.GetHash("ntdll.dll"))
+	if ntdllBase == 0 {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to get ntdll.dll base for delta guessing\n")
+		return 0
+	}
+
+	// Parse exports from NTDLL
+	dosHeader := (*[2]byte)(unsafe.Pointer(ntdllBase))
+	if dosHeader[0] != 'M' || dosHeader[1] != 'Z' {
+		debug.Printfln("SYSCALLRESOLVE", "Invalid DOS signature in NTDLL\n")
+		return 0
+	}
+
+	peOffset := *(*uint32)(unsafe.Pointer(ntdllBase + 0x3C))
+	file := (*[1024]byte)(unsafe.Pointer(ntdllBase + uintptr(peOffset)))
+	if file[0] != 'P' || file[1] != 'E' {
+		debug.Printfln("SYSCALLRESOLVE", "Invalid PE signature\n")
+		return 0
+	}
+
+	sizeOfImage := *(*uint32)(unsafe.Pointer(ntdllBase + uintptr(peOffset) + 24 + 56))
+	slice := unsafe.Slice((*byte)(unsafe.Pointer(ntdllBase)), sizeOfImage)
+	peFile, err := pe.NewFileFromMemory(&memoryReaderAt{data: slice})
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to parse NTDLL PE: %v\n", err)
+		return 0
+	}
+	exports, err := peFile.Exports()
+	if err != nil {
+		debug.Printfln("SYSCALLRESOLVE", "Failed to list NTDLL exports: %v\n", err)
+		return 0
+	}
+
+	// Sort exports by address
+	sort.Slice(exports, func(i, j int) bool {
+		return exports[i].VirtualAddress < exports[j].VirtualAddress
+	})
+
+	// Find the target function
+	targetIndex := -1
+	for i, exp := range exports {
+		if obf.GetHash(exp.Name) == targetHash {
+			targetIndex = i
+			break
+		}
+	}
+
+	if targetIndex == -1 {
+		debug.Printfln("SYSCALLRESOLVE", "Target function not found for hash 0x%X\n", targetHash)
+		return 0
+	}
+
+	// Helper function to check if a function is hooked
+	isCleanSyscall := func(addr uintptr) (bool, uint16) {
+		bytes := *(*[8]byte)(unsafe.Pointer(addr))
+		// Check for standard syscall stub pattern
+		if bytes[0] == 0x4C && bytes[1] == 0x8B && bytes[2] == 0xD1 && bytes[3] == 0xB8 {
+			syscallNum := uint16(bytes[4]) | uint16(bytes[5])<<8
+			return true, syscallNum
+		}
+		return false, 0
+	}
+
+	// Helper function to check if two function names are NT/ZW pairs
+	isNtZwPair := func(name1, name2 string) bool {
+		if len(name1) < 2 || len(name2) < 2 {
+			return false
+		}
+		// Check if one starts with Nt and other with Zw, and rest is same
+		if (name1[:2] == "Nt" && name2[:2] == "Zw" && name1[2:] == name2[2:]) ||
+		   (name1[:2] == "Zw" && name2[:2] == "Nt" && name1[2:] == name2[2:]) {
+			return true
+		}
+		return false
+	}
+
+	// First, check if there's a ZW/NT pair nearby (they have identical syscall numbers)
+	for offset := -5; offset <= 5; offset++ {
+		if offset == 0 {
+			continue
+		}
+		
+		pairIdx := targetIndex + offset
+		if pairIdx < 0 || pairIdx >= len(exports) {
+			continue
+		}
+
+		if isNtZwPair(exports[targetIndex].Name, exports[pairIdx].Name) {
+			pairAddr := ntdllBase + uintptr(exports[pairIdx].VirtualAddress)
+			if clean, syscallNum := isCleanSyscall(pairAddr); clean {
+				debug.Printfln("SYSCALLRESOLVE", "Found NT/ZW pair %s with syscall %d for target %s\n", 
+					exports[pairIdx].Name, syscallNum, exports[targetIndex].Name)
+				return syscallNum
+			}
+		}
+	}
+
+	// Find clean left neighbor
+	var leftSyscall uint16
+	var leftIndex int = -1
+	for i := targetIndex - 1; i >= 0 && i >= targetIndex-10; i-- {
+		addr := ntdllBase + uintptr(exports[i].VirtualAddress)
+		if clean, syscallNum := isCleanSyscall(addr); clean {
+			leftSyscall = syscallNum
+			leftIndex = i
+			break
+		}
+	}
+
+	// Find clean right neighbor  
+	var rightSyscall uint16
+	var rightIndex int = -1
+	for i := targetIndex + 1; i < len(exports) && i <= targetIndex+10; i++ {
+		addr := ntdllBase + uintptr(exports[i].VirtualAddress)
+		if clean, syscallNum := isCleanSyscall(addr); clean {
+			rightSyscall = syscallNum
+			rightIndex = i
+			break
+		}
+	}
+
+	// If we have both neighbors, interpolate
+	if leftIndex != -1 && rightIndex != -1 {
+		// Calculate the expected syscall number based on position
+		positionDiff := targetIndex - leftIndex
+		syscallDiff := rightSyscall - leftSyscall
+		indexDiff := rightIndex - leftIndex
+		
+		if indexDiff > 0 {
+			interpolated := leftSyscall + uint16((syscallDiff*uint16(positionDiff))/uint16(indexDiff))
+			debug.Printfln("SYSCALLRESOLVE", "Interpolated syscall %d for hash 0x%X between %s(%d) and %s(%d)\n", 
+				interpolated, targetHash, exports[leftIndex].Name, leftSyscall, exports[rightIndex].Name, rightSyscall)
+			return interpolated
+		}
+	}
+
+	// Fallback: use single neighbor with small offset
+	if leftIndex != -1 {
+		offset := targetIndex - leftIndex
+		guessed := leftSyscall + uint16(offset)
+		debug.Printfln("SYSCALLRESOLVE", "Guessed syscall %d for hash 0x%X using left neighbor %s(%d) + %d\n", 
+			guessed, targetHash, exports[leftIndex].Name, leftSyscall, offset)
+		return guessed
+	}
+
+	if rightIndex != -1 {
+		offset := rightIndex - targetIndex
+		guessed := rightSyscall - uint16(offset)
+		debug.Printfln("SYSCALLRESOLVE", "Guessed syscall %d for hash 0x%X using right neighbor %s(%d) - %d\n", 
+			guessed, targetHash, exports[rightIndex].Name, rightSyscall, offset)
+		return guessed
+	}
+
+	debug.Printfln("SYSCALLRESOLVE", "Failed to find clean neighbors for hash 0x%X\n", targetHash)
+	return 0
+}
+
 
 // PrewarmSyscallCache preloads common syscall numbers for better performance
 func PrewarmSyscallCache() error {

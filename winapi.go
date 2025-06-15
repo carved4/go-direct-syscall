@@ -83,6 +83,14 @@ func GetSyscallWithValidation(functionName string) (uint16, bool, error) {
 	return syscallresolve.GetSyscallWithValidation(functionHash)
 }
 
+// GuessSyscallNumber attempts to infer a syscall number for a hooked function
+// by finding clean left and right neighbors and interpolating the missing number.
+// This function is particularly useful when functions are hooked and normal syscall resolution fails.
+func GuessSyscallNumber(functionName string) uint16 {
+	functionHash := obf.GetHash(functionName)
+	return syscallresolve.GuessSyscallNumber(functionHash)
+}
+
 // PrewarmSyscallCache preloads common syscall numbers for better performance
 // This should be called early in your application to improve syscall resolution speed
 func PrewarmSyscallCache() error {
