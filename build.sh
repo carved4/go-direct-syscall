@@ -23,7 +23,7 @@ if [[ "$OSTYPE" == "msys" || "$OSTYPE" == "cygwin" ]]; then
     SYSCALL_LIB="libdo_syscall.a"
     CALL_LIB="libdo_call.a"
     INDIRECT_SYSCALL_LIB="libdo_indirect_syscall.a"
-    EXE_NAME="go-direct-syscall.exe"
+    EXE_NAME="go-native-syscall.exe"
     export CGO_ENABLED=1
 else
     # Linux/Unix
@@ -42,7 +42,7 @@ else
     SYSCALL_LIB="libdo_syscall.a"
     CALL_LIB="libdo_call.a"
     INDIRECT_SYSCALL_LIB="libdo_indirect_syscall.a"
-    EXE_NAME="go-direct-syscall"
+    EXE_NAME="go-native-syscall"
     export CGO_ENABLED=1
 fi
 

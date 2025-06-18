@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"strings"
 	"unsafe"
-	"github.com/carved4/go-direct-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/debug"
 )
 
 // ProcessInfo holds information about a discovered process

@@ -1,4 +1,4 @@
-// Package debug provides shared debug logging functionality for go-direct-syscall
+// Package debug provides shared debug logging functionality for go-native-syscall
 package debug
 
 import (

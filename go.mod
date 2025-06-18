@@ -1,4 +1,4 @@
-module github.com/carved4/go-direct-syscall
+module github.com/carved4/go-native-syscall
 
 go 1.20
 

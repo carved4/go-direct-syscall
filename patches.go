@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"unsafe"
 
-	"github.com/carved4/go-direct-syscall/pkg/obf"
-	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
+	"github.com/carved4/go-native-syscall/pkg/obf"
+	"github.com/carved4/go-native-syscall/pkg/syscallresolve"
 )
 
 func PatchAMSI() error {

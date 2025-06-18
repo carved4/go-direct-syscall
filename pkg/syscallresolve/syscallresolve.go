@@ -8,8 +8,8 @@ import (
 	"unsafe"
 	"sort"
 	"github.com/Binject/debug/pe"
-	"github.com/carved4/go-direct-syscall/pkg/debug"
-	"github.com/carved4/go-direct-syscall/pkg/obf"
+	"github.com/carved4/go-native-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/obf"
 )
 
 // Windows structures needed for PEB access

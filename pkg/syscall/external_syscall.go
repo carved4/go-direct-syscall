@@ -6,7 +6,7 @@ import (
 	"unsafe"
 	_ "unsafe" // for go:linkname
 	
-	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
+	"github.com/carved4/go-native-syscall/pkg/syscallresolve"
 )
 
 /*

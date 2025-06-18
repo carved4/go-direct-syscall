@@ -6,10 +6,10 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/carved4/go-direct-syscall/pkg/debug"
-	"github.com/carved4/go-direct-syscall/pkg/syscall"
-	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
-	"github.com/carved4/go-direct-syscall/pkg/obf"
+	"github.com/carved4/go-native-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/syscall"
+	"github.com/carved4/go-native-syscall/pkg/syscallresolve"
+	"github.com/carved4/go-native-syscall/pkg/obf"
 )
 
 const (

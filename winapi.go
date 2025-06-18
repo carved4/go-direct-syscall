@@ -10,11 +10,11 @@ import (
 	"unsafe"
 	
 	"github.com/Binject/debug/pe"
-	"github.com/carved4/go-direct-syscall/pkg/debug"
-	"github.com/carved4/go-direct-syscall/pkg/obf"
-	"github.com/carved4/go-direct-syscall/pkg/syscall"
-	"github.com/carved4/go-direct-syscall/pkg/syscallresolve"
-	"github.com/carved4/go-direct-syscall/pkg/unhook"
+	"github.com/carved4/go-native-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/obf"
+	"github.com/carved4/go-native-syscall/pkg/syscall"
+	"github.com/carved4/go-native-syscall/pkg/syscallresolve"
+	"github.com/carved4/go-native-syscall/pkg/unhook"
 )
 
 // Global cache for ntdll functions to avoid re-parsing PE on every call

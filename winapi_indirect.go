@@ -7,9 +7,9 @@ import (
 	"time"
 	"unsafe"
 	"os"
-	"github.com/carved4/go-direct-syscall/pkg/debug"
-	"github.com/carved4/go-direct-syscall/pkg/obf"
-	"github.com/carved4/go-direct-syscall/pkg/syscall"
+	"github.com/carved4/go-native-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/obf"
+	"github.com/carved4/go-native-syscall/pkg/syscall"
 )
 
 // IndirectSyscall executes an indirect syscall by function name

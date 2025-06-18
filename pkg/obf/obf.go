@@ -3,7 +3,7 @@ package obf
 
 import (
 	"sync"
-	"github.com/carved4/go-direct-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/debug"
 )
 
 // DBJ2HashStr calculates a hash for a string using the DBJ2 algorithm.
