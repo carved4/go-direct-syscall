@@ -1,12 +1,11 @@
-# Windows Direct Syscall Library for Go
+# Windows Native Syscall Library for Go
 
-> **TL;DR:** This Go library provides true direct syscalls on Windows (via custom NASM stubs), along with safe typed wrappers for shellcode injection, memory operations and AMSI/ETW bypass.  
+> **TL;DR:** This Go library provides both direct and indirect syscalls on Windows (via custom NASM stubs), along with safe typed wrappers for shellcode injection, memory operations and AMSI/ETW bypass.  
 > No `LoadLibrary`, no `GetProcAddress` and no AV-triggering WinAPI calls.  
 > *(Unless you explicitly use the `DirectCall` feature to invoke higher-level APIs like `CreateThread`, which still pass through `ntdll` and call `NtCreateThreadEx` internally.)*
 
 ## What This Is Not
 
-- Not a general-purpose Windows API wrapper for Go  
 - Not compatible with `golang.org/x/sys/windows` or Go's native `syscall` package  
 - Not a cross-architecture solution.. this library currently supports only 64-bit Windows targets  
 - Not a PE or DLL reflective loader, this library focuses on shellcode injection and direct NT syscall execution  
@@ -21,6 +20,7 @@
   - [Basic Usage](#basic-usage)
 - [API Reference](#api-reference)
   - [Core Functions](#core-functions)
+  - [Indirect Syscall Functions](#indirect-syscall-functions)
   - [Common API Functions](#common-api-functions)
   - [Utility Functions](#utility-functions)
   - [NT Status Code Helpers](#nt-status-code-helpers)
@@ -66,6 +66,8 @@
 ##  Features
 
 - **True Direct Syscalls**: Raw `syscall` instructions with manually resolved syscall numbers
+- **Indirect Syscalls**: Jump to syscall instructions in ntdll.dll for enhanced stealth and EDR evasion
+- **Dual Syscall Methods**: Choose between direct syscalls (raw instructions) or indirect syscalls (ntdll jumps)
 - **No API Dependencies**: Bypasses `GetProcAddress`, `LoadLibrary`, and all traditional Windows APIs
 - **External Assembly**: Intel NASM assembly compiled separately and linked via cgo
 - **Self-Injection Capability**: Built-in shellcode self-injection using NT APIs and CreateThread
@@ -100,6 +102,7 @@ go get github.com/carved4/go-direct-syscall
 ### Basic Usage
 > best results for shellcode execution come from https://github.com/Binject/go-donut - make your payloads with that :3
 
+**Direct Syscalls**
 ```go
 package main
 
@@ -111,19 +114,46 @@ import (
 )
 
 func main() {
-	// Prewarm syscall cache
+    // Unhook mr ntdll
     winapi.UnhookNtdll()
-	winapi.PrewarmSyscallCache()
 
 	// Declare shellcode
 	shellcode := []byte{/* im a shellcode */}
 
-	// Inject shellcode into current process
+	// Inject shellcode into current process using direct syscalls
 	err := winapi.NtInjectSelfShellcode(shellcode)
 	if err != nil {
-		fmt.Printf("Self-injection failed: %v\n", err)
+		fmt.Printf("Direct self-injection failed: %v\n", err)
 	} else {
-		fmt.Println("Self-injection succeeded")
+		fmt.Println("Direct self-injection succeeded")
+	}
+}
+```
+
+**Indirect Syscalls**
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+
+	winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+	// Unhook mr ntdll
+    winapi.UnhookNtdll()
+
+	// Declare shellcode
+	shellcode := []byte{/* im a shellcode */}
+
+	// Inject shellcode into current process using indirect syscalls
+	err := winapi.NtInjectSelfShellcodeIndirect(shellcode)
+	if err != nil {
+		fmt.Printf("Indirect self-injection failed: %v\n", err)
+	} else {
+		fmt.Println("Indirect self-injection succeeded")
 	}
 }
 ```
@@ -151,6 +181,125 @@ Execute syscalls using pre-computed function name hashes for obfuscation.
 ```go
 hash := winapi.GetFunctionHash("NtAllocateVirtualMemory")
 status, err := winapi.DirectSyscallByHash(hash, args...)
+```
+
+### Indirect Syscall Functions
+
+The library now provides comprehensive indirect syscall capabilities that jump to syscall instructions in ntdll.dll instead of executing raw syscall instructions. This provides enhanced stealth against EDR products that monitor direct syscall usage.
+
+#### `IndirectSyscall(functionName string, args ...uintptr) (uintptr, error)`
+Execute any Windows API function by name using indirect syscalls that jump to ntdll.
+
+```go
+// Call any NTDLL function using indirect syscalls
+status, err := winapi.IndirectSyscall("NtQuerySystemInformation", 
+    winapi.SystemBasicInformation,
+    uintptr(unsafe.Pointer(&buffer[0])),
+    uintptr(len(buffer)),
+    uintptr(unsafe.Pointer(&returnLength)),
+)
+```
+
+#### `IndirectSyscallByHash(functionHash uint32, args ...uintptr) (uintptr, error)`
+Execute indirect syscalls using pre-computed function name hashes for maximum obfuscation.
+
+```go
+hash := winapi.GetFunctionHash("NtAllocateVirtualMemory")
+status, err := winapi.IndirectSyscallByHash(hash, args...)
+```
+
+#### Complete Indirect API Coverage
+
+All direct syscall functions have corresponding indirect implementations with the "Indirect" suffix:
+
+**Process and Memory Management:**
+- `NtAllocateVirtualMemoryIndirect` - Allocate memory using indirect syscalls
+- `NtWriteVirtualMemoryIndirect` - Write to process memory via ntdll
+- `NtReadVirtualMemoryIndirect` - Read from process memory via ntdll
+- `NtProtectVirtualMemoryIndirect` - Change memory protection via ntdll
+- `NtFreeVirtualMemoryIndirect` - Free virtual memory via ntdll
+- `NtQueryVirtualMemoryIndirect` - Query virtual memory information via ntdll
+
+**Thread and Process Operations:**
+- `NtCreateThreadExIndirect` - Create threads using ntdll jumps
+- `NtOpenProcessIndirect` - Open process handles via ntdll
+- `NtTerminateProcessIndirect` - Terminate processes via ntdll
+- `NtSuspendProcessIndirect` - Suspend processes via ntdll
+- `NtResumeProcessIndirect` - Resume processes via ntdll
+- `NtCreateProcessIndirect` - Create new processes via ntdll
+
+**Thread Management:**
+- `NtCreateThreadIndirect` - Create threads via ntdll
+- `NtOpenThreadIndirect` - Open thread handles via ntdll
+- `NtSuspendThreadIndirect` - Suspend threads via ntdll
+- `NtResumeThreadIndirect` - Resume threads via ntdll
+- `NtTerminateThreadIndirect` - Terminate threads via ntdll
+
+**File System Operations:**
+- `NtCreateFileIndirect` - Create/open files via ntdll
+- `NtWriteFileIndirect` - Write to files via ntdll
+- `NtReadFileIndirect` - Read from files via ntdll
+- `NtDeleteFileIndirect` - Delete files via ntdll
+- `NtSetInformationFileIndirect` - Set file information via ntdll
+- `NtQueryInformationFileIndirect` - Query file information via ntdll
+
+**Security and Token Operations:**
+- `NtOpenProcessTokenIndirect` - Open process tokens via ntdll
+- `NtOpenThreadTokenIndirect` - Open thread tokens via ntdll
+- `NtQueryInformationTokenIndirect` - Query token information via ntdll
+- `NtSetInformationTokenIndirect` - Set token information via ntdll
+- `NtAdjustPrivilegesTokenIndirect` - Adjust token privileges via ntdll
+
+**Synchronization Objects:**
+- `NtCreateEventIndirect` - Create event objects via ntdll
+- `NtOpenEventIndirect` - Open event objects via ntdll
+- `NtSetEventIndirect` - Set events to signaled state via ntdll
+- `NtResetEventIndirect` - Reset events to non-signaled state via ntdll
+- `NtWaitForSingleObjectIndirect` - Wait for single objects via ntdll
+- `NtWaitForMultipleObjectsIndirect` - Wait for multiple objects via ntdll
+
+**High-Level Indirect Functions:**
+- `NtInjectSelfShellcodeIndirect` - Complete self-injection using only indirect syscalls
+- `NtInjectRemoteIndirect` - Complete remote process injection using only indirect syscalls
+- `SelfDelIndirect` - Self-deletion using only indirect syscalls
+
+#### Usage Example
+
+```go
+package main
+
+import (
+	"fmt"
+	"unsafe"
+
+	winapi "github.com/carved4/go-direct-syscall"
+)
+
+func main() {
+	// Unhook ntdll first
+	winapi.UnhookNtdll()
+	
+	// Use indirect syscalls for enhanced stealth
+	shellcode := []byte{/* your shellcode */}
+	
+	// Self-injection using indirect syscalls
+	err := winapi.NtInjectSelfShellcodeIndirect(shellcode)
+	if err != nil {
+		fmt.Printf("Indirect self-injection failed: %v\n", err)
+	} else {
+		fmt.Println("Indirect self-injection succeeded")
+	}
+	
+	// Remote injection using indirect syscalls
+	var processHandle uintptr
+	// ... open target process ...
+	err = winapi.NtInjectRemoteIndirect(processHandle, shellcode)
+	if err != nil {
+		fmt.Printf("Indirect remote injection failed: %v\n", err)
+	} else {
+		fmt.Println("Indirect remote injection succeeded")
+	}
+}
 ```
 
 ### Common API Functions
@@ -1339,6 +1488,7 @@ go build
 
 ### Architecture
 
+**Direct Syscalls:**
 ```
 Your Go Code
      ↓
@@ -1357,6 +1507,25 @@ Direct Syscall Instruction
 Windows NT Kernel
 ```
 
+**Indirect Syscalls:**
+```
+Your Go Code
+     ↓
+Library Interface (winapi_indirect.go)
+     ↓
+Hash Resolution (obf package)
+     ↓
+PE Parsing (syscallresolve package)
+     ↓
+cgo Bridge (syscall package)
+     ↓
+Raw NASM Assembly (do_indirect_syscall.S)
+     ↓
+Jump to ntdll.dll Syscall Instruction
+     ↓
+Windows NT Kernel
+```
+
 ### Direct Syscall Flow
 
 1. **Function Name** → **Hash** (DBJ2 algorithm)
@@ -1365,6 +1534,22 @@ Windows NT Kernel
 4. **Memory Reading** → Extract syscall number from function stub
 5. **Assembly Call** → Execute raw `syscall` instruction
 6. **Return** → NTSTATUS result
+
+### Indirect Syscall Flow
+
+1. **Function Name** → **Hash** (DBJ2 algorithm)
+2. **PEB Walking** → Find NTDLL base address (no LoadLibrary)
+3. **PE Parsing** → Find function address (no GetProcAddress)
+4. **Memory Reading** → Extract syscall number from function stub
+5. **Assembly Jump** → Jump to `syscall` instruction in ntdll.dll
+6. **Return** → NTSTATUS result
+
+The key difference is that indirect syscalls jump to the existing syscall instruction in ntdll rather than executing a raw syscall instruction. This provides enhanced stealth because:
+
+- **EDR Evasion**: Many EDR products monitor for raw syscall instructions but allow calls that originate from within ntdll
+- **Call Stack Legitimacy**: The call stack shows ntdll.dll as the caller, appearing more legitimate
+- **Hook Compatibility**: Works even when userland hooks are present since it uses the hooked functions as trampolines
+- **Reduced Signatures**: Avoids direct syscall instruction patterns that security products may flag
 
 ### Assembly Function
 
@@ -2292,7 +2477,7 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 ## Credits
 
 - **Original Concept**: Extracted from [Whitecat18's Rust implementation](https://github.com/Whitecat18/Rust-for-Malware-Development/tree/main/syscalls/direct_syscalls)
-- **Assembly Implementation**: Based on [janoglezcampos/rust_syscalls](https://github.com/janoglezcampos/rust_syscalls)
+- **Assembly Implementation**: Based on [janoglezcampos/rust_syscalls](https://github.com/janoglezcampos/rust_syscalls) THANK YOU
 
 ##  Disclaimer
 I am a college student with limited systems programming experience, this tool may not work as expected for all types of payloads or in all circumstances, if you run into an issue please submit it to me on this repo or send a DM on twitter or something I would really
