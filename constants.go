@@ -609,6 +609,13 @@ const (
 	SE_REMOTE_SHUTDOWN_PRIVILEGE         = 24
 )
 
+// Registry constants
+const (
+	KEY_ALL_ACCESS          = 0xF003F
+	REG_OPTION_NON_VOLATILE = 0
+	REG_SZ                  = 1
+)
+
 // LUID structure for privileges
 type LUID struct {
 	LowPart  uint32

