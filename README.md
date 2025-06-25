@@ -115,7 +115,7 @@ import (
 
 func main() {
     // Unhook mr ntdll
-      winapi.UnhookNtdll()
+        winapi.UnhookNtdll()
 
 	// Declare shellcode
 	shellcode := []byte{/* im a shellcode */}
@@ -143,7 +143,7 @@ import (
 
 func main() {
 	// Unhook mr ntdll
-      winapi.UnhookNtdll()
+        winapi.UnhookNtdll()
 
 	// Declare shellcode
 	shellcode := []byte{/* im a shellcode */}
