@@ -63,6 +63,7 @@
 - [Credits](#credits)
 - [Disclaimer](#disclaimer)
 
+>currently for whatever reason microsoft is the only vendor that detects the... readme? so you may get a win defender notification when go getting or git cloning, i really don't get it but alright!
 ##  Features
 
 - **True Direct Syscalls**: Raw `syscall` instructions with manually resolved syscall numbers
