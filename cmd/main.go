@@ -13,7 +13,6 @@ import (
 	"strings"
 	"time"
 	"unsafe"
-
 	winapi "github.com/carved4/go-native-syscall"
 	"github.com/carved4/go-native-syscall/pkg/debug"
 )
