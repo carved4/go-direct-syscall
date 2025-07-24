@@ -7,6 +7,12 @@
 #define TEB_TlsSlots 0x1480
 #define TEB_ArbitraryPtr 0x28
 
+// func wincall(libcall *libcall)
+TEXT ·wincall(SB),NOSPLIT,$0
+    MOVQ libcall+0(FP), CX
+    CALL ·do_call_internal(SB)
+    RET
+
 TEXT ·do_call(SB),NOSPLIT,$0
 	MOVQ	AX, CX
 	JMP	·do_call_internal(SB)
@@ -18,7 +24,7 @@ TEXT ·do_call_internal(SB),NOSPLIT,$16
 	MOVQ	AX, 8(SP)
 	MOVQ	CX, 0(SP)	// asmcgocall will put first argument into CX.
 
-	MOVQ	libcall_fn(CX), AX
+	MOVQ	libcall_fn(CX), R11  // Store function address in R11 (safe register)
 	MOVQ	libcall_args(CX), SI
 	MOVQ	libcall_n(CX), CX
 
@@ -27,6 +33,25 @@ TEXT ·do_call_internal(SB),NOSPLIT,$16
 	MOVL	$0, 0x68(DI)
 
 	SUBQ	$(const_maxArgs*8), SP	// room for args
+
+	// Copy arguments to our stack space to prevent GC issues
+	MOVQ	CX, R12		// Save arg count
+	MOVQ	SP, DI		// Destination for copy
+
+	// Manual copy loop instead of REP; MOVSQ
+	TESTQ	CX, CX
+	JZ	_copy_done
+	_copy_loop:
+		MOVQ	(SI), AX	// Load from source
+		MOVQ	AX, (DI)	// Store to destination
+		ADDQ	$8, SI		// Advance source
+		ADDQ	$8, DI		// Advance destination
+		DECQ	CX		// Decrement counter
+		JNZ	_copy_loop
+	_copy_done:
+
+	MOVQ	SP, SI		// Use copied args
+	MOVQ	R12, CX		// Restore arg count
 
 	// Fast version, do not store args on the stack.
 	CMPL	CX, $0;	JE	_0args
@@ -40,17 +65,15 @@ TEXT ·do_call_internal(SB),NOSPLIT,$16
 	JLE	2(PC)
 	INT	$3			// not enough room -> crash
 
-	// Copy args to the stack.
-	MOVQ	SP, DI
-	CLD
-	REP; MOVSQ
-	MOVQ	SP, SI
+	// SI already contains the args pointer from line 28, don't overwrite it!
+	// MOVQ	SP, SI  // <-- REMOVE THIS LINE
 
 	// Load first 4 args into correspondent registers.
 	// Floating point arguments are passed in the XMM
 	// registers. Set them here in case any of the arguments
 	// are floating point values. For details see
 	//	https://learn.microsoft.com/en-us/cpp/build/x64-calling-convention?view=msvc-170
+
 _4args:
 	MOVQ	24(SI), R9
 	MOVQ	R9, X3
@@ -66,7 +89,9 @@ _1args:
 _0args:
 
 	// Call stdcall function.
-	CALL	AX
+	SUBQ $32, SP  // Allocate shadow space
+	CALL	R11   // Call the preserved function address in R11
+	ADDQ $32, SP  // Clean up shadow space
 
 	ADDQ	$(const_maxArgs*8), SP
 

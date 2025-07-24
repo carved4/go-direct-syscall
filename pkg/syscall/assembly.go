@@ -43,7 +43,8 @@ func IndirectSyscall(syscallNum uint16, syscallAddr uintptr, args ...uintptr) (u
 	if trampoline == 0 {
 		return 0, fmt.Errorf("failed to find clean syscall;ret gadget in stub at 0x%X", syscallAddr)
 	}
-	
+
 	result := do_syscall_indirect(syscallNum, trampoline, args...)
 	return uintptr(result), nil
-} 
+}
+
