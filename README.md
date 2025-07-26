@@ -1,6 +1,6 @@
 # Windows Native Syscall Library for Go
 
-> **TL;DR:** This Go library provides both direct and indirect syscalls on Windows (via custom Plan9 stubs), along with safe typed wrappers for shellcode injection, memory operations and AMSI/ETW bypass.  
+> **TL;DR:** This Go library provides both direct and indirect syscalls on Windows (via Plan9 asm stubs), along with safe typed wrappers for shellcode injection, memory operations and AMSI/ETW bypass.  
 > No `LoadLibrary`, no `GetProcAddress` and no AV-triggering WinAPI calls.  
 > *(Unless you explicitly use the `DirectCall` feature to invoke higher-level APIs like `CreateThread`, which still pass through `ntdll` and call `NtCreateThreadEx` internally.)*
 
