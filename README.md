@@ -64,7 +64,6 @@
 - [Disclaimer](#disclaimer)
 
 >currently for whatever reason microsoft is the only vendor that detects the... readme? so you may get a win defender notification when go getting or git cloning, i really don't get it but alright!
-> direct_calls when loading or interacting with DLLs that require msvcrt.dll are subject to intermittent failure at the same fault address ending in 57, use carefully!
 ##  Features
 
 - **True Direct Syscalls**: Raw `syscall` instructions with manually resolved syscall numbers
@@ -86,7 +85,7 @@
 - **Dynamic Library Loading**: LdrLoadDll and LdrGetProcedureAddress implementation for stealth DLL operations
 - **LOTS of Constants**: All common Windows constants included
 - **Type Safety**: Strongly typed function signatures for common APIs
-
+> direct_calls when loading or interacting with DLLs that require msvcrt.dll are subject to intermittent failure at the same fault address ending in 57, use carefully!
 ## Demo
 
 ![demo2](https://github.com/user-attachments/assets/b78ed66a-0781-47ab-b407-3c5cb4470b39)
