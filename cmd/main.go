@@ -16,7 +16,6 @@ import (
 
 	winapi "github.com/carved4/go-native-syscall"
 	"github.com/carved4/go-native-syscall/pkg/debug"
-	"github.com/carved4/go-native-syscall/pkg/syscall"
 )
 
 // i made this project for go 1.20 and im sticking with it i cannot believe there is no built in min function pre 1.21
