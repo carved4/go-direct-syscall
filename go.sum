@@ -1,2 +1,4 @@
 github.com/Binject/debug v0.0.0-20230508195519-26db73212a7a h1:4c0nc0krv8eh7gD809n+swLaCuFyHpxdrxwx0ZmHvBw=
 github.com/Binject/debug v0.0.0-20230508195519-26db73212a7a/go.mod h1:QzgxDLY/qdKlvnbnb65eqTedhvQPbaSP2NqIbcuKvsQ=
+github.com/carved4/go-wincall v1.0.5 h1:bdbY+MEIoA7rMf6Le4InKGGARAaHJmT+5QzRJVFmrUI=
+github.com/carved4/go-wincall v1.0.5/go.mod h1:G1YIp2fkB2lSXE+2YtaucTRe6UIVQc0k57l9AzmI5kc=

