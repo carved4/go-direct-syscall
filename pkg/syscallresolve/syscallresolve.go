@@ -3,10 +3,11 @@ package syscallresolve
 
 import (
 	"fmt"
+	"runtime"
+	"sort"
 	"sync"
 	"time"
 	"unsafe"
-	"sort"
 	"github.com/Binject/debug/pe"
 	"github.com/carved4/go-native-syscall/pkg/debug"
 	"github.com/carved4/go-native-syscall/pkg/obf"
@@ -560,11 +561,8 @@ func tryExtractSyscallNumber(funcBytes []byte, funcAddr uintptr, functionHash ui
 		}
 	}
 
-	// Pattern 3: Hooked syscall detection (look for JMP instruction)
-	// If we find a JMP at the beginning, the function might be hooked
-	if funcBytes[0] == 0xe9 || funcBytes[0] == 0xeb || funcBytes[0] == 0xff {
-		debug.Printfln("SYSCALLRESOLVE", "Warning: Function at 0x%X appears to be hooked (starts with JMP: 0x%02X)\n", 
-			funcAddr, funcBytes[0])
+	// Enhanced hook detection - check for various hook patterns
+	if IsHooked(funcBytes, funcAddr, functionHash) {
 		return 0
 	}
 
@@ -819,6 +817,220 @@ func GuessSyscallNumber(targetHash uint32) uint16 {
 	return 0
 }
 
+// IsHooked performs comprehensive hook detection on a function
+func IsHooked(funcBytes []byte, funcAddr uintptr, functionHash uint32) bool {
+	if len(funcBytes) < 8 {
+		return true // Too small to be a valid syscall stub
+	}
+
+	// Pattern 1: Direct JMP hooks (most common)
+	// 0xe9 = JMP rel32, 0xeb = JMP rel8, 0xff = JMP r/m64
+	if funcBytes[0] == 0xe9 || funcBytes[0] == 0xeb || 
+	   (funcBytes[0] == 0xff && (funcBytes[1] & 0xf8) == 0x20) { // JMP [mem]
+		debug.Printfln("SYSCALLRESOLVE", "Hook detected: JMP instruction at start (0x%02X 0x%02X) for hash 0x%X\n", 
+			funcBytes[0], funcBytes[1], functionHash)
+		return true
+	}
+
+	// Pattern 2: PUSH/RET hook (trampoline style)
+	if funcBytes[0] == 0x68 { // PUSH imm32
+		debug.Printfln("SYSCALLRESOLVE", "Hook detected: PUSH/RET trampoline for hash 0x%X\n", functionHash)
+		return true
+	}
+
+	// Pattern 3: MOV to register + JMP (indirect hook)
+	if (funcBytes[0] == 0x48 || funcBytes[0] == 0x49) && // REX prefix
+	   (funcBytes[1] == 0xb8 || funcBytes[1] == 0xb9 || funcBytes[1] == 0xba) { // MOV to RAX/RCX/RDX
+		// Check if followed by JMP
+		for i := 2; i < len(funcBytes)-1 && i < 16; i++ {
+			if funcBytes[i] == 0xff && (funcBytes[i+1] & 0xf8) == 0xe0 { // JMP reg
+				debug.Printfln("SYSCALLRESOLVE", "Hook detected: MOV+JMP pattern for hash 0x%X\n", functionHash)
+				return true
+			}
+		}
+	}
+
+	// Pattern 4: INT3 breakpoint hook
+	if funcBytes[0] == 0xcc {
+		debug.Printfln("SYSCALLRESOLVE", "Hook detected: INT3 breakpoint for hash 0x%X\n", functionHash)
+		return true
+	}
+
+	// Pattern 5: NOP sled followed by hook (evasion technique)
+	nopCount := 0
+	for i := 0; i < len(funcBytes) && i < 8; i++ {
+		if funcBytes[i] == 0x90 { // NOP
+			nopCount++
+		} else {
+			break
+		}
+	}
+	if nopCount >= 3 { // Suspicious NOP sled
+		debug.Printfln("SYSCALLRESOLVE", "Hook detected: NOP sled (%d NOPs) for hash 0x%X\n", nopCount, functionHash)
+		return true
+	}
+
+	// Pattern 6: Inline patch detection - look for unexpected instructions
+	// A clean syscall should start with standard patterns
+	isStandardPattern := false
+	
+	// Check for standard syscall patterns
+	if len(funcBytes) >= 8 {
+		// Pattern: MOV R10, RCX; MOV EAX, imm
+		if funcBytes[0] == 0x4c && funcBytes[1] == 0x8b && funcBytes[2] == 0xd1 && funcBytes[3] == 0xb8 {
+			isStandardPattern = true
+		}
+		// Pattern: MOV EAX, imm; MOV R10, RCX  
+		if funcBytes[0] == 0xb8 && funcBytes[5] == 0x4c && funcBytes[6] == 0x8b && funcBytes[7] == 0xd1 {
+			isStandardPattern = true
+		}
+	}
+
+	if !isStandardPattern {
+		debug.Printfln("SYSCALLRESOLVE", "Hook detected: Non-standard syscall pattern for hash 0x%X\n", functionHash)
+		return true
+	}
+
+	// Pattern 7: Check for modified syscall number (syscall number should be reasonable)
+	if len(funcBytes) >= 8 && funcBytes[3] == 0xb8 {
+		syscallNum := uint16(funcBytes[4]) | (uint16(funcBytes[5]) << 8)
+		if syscallNum == 0 || syscallNum >= 2000 {
+			debug.Printfln("SYSCALLRESOLVE", "Hook detected: Invalid syscall number %d for hash 0x%X\n", syscallNum, functionHash)
+			return true
+		}
+	}
+
+	return false
+}
+
+// CleanSyscallStub represents a clean syscall stub that can be used as a template
+type CleanSyscallStub struct {
+	FunctionHash uint32
+	SyscallNumber uint16
+	StubBytes []byte
+	SyscallInstructionOffset int
+}
+
+// cleanStubCache stores verified clean syscall stubs
+var cleanStubCache = struct {
+	stubs map[uint32]*CleanSyscallStub
+	mutex sync.RWMutex
+}{
+	stubs: make(map[uint32]*CleanSyscallStub),
+}
+
+// CacheCleanStub stores a clean syscall stub for later use
+func CacheCleanStub(functionHash uint32, syscallNumber uint16, funcAddr uintptr) {
+	if funcAddr == 0 {
+		return
+	}
+
+	// Read the clean stub bytes
+	const stubSize = 32
+	stubBytes := make([]byte, stubSize)
+	for i := 0; i < stubSize; i++ {
+		stubBytes[i] = *(*byte)(unsafe.Pointer(funcAddr + uintptr(i)))
+	}
+	runtime.KeepAlive(stubBytes)
+
+	// Find the syscall instruction offset (0x0f 0x05)
+	syscallOffset := -1
+	for i := 0; i < len(stubBytes)-1; i++ {
+		if stubBytes[i] == 0x0f && stubBytes[i+1] == 0x05 {
+			syscallOffset = i
+			break
+		}
+	}
+
+	if syscallOffset == -1 {
+		debug.Printfln("SYSCALLRESOLVE", "Warning: No syscall instruction found in clean stub for hash 0x%X\n", functionHash)
+		return
+	}
+
+	cleanStubCache.mutex.Lock()
+	defer cleanStubCache.mutex.Unlock()
+
+	cleanStubCache.stubs[functionHash] = &CleanSyscallStub{
+		FunctionHash: functionHash,
+		SyscallNumber: syscallNumber,
+		StubBytes: stubBytes,
+		SyscallInstructionOffset: syscallOffset,
+	}
+
+	// Quietly cache the stub without debug spam
+}
+
+// GetCleanStubTemplate returns a clean syscall stub that can be used as a template
+func GetCleanStubTemplate() *CleanSyscallStub {
+	cleanStubCache.mutex.RLock()
+	defer cleanStubCache.mutex.RUnlock()
+
+	// Return any clean stub as a template (they all have the same structure)
+	for _, stub := range cleanStubCache.stubs {
+		return stub
+	}
+	return nil
+}
+
+// BuildDynamicSyscallStub creates a new syscall stub using a clean template
+func BuildDynamicSyscallStub(targetSyscallNumber uint16) ([]byte, error) {
+	template := GetCleanStubTemplate()
+	if template == nil {
+		return nil, fmt.Errorf("no clean syscall stub template available")
+	}
+
+	// Copy the template
+	newStub := make([]byte, len(template.StubBytes))
+	copy(newStub, template.StubBytes)
+	runtime.KeepAlive(template.StubBytes)
+
+	// Update the syscall number in the new stub
+	// Look for MOV EAX, imm32 instruction (0xb8)
+	for i := 0; i < len(newStub)-4; i++ {
+		if newStub[i] == 0xb8 { // MOV EAX, imm32
+			// Replace the syscall number (little endian)
+			newStub[i+1] = byte(targetSyscallNumber & 0xff)
+			newStub[i+2] = byte((targetSyscallNumber >> 8) & 0xff)
+			newStub[i+3] = 0x00
+			newStub[i+4] = 0x00
+			
+			// Built dynamic syscall stub successfully
+			runtime.KeepAlive(newStub)
+			return newStub, nil
+		}
+	}
+	
+	runtime.KeepAlive(newStub)
+
+	return nil, fmt.Errorf("failed to find syscall number location in template")
+}
+
+// GetSyscallNumberWithHookHandling attempts to get syscall number, handling hooks gracefully
+func GetSyscallNumberWithHookHandling(functionHash uint32) (uint16, bool) {
+	// First try normal resolution
+	syscallNum := GetSyscallNumber(functionHash)
+	if syscallNum != 0 {
+		// Cache the clean stub if we got a valid result
+		ntdllBase := GetModuleBase(obf.GetHash("ntdll.dll"))
+		if ntdllBase != 0 {
+			funcAddr := GetFunctionAddress(ntdllBase, functionHash)
+			if funcAddr != 0 {
+				CacheCleanStub(functionHash, syscallNum, funcAddr)
+			}
+		}
+		return syscallNum, false // Not hooked
+	}
+
+	// If normal resolution failed, try guessing (handles hooked functions)
+	guessedNum := GuessSyscallNumber(functionHash)
+	if guessedNum != 0 {
+		debug.Printfln("SYSCALLRESOLVE", "Function appears hooked, using guessed syscall number %d for hash 0x%X\n", 
+			guessedNum, functionHash)
+		return guessedNum, true // Hooked
+	}
+
+	return 0, true // Failed and likely hooked
+}
 
 // PrewarmSyscallCache preloads common syscall numbers for better performance
 func PrewarmSyscallCache() error {
@@ -881,7 +1093,8 @@ func PrewarmSyscallCache() error {
 	
 	for _, funcName := range commonFunctions {
 		functionHash := obf.GetHash(funcName)
-		GetSyscallNumber(functionHash)
+		// Use the hook-aware resolution which also caches clean stubs
+		GetSyscallNumberWithHookHandling(functionHash)
 	}
 	
 	return nil
