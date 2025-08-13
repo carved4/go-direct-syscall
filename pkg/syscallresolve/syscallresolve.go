@@ -195,7 +195,7 @@ func GetModuleBase(moduleHash uint32) uintptr {
 			baseName := UTF16ToString(dataTableEntry.BaseDllName.Buffer)
 			
 			// Calculate the hash of the module name
-			currentHash := obf.DBJ2HashStr(baseName)
+			currentHash :=  obf.GetHash(baseName)
 			
 			// If the hash matches, return the module base
 			if currentHash == moduleHash {
@@ -276,7 +276,7 @@ func GetFunctionAddress(moduleBase uintptr, functionHash uint32) uintptr {
 	// Search for the function by hash
 	for _, export := range exports {
 		if export.Name != "" {
-			currentHash := obf.DBJ2HashStr(export.Name)
+			currentHash :=  obf.GetHash(export.Name)
 			if currentHash == functionHash {
 				// Return the function address (module base + RVA)
 				return moduleBase + uintptr(export.VirtualAddress)

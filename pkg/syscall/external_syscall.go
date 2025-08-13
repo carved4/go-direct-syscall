@@ -88,15 +88,15 @@ func HashIndirectSyscall(functionHash uint32, args ...uintptr) (uintptr, error) 
 }
 
 func initAddresses() {
-	kernel32Hash := obf.DBJ2HashStr("kernel32.dll")
+	kernel32Hash := obf.GetHash("kernel32.dll")
 	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
 	if kernel32Base == 0 {
 		return
 	}
-	loadLibraryWHash := obf.DBJ2HashStr("LoadLibraryW")
+	loadLibraryWHash := obf.GetHash("LoadLibraryW")
 	loadLibraryWAddr = syscallresolve.GetFunctionAddress(kernel32Base, loadLibraryWHash)
 
-	getProcAddressHash := obf.DBJ2HashStr("GetProcAddress")
+	getProcAddressHash := obf.GetHash("GetProcAddress")
 	getProcAddressAddr = syscallresolve.GetFunctionAddress(kernel32Base, getProcAddressHash)
 }
 
@@ -122,7 +122,7 @@ func getGetProcAddressAddr() uintptr {
 }
 
 func IsDebuggerPresent() bool {
-	kernel32Hash := obf.DBJ2HashStr("kernel32.dll")
+	kernel32Hash := obf.GetHash("kernel32.dll")
 	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
 	procName, _ := BytePtrFromString("IsDebuggerPresent")
 	isDebuggerPresentAddr := GetProcAddress(kernel32Base, unsafe.Pointer(procName))
@@ -134,7 +134,7 @@ func IsDebuggerPresent() bool {
 }
 
 func CheckRemoteDebuggerPresent(hProcess uintptr, pbDebuggerPresent *bool) error {
-	kernel32Hash := obf.DBJ2HashStr("kernel32.dll")
+	kernel32Hash := obf.GetHash("kernel32.dll")
 	kernel32Base := syscallresolve.GetModuleBase(kernel32Hash)
 	procName, _ := BytePtrFromString("CheckRemoteDebuggerPresent")
 	checkRemoteDebuggerPresentAddr := GetProcAddress(kernel32Base, unsafe.Pointer(procName))
